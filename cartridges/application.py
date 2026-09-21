@@ -39,6 +39,7 @@ class Application(Adw.Application):
 
     def _present_about_dialog(self):
         about = Adw.AboutDialog(appdata_resource_path=f"{PREFIX}/{APP_ID}.metainfo.xml")
+        about.props.developers = ["kramo", "samuelm333"]
         # Translators: Replace "translator-credits" with your name/username,
         # and optionally a URL or an email in <user@example.org> format.
         about.props.translator_credits = _("translator-credits")

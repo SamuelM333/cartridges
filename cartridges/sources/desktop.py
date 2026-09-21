@@ -30,6 +30,7 @@ _DESKTOP_PATHS = (
 
 _FILE_BLACKLIST = (
     "page.kramo.Cartridges.*",
+    "page.samuelm333.Cartridges.*",
     "net.lutris.*",
 )
 _EXECUTABLE_BLACKLIST = (
@@ -42,6 +43,8 @@ _FLATPAK_ID_BLACKLIST = frozenset((
     "hu.kramo.Cartridges.Devel",
     "page.kramo.Cartridges",
     "page.kramo.Cartridges.Devel",
+    "page.samuelm333.Cartridges",
+    "page.samuelm333.Cartridges.Devel",
     "com.heroicgameslauncher.hgl",
     "com.usebottles.bottles",
     "com.valvesoftware.Steam",
