@@ -91,10 +91,13 @@ def _game_from(path: Path) -> Game:
     if any(exe.startswith(cmd) for cmd in _EXECUTABLE_BLACKLIST):
         raise ValueError
 
-    with suppress(GLib.Error):
-        if file.get_string("Desktop Entry", "X-Flatpak") in _FLATPAK_ID_BLACKLIST:
-            raise ValueError
+    try:
+        file.get_string("Desktop Entry", "X-Flatpak")
+        raise ValueError
+    except GLib.Error:
+        pass
 
+    with suppress(GLib.Error):
         if not _try_exec(file.get_string("Desktop Entry", "TryExec")):
             raise ValueError
 

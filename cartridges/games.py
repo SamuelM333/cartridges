@@ -13,7 +13,7 @@ from typing import Any, NamedTuple, Self
 
 from gi.repository import Gdk, Gio, GObject
 
-from . import DATA_DIR
+from . import DATA_DIR, SETTINGS
 
 GAMES_DIR = DATA_DIR / "games"
 
@@ -96,6 +96,11 @@ class Game(Gio.SimpleActionGroup):
             start_new_session=True,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
         )
+
+        if SETTINGS.get_boolean("exit-after-launch"):
+            app = Gio.Application.get_default()
+            if app:
+                app.quit()
 
     def save(self):
         """Save the game's properties to disk."""

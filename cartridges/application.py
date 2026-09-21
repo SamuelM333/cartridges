@@ -24,9 +24,11 @@ class Application(Adw.Application):
         self.props.style_manager.props.color_scheme = Adw.ColorScheme.PREFER_DARK
 
         self.add_action_entries((
+            ("preferences", lambda *_: self._present_preferences_dialog()),
             ("about", lambda *_: self._present_about_dialog()),
             ("quit", lambda *_: self.quit()),
         ))
+        self.set_accels_for_action("app.preferences", (f"{PRIMARY_KEY}comma",))
         self.set_accels_for_action("app.quit", (f"{PRIMARY_KEY}q",))
 
         sources.load()
@@ -44,3 +46,7 @@ class Application(Adw.Application):
         # and optionally a URL or an email in <user@example.org> format.
         about.props.translator_credits = _("translator-credits")
         about.present(self.props.active_window)
+
+    def _present_preferences_dialog(self):
+        from .ui.preferences import CartridgesPreferences
+        CartridgesPreferences().present(self.props.active_window)

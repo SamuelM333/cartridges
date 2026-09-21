@@ -10,7 +10,7 @@ from typing import Any, cast
 
 from gi.repository import Adw, Gio, GLib, GObject, Gtk
 
-from cartridges import STATE_SETTINGS
+from cartridges import SETTINGS, STATE_SETTINGS
 from cartridges.collections import Collection
 from cartridges.config import PREFIX, PROFILE
 from cartridges.games import Game
@@ -189,8 +189,13 @@ class Window(Adw.ApplicationWindow):
     @Gtk.Template.Callback()
     def _show_details(self, grid: Gtk.GridView, position: int):
         model = cast(Gio.ListModel[Game], grid.props.model)
-        self.details.game = model.get_item(position)
-        self.navigation_view.push_by_tag("details")
+        game = model.get_item(position)
+        if game is not None:
+            if SETTINGS.get_boolean("cover-launches-game"):
+                game.play()
+            else:
+                self.details.game = game
+                self.navigation_view.push_by_tag("details")
 
     @Gtk.Template.Callback()
     def _search_started(self, entry: Gtk.SearchEntry):

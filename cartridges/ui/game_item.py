@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2025 kramo
 
+from gettext import gettext as _
 from typing import Any
 
 from gi.repository import GObject, Gtk
 
+from cartridges import SETTINGS
 from cartridges.config import PREFIX
 from cartridges.games import Game
 
@@ -36,6 +38,17 @@ class GameItem(Gtk.Box):
         self.insert_action_group("game", self.game_actions)
         self.insert_action_group("collection", self.collection_actions)
         self._reveal_buttons()
+
+        SETTINGS.connect("changed::cover-launches-game", self._update_play_button)
+        self._update_play_button()
+
+    def _update_play_button(self, *_args: Any) -> None:
+        if SETTINGS.get_boolean("cover-launches-game"):
+            self.play.set_label(_("Details"))
+            self.play.set_action_name("game.details")
+        else:
+            self.play.set_label(_("Play"))
+            self.play.set_action_name("game.play")
 
     @Gtk.Template.Callback()
     def _reveal_buttons(self, *_args):

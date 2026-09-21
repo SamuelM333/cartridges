@@ -1,0 +1,30 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $CoverPicker: Adw.Dialog {
+  title: _("Choose Cover Art");
+  content-width: 600;
+  content-height: 400;
+
+  child: Adw.ToolbarView {
+    [top]
+    Adw.HeaderBar {}
+
+    content: ScrolledWindow {
+      hscrollbar-policy: never;
+      child: FlowBox flowbox {
+        name: "flowbox";
+        selection-mode: none;
+        max-children-per-line: 3;
+        min-children-per-line: 3;
+        column-spacing: 12;
+        row-spacing: 12;
+        margin-top: 12;
+        margin-bottom: 12;
+        margin-start: 12;
+        margin-end: 12;
+      };
+    };
+  };
+}
+

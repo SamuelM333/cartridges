@@ -41,6 +41,7 @@ class GameActions(Gio.SimpleActionGroup):
             ("add", lambda *_: add()),
             ("edit", lambda *_: edit(self.game)),
             ("play", lambda *_: self.game.play()),
+            ("details", lambda *_: self._show_details()),
             ("hide", lambda *_: hide(self.game)),
             ("unhide", lambda *_: unhide(self.game)),
             ("remove", lambda *_: remove(self.game)),
@@ -56,15 +57,24 @@ class GameActions(Gio.SimpleActionGroup):
 
         edit_action = cast(Gio.SimpleAction, self.lookup_action("edit"))
         play_action = cast(Gio.SimpleAction, self.lookup_action("play"))
+        details_action = cast(Gio.SimpleAction, self.lookup_action("details"))
         hide_action = cast(Gio.SimpleAction, self.lookup_action("hide"))
         unhide_action = cast(Gio.SimpleAction, self.lookup_action("unhide"))
         remove_action = cast(Gio.SimpleAction, self.lookup_action("remove"))
 
         has_game.bind(edit_action, "enabled", self)
         has_game.bind(play_action, "enabled", self)
+        has_game.bind(details_action, "enabled", self)
         Gtk.TryExpression.new((hidden, false)).bind(unhide_action, "enabled", self)
         Gtk.TryExpression.new((not_hidden, false)).bind(hide_action, "enabled", self)
         Gtk.TryExpression.new((not_removed, false)).bind(remove_action, "enabled", self)
+
+    def _show_details(self) -> None:
+        app = Gio.Application.get_default()
+        if app is not None and app.props.active_window is not None:
+            win = app.props.active_window
+            win.details.game = self.game
+            win.navigation_view.push_by_tag("details")
 
 
 class GameEditable(GObject.Object):
