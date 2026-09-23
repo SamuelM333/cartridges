@@ -1,5 +1,4 @@
 using Gtk 4.0;
-using Gdk 4.0;
 using Adw 1;
 using GObject 2.0;
 
@@ -92,8 +91,73 @@ template $GameDetails: Adw.NavigationPage {
             margin-end: 24;
             spacing: 36;
 
-            $Cover {
-              paintable: bind try { template.game as <$Game>.cover, null } as <Gdk.Paintable>;
+            Overlay {
+              $Cover cover_widget {
+                paintable: bind template.cover-paintable;
+              }
+
+              [overlay]
+              Button cover_button_edit {
+                icon-name: "folder-symbolic";
+                tooltip-text: _("Browse files");
+                halign: end;
+                valign: end;
+                margin-bottom: 6;
+                margin-end: 6;
+                visible: bind template.editing;
+                clicked => $_choose_local_cover();
+
+                styles [
+                  "circular",
+                  "osd",
+                ]
+              }
+
+              [overlay]
+              Button cover_button_sgdb {
+                icon-name: "globe-symbolic";
+                tooltip-text: _("Browse SteamGridDB");
+                halign: end;
+                valign: end;
+                margin-bottom: 6;
+                margin-end: 46;
+                visible: bind template.editing;
+                clicked => $_choose_cover();
+
+                styles [
+                  "circular",
+                  "osd",
+                ]
+              }
+
+              [overlay]
+              Revealer cover_button_delete_revealer {
+                transition-type: crossfade;
+                halign: end;
+                valign: end;
+                margin-bottom: 6;
+                margin-end: 86;
+                visible: bind template.editing;
+                reveal-child: bind template.cover-delete-revealed;
+
+                Button cover_button_delete {
+                  icon-name: "user-trash-symbolic";
+                  tooltip-text: _("Delete Cover");
+                  clicked => $_delete_cover();
+
+                  styles [
+                    "circular",
+                    "osd",
+                  ]
+                }
+              }
+
+              [overlay]
+              Adw.Spinner cover_spinner {
+                halign: center;
+                valign: center;
+                visible: bind template.cover-loading;
+              }
             }
 
             Adw.ViewStack stack {

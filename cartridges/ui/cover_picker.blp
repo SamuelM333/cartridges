@@ -3,8 +3,8 @@ using Adw 1;
 
 template $CoverPicker: Adw.Dialog {
   title: _("Choose Cover Art");
-  content-width: 600;
-  content-height: 400;
+  content-width: 800;
+  content-height: 580;
 
   child: Adw.ToolbarView {
     [top]
@@ -12,19 +12,19 @@ template $CoverPicker: Adw.Dialog {
 
     content: ScrolledWindow {
       hscrollbar-policy: never;
+
       child: FlowBox flowbox {
         name: "flowbox";
         selection-mode: none;
-        max-children-per-line: 3;
+        max-children-per-line: 4;
         min-children-per-line: 3;
-        column-spacing: 12;
-        row-spacing: 12;
-        margin-top: 12;
-        margin-bottom: 12;
-        margin-start: 12;
-        margin-end: 12;
+        column-spacing: 16;
+        row-spacing: 16;
+        margin-top: 16;
+        margin-bottom: 16;
+        margin-start: 16;
+        margin-end: 16;
       };
     };
   };
 }
-
