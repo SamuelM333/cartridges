@@ -2,22 +2,28 @@
 # SPDX-FileCopyrightText: Copyright 2025 Zoey Ahmed
 # SPDX-FileCopyrightText: Copyright 2022-2026 kramo
 
-import os
+import logging
 import re
 import sys
-from collections.abc import Generator
+from collections.abc import Callable
 from gettext import gettext as _
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from .window import Window
 
 from gi.repository import Adw, Gio, GLib, Gtk
 
 from cartridges import SETTINGS, STATE_SETTINGS
 from cartridges.config import PREFIX, PROFILE
 
+_logger = logging.getLogger(__name__)
 
-# Validation rules mapping: schema_key -> (list of (subpath, is_directory), error_subtitle)
-_LOCATION_VALIDATION = {
+
+# Validation rules mapping:
+# schema_key -> (list of (subpath, is_directory), error_subtitle)
+_LOCATION_VALIDATION: dict[str, tuple[list[tuple[str, bool]], str]] = {
     "steam-location": (
         [
             ("steamapps/libraryfolders.vdf", False),
@@ -133,6 +139,9 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     sgdb_fetch_button: Gtk.Button = Gtk.Template.Child()
     sgdb_stack: Gtk.Stack = Gtk.Template.Child()
     sgdb_spinner: Adw.Spinner = Gtk.Template.Child()
+    sgdb_progress_row: Adw.ActionRow = Gtk.Template.Child()
+    sgdb_progress_bar: Gtk.ProgressBar = Gtk.Template.Child()
+    sgdb_status_row: Adw.ActionRow = Gtk.Template.Child()
 
     # Danger Zone
     remove_all_games_button_row: Adw.ButtonRow = Gtk.Template.Child()
@@ -181,7 +190,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
             "sgdb-animated",
         }
         for key in switches:
-            switch = getattr(self, f'{key.replace("-", "_")}_switch', None)
+            switch = getattr(self, f"{key.replace('-', '_')}_switch", None)
             if switch is not None:
                 SETTINGS.bind(
                     key,
@@ -254,15 +263,27 @@ class CartridgesPreferences(Adw.PreferencesDialog):
 
     def _on_chooser_clicked(self, _btn: Gtk.Button, schema_key: str) -> None:
         """Open folder dialog to select a folder."""
-        self.file_chooser.select_folder(self, None, self._on_folder_selected, schema_key)
+        root = self.get_root()
+        parent_window = root if isinstance(root, Gtk.Window) else None
+        self.file_chooser.select_folder(
+            parent_window, None, self._on_folder_selected, schema_key
+        )
 
-    def _on_folder_selected(self, file_dialog: Gtk.FileDialog, result: Gio.AsyncResult, schema_key: str) -> None:
+    def _on_folder_selected(
+        self,
+        file_dialog: Gtk.FileDialog,
+        result: Gio.AsyncResult,
+        schema_key: str,
+    ) -> None:
         """Process result when a folder is picked."""
         try:
             gfile = file_dialog.select_folder_finish(result)
             if not gfile:
                 return
-            path = Path(gfile.get_path())
+            gpath = gfile.get_path()
+            if not gpath:
+                return
+            path = Path(gpath)
         except GLib.Error:
             return
 
@@ -277,21 +298,20 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         """Validate if a candidate path matches the subpath rules."""
         if schema_key not in _LOCATION_VALIDATION:
             return True
-        rules, _ = _LOCATION_VALIDATION[schema_key]
+        rules, _subtitle = _LOCATION_VALIDATION[schema_key]
         for subpath, is_dir in rules:
             p = path / subpath
             if is_dir:
                 if not p.is_dir():
                     return False
-            else:
-                if not p.is_file():
-                    return False
+            elif not p.is_file():
+                return False
         return True
 
     def _show_invalid_dialog(self, schema_key: str) -> None:
         """Show and alert user about invalid directory configuration."""
-        _, invalid_subtitle = _LOCATION_VALIDATION[schema_key]
-        source_name = schema_key.split("-")[0].capitalize()
+        _rules, invalid_subtitle = _LOCATION_VALIDATION[schema_key]
+        source_name = schema_key.split("-", maxsplit=1)[0].capitalize()
         dialog = Adw.AlertDialog(
             title=_("Invalid Directory"),
             body=invalid_subtitle.format(source_name),
@@ -301,7 +321,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
 
     def _update_subtitles(self) -> None:
         """Update subtitle path descriptions for all configuration rows."""
-        action_rows = {
+        action_rows: dict[str, Adw.ActionRow] = {
             "steam-location": self.steam_data_action_row,
             "lutris-location": self.lutris_data_action_row,
             "heroic-location": self.heroic_config_action_row,
@@ -312,20 +332,19 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         }
 
         for key, row in action_rows.items():
-            if row is not None:
-                val = SETTINGS.get_string(key)
-                if val:
-                    subtitle = str(Path(os.path.expanduser(val)))
-                    if sys.platform.startswith("linux"):
-                        subtitle = re.sub(r"/run/user/\d*/doc/.*/", "", subtitle)
-                        subtitle = re.sub(f"^{str(Path.home())}", "~", subtitle)
-                    row.set_subtitle(subtitle)
-                else:
-                    row.set_subtitle(_("Select Location"))
+            val = SETTINGS.get_string(key)
+            if val:
+                subtitle = str(Path(val).expanduser())
+                if sys.platform.startswith("linux"):
+                    subtitle = re.sub(r"/run/user/\d*/doc/.*/", "", subtitle)
+                    subtitle = re.sub(f"^{Path.home()!s}", "~", subtitle)
+                row.set_subtitle(subtitle)
+            else:
+                row.set_subtitle(_("Select Location"))
 
     def _update_warnings(self) -> None:
         """Render or remove error warning badges next to rows."""
-        action_rows = {
+        action_rows: dict[str, Adw.ActionRow] = {
             "steam-location": self.steam_data_action_row,
             "lutris-location": self.lutris_data_action_row,
             "heroic-location": self.heroic_config_action_row,
@@ -336,11 +355,10 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         }
 
         for key, row in action_rows.items():
-            if row is not None:
-                val = SETTINGS.get_string(key)
-                valid = True
-                if val:
-                    valid = self._check_location(key, Path(os.path.expanduser(val)))
+            val = SETTINGS.get_string(key)
+            valid = True
+            if val:
+                valid = self._check_location(key, Path(val).expanduser())
 
                 if not valid:
                     if key not in self._warning_widgets:
@@ -365,7 +383,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
                                 margin_end=12,
                             ),
                         )
-                        popover.connect("show", lambda w: self.set_focus(w))
+                        popover.connect("show", self.set_focus)
 
                         warning_btn = Gtk.MenuButton(
                             icon_name="dialog-warning-symbolic",
@@ -376,10 +394,9 @@ class CartridgesPreferences(Adw.PreferencesDialog):
                         warning_btn.add_css_class("warning")
                         row.add_prefix(warning_btn)
                         self._warning_widgets[key] = warning_btn
-                else:
-                    if key in self._warning_widgets:
-                        row.remove(self._warning_widgets[key])
-                        del self._warning_widgets[key]
+                elif key in self._warning_widgets:
+                    row.remove(self._warning_widgets[key])
+                    del self._warning_widgets[key]
 
     @Gtk.Template.Callback()
     def _on_fetch_clicked(self, _btn: Gtk.Button) -> None:
@@ -391,10 +408,14 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     async def _update_sgdb_covers(self) -> None:
         """Fetch and update covers from SteamGridDB asynchronously."""
         import asyncio
-        from cartridges import sources
+
+        from cartridges import cover, sources
         from cartridges.utils import steamgriddb
 
-        self.sgdb_stack.set_visible_child(self.sgdb_spinner)
+        key = SETTINGS.get_string("sgdb-key").strip()
+        if not key:
+            self._send_toast(_("Please configure your SteamGridDB API key first."))
+            return
 
         prefer_sgdb = SETTINGS.get_boolean("sgdb-prefer")
         animated = SETTINGS.get_boolean("sgdb-animated")
@@ -411,47 +432,91 @@ class CartridgesPreferences(Adw.PreferencesDialog):
 
         if not games_to_update:
             self._send_toast(_("All covers are up to date!"))
-            self.sgdb_stack.set_visible_child(self.sgdb_fetch_button)
             return
+
+        self.sgdb_status_row.set_visible(False)
+        self.sgdb_stack.set_visible_child(self.sgdb_spinner)
+        self.sgdb_progress_row.set_visible(True)
+        self.sgdb_progress_bar.set_fraction(0.0)
 
         success_count = 0
         total = len(games_to_update)
 
-        for game in games_to_update:
-            try:
-                sgdb_id = await asyncio.to_thread(steamgriddb.get_game_id, game.name)
-                url = await asyncio.to_thread(steamgriddb.get_image_url, sgdb_id, animated)
-                success = await asyncio.to_thread(steamgriddb.save_cover_from_url, game.game_id, url)
-                if success:
-                    from cartridges import cover
-                    base = cover.COVERS_DIR / game.game_id
-                    new_cover = cover.at_path(f"{base}.gif") or cover.at_path(f"{base}.tiff")
-                    if new_cover:
-                        GLib.idle_add(setattr, game, "cover", new_cover)
-            except Exception:
-                continue
+        try:
+            for i, game in enumerate(games_to_update):
+                self.sgdb_progress_row.set_title(_("Updating: {}").format(game.name))
+                self.sgdb_progress_row.set_subtitle(
+                    _("{}/{} games").format(i + 1, total)
+                )
+                self.sgdb_progress_bar.set_fraction((i + 1) / total)
 
-        self._send_toast(
-            _("Finished updating covers: {}/{} successful.").format(success_count, total)
-        )
-        self.sgdb_stack.set_visible_child(self.sgdb_fetch_button)
+                try:
+                    sgdb_id = await asyncio.to_thread(
+                        steamgriddb.get_game_id, game.name
+                    )
+                    url = await asyncio.to_thread(
+                        steamgriddb.get_image_url, sgdb_id, animated
+                    )
+                    success = await asyncio.to_thread(
+                        steamgriddb.save_cover_from_url, game.game_id, url
+                    )
+                    if success:
+                        success_count += 1
+                        base = cover.COVERS_DIR / game.game_id
+                        new_cover = cover.at_path(f"{base}.gif") or cover.at_path(
+                            f"{base}.tiff"
+                        )
+                        if new_cover:
+                            GLib.idle_add(setattr, game, "cover", new_cover)
+                except steamgriddb.SgdbAuthError as e:
+                    _logger.warning("SteamGridDB auth failed: %s", e)
+                    self._send_toast(_("Invalid SteamGridDB API key."))
+                    self.sgdb_status_row.set_title(
+                        _("Failed: Invalid SteamGridDB API key.")
+                    )
+                    self.sgdb_status_row.set_visible(True)
+                    return
+                except steamgriddb.SgdbGameNotFound:
+                    _logger.info("No SGDB ID found for %s", game.name)
+                except steamgriddb.SgdbNoImageFound:
+                    _logger.info("No cover found on SGDB for %s", game.name)
+                except (steamgriddb.SgdbError, OSError, TimeoutError) as e:
+                    _logger.warning("Error fetching cover for %s: %s", game.name, e)
+
+            msg = _("Finished updating covers: {}/{} successful.").format(
+                success_count, total
+            )
+            self._send_toast(msg)
+            self.sgdb_status_row.set_title(msg)
+            self.sgdb_status_row.set_visible(True)
+        finally:
+            self.sgdb_progress_row.set_visible(False)
+            self.sgdb_stack.set_visible_child(self.sgdb_fetch_button)
+
+    @Gtk.Template.Callback()
+    def _on_dismiss_status(self, *_args: Any) -> None:
+        self.sgdb_status_row.set_visible(False)
 
     def _send_toast(self, message: str) -> None:
-        app = Gio.Application.get_default()
+        app = cast(Gtk.Application | None, Gio.Application.get_default())
         if app is not None and app.props.active_window is not None:
-            app.props.active_window.send_toast(message)
+            win = cast("Window", app.props.active_window)
+            win.send_toast(message)
 
-    def _send_toast_with_undo(self, message: str, undo: Any) -> None:
-        app = Gio.Application.get_default()
+    def _send_toast_with_undo(self, message: str, undo: Callable[[], Any]) -> None:
+        app = cast(Gtk.Application | None, Gio.Application.get_default())
         if app is not None and app.props.active_window is not None:
-            app.props.active_window.send_toast(message, undo=undo)
+            win = cast("Window", app.props.active_window)
+            win.send_toast(message, undo=undo)
 
     @Gtk.Template.Callback()
     def _on_remove_all_clicked(self, *_args: Any) -> None:
         """Present confirmation dialog to remove all games."""
         dialog = Adw.AlertDialog(
             title=_("Remove All Games?"),
-            body=_("This will hide all games from your library. You can undo this action."),
+            body=_(
+                "This will hide all games from your library. You can undo this action."
+            ),
         )
         dialog.add_response("cancel", _("Cancel"))
         dialog.add_response("remove", _("Remove All"))
@@ -501,7 +566,10 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         """Present confirmation dialog to reset the application."""
         dialog = Adw.AlertDialog(
             title=_("Reset App?"),
-            body=_("This will erase all cover images, added games, and custom settings. This action cannot be undone."),
+            body=_(
+                "This will erase all cover images, added games, and custom settings. "
+                "This action cannot be undone."
+            ),
         )
         dialog.add_response("cancel", _("Cancel"))
         dialog.add_response("reset", _("Reset"))
@@ -517,6 +585,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     def _reset_app(self) -> None:
         """Reset all GSettings and delete user-specific cartridges data."""
         from shutil import rmtree
+
         from cartridges import DATA_DIR
 
         rmtree(DATA_DIR, ignore_errors=True)

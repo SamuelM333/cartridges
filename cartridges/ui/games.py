@@ -70,11 +70,9 @@ class GameActions(Gio.SimpleActionGroup):
         Gtk.TryExpression.new((not_removed, false)).bind(remove_action, "enabled", self)
 
     def _show_details(self) -> None:
-        app = Gio.Application.get_default()
-        if app is not None and app.props.active_window is not None:
-            win = app.props.active_window
-            win.details.game = self.game
-            win.navigation_view.push_by_tag("details")
+        win = _window()
+        win.details.game = self.game
+        win.navigation_view.push_by_tag("details")
 
 
 class GameEditable(GObject.Object):

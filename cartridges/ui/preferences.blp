@@ -40,7 +40,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
         activated => $_on_remove_all_clicked();
 
         styles [
-          "destructive-action"
+          "destructive-action",
         ]
       }
 
@@ -50,7 +50,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
         activated => $_on_reset_clicked();
 
         styles [
-          "destructive-action"
+          "destructive-action",
         ]
       }
     }
@@ -83,7 +83,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "steam-source-symbolic";
+          icon-name: "steam-symbolic";
         }
 
         Adw.ActionRow steam_data_action_row {
@@ -94,12 +94,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
       }
@@ -110,7 +110,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "lutris-source-symbolic";
+          icon-name: "lutris-symbolic";
         }
 
         Adw.ActionRow lutris_data_action_row {
@@ -121,12 +121,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
 
@@ -145,7 +145,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "heroic-source-symbolic";
+          icon-name: "heroic-symbolic";
         }
 
         Adw.ActionRow heroic_config_action_row {
@@ -156,12 +156,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
 
@@ -188,7 +188,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "itch-source-symbolic";
+          icon-name: "itch-symbolic";
         }
 
         Adw.ActionRow itch_config_action_row {
@@ -199,12 +199,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
       }
@@ -215,7 +215,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "legendary-source-symbolic";
+          icon-name: "legendary-symbolic";
         }
 
         Adw.ActionRow legendary_config_action_row {
@@ -226,12 +226,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
       }
@@ -242,7 +242,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "flatpak-source-symbolic";
+          icon-name: "flatpak-symbolic";
         }
 
         Adw.ActionRow flatpak_system_data_action_row {
@@ -253,12 +253,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
 
@@ -270,12 +270,12 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
             valign: center;
 
             styles [
-              "flat"
+              "flat",
             ]
           }
 
           styles [
-            "property"
+            "property",
           ]
         }
 
@@ -289,7 +289,7 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
 
         [prefix]
         Image {
-          icon-name: "user-desktop-symbolic";
+          icon-name: "desktop-symbolic";
         }
       }
     }
@@ -335,12 +335,43 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
           Button sgdb_fetch_button {
             label: _("Update");
             valign: center;
+            clicked => $_on_fetch_clicked();
           }
 
           Adw.Spinner sgdb_spinner {
             visible: false;
             valign: center;
           }
+        }
+      }
+
+      Adw.ActionRow sgdb_progress_row {
+        title: _("Scanning library");
+        subtitle: "";
+        visible: false;
+
+        [suffix]
+        ProgressBar sgdb_progress_bar {
+          valign: center;
+          width-request: 160;
+        }
+      }
+
+      Adw.ActionRow sgdb_status_row {
+        title: "";
+        visible: false;
+
+        [suffix]
+        Button sgdb_status_dismiss_button {
+          icon-name: "window-close-symbolic";
+          tooltip-text: _("Dismiss");
+          valign: center;
+          clicked => $_on_dismiss_status();
+
+          styles [
+            "flat",
+            "circular",
+          ]
         }
       }
     }
