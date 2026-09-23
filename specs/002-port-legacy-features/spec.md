@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-21
 
-**Status**: Draft
+**Status**: Complete
 
 **Input**: User description: "draft a new feature. let's review the differences and missing features in main and implement them in rewrite. there's a separate folder for main available, let's keep it read only /var/home/samuel/Projects/cartridges-main. Scope decisions: focus on Flatpak source and SteamGridDB; defer Bottles, RetroArch, and Search Provider to future specs. SteamGridDB authenticated via user-supplied API key. Preferences menu in the settings panel is a P0 prerequisite."
 
