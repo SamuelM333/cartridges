@@ -33,6 +33,7 @@ class Application(Adw.Application):
 
         sources.load()
         collections.load()
+        self._check_auto_fetch_sgdb_covers()
 
     @override
     def do_activate(self):
@@ -49,4 +50,57 @@ class Application(Adw.Application):
 
     def _present_preferences_dialog(self):
         from .ui.preferences import CartridgesPreferences
+
         CartridgesPreferences().present(self.props.active_window)
+
+    def _check_auto_fetch_sgdb_covers(self) -> None:
+        from . import SETTINGS
+
+        if not SETTINGS.get_boolean("sgdb"):
+            return
+        key = SETTINGS.get_string("sgdb-key").strip()
+        if not key:
+            return
+
+        self.create_asyncio_task(self._auto_fetch_sgdb_covers())
+
+    async def _auto_fetch_sgdb_covers(self) -> None:
+        import asyncio
+
+        from gi.repository import GLib
+
+        from . import SETTINGS, cover
+        from .utils import steamgriddb
+
+        prefer_sgdb = SETTINGS.get_boolean("sgdb-prefer")
+        animated = SETTINGS.get_boolean("sgdb-animated")
+
+        for source in sources.model:
+            for i in range(source.get_n_items()):
+                game = source.get_item(i)
+                if game is None:
+                    continue
+                if not prefer_sgdb and game.cover is not None:
+                    continue
+
+                try:
+                    sgdb_id = await asyncio.to_thread(
+                        steamgriddb.get_game_id, game.name
+                    )
+                    url = await asyncio.to_thread(
+                        steamgriddb.get_image_url, sgdb_id, animated
+                    )
+                    success = await asyncio.to_thread(
+                        steamgriddb.save_cover_from_url, game.game_id, url
+                    )
+                    if success:
+                        base = cover.COVERS_DIR / game.game_id
+                        new_cover = cover.at_path(f"{base}.gif") or cover.at_path(
+                            f"{base}.tiff"
+                        )
+                        if new_cover:
+                            GLib.idle_add(setattr, game, "cover", new_cover)
+                except steamgriddb.SgdbAuthError:
+                    return
+                except (steamgriddb.SgdbError, OSError, TimeoutError):
+                    continue

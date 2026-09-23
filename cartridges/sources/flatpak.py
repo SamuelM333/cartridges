@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: Copyright 2025 Zoey Ahmed
 # SPDX-FileCopyrightText: Copyright 2022-2026 kramo
 
-import os
 from collections.abc import Generator
 from gettext import gettext as _
 from pathlib import Path
@@ -25,8 +24,8 @@ def get_games() -> Generator[Game]:
     system_loc = SETTINGS.get_string("flatpak-system-location")
     user_loc = SETTINGS.get_string("flatpak-user-location")
 
-    system_path = Path(os.path.expanduser(system_loc)) if system_loc else None
-    user_path = Path(os.path.expanduser(user_loc)) if user_loc else None
+    system_path = Path(system_loc).expanduser() if system_loc else None
+    user_path = Path(user_loc).expanduser() if user_loc else None
 
     app_dirs: list[Path] = []
     icon_dirs: list[Path] = []
@@ -116,4 +115,3 @@ def _get_icon_theme(icon_dirs: list[Path]) -> Gtk.IconTheme:
             search_path.append(str(d))
     icon_theme.props.search_path = search_path
     return icon_theme
-

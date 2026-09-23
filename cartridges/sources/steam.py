@@ -12,7 +12,7 @@ from contextlib import suppress
 from gettext import gettext as _
 from os import SEEK_CUR
 from pathlib import Path
-from typing import Any, BinaryIO, NamedTuple, Self, cast
+from typing import Any, BinaryIO, NamedTuple, Self
 
 from gi.repository import Gdk
 
@@ -197,7 +197,7 @@ def _load_binary_vdf(
 ) -> Generator[tuple[str, Any]]:
     for type_ in iter(lambda: fp.read(1), b"\x08"):
         try:
-            key = key_table[cast(int, struct.unpack("<i", fp.read(4))[0])]
+            key = key_table[struct.unpack("<i", fp.read(4))[0]]
             yield key, _VDF_TYPES[type_](fp, key_table)
         except (IndexError, KeyError) as e:
             raise SyntaxError from e

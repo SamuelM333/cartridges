@@ -12,6 +12,7 @@ python.install_sources(
 )
 
 install_subdir('sources', install_dir: python.get_install_dir() / 'cartridges')
+install_subdir('utils', install_dir: python.get_install_dir() / 'cartridges')
 
 configure_file(
     input: 'config.py.in',
