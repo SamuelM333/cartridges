@@ -26,6 +26,6 @@ concurrency:
    - Runs Meson test suite (`ninja -C _build test`).
 2. **Development Flatpak Build (`flatpak`)**:
    - Runs on: `ubuntu-latest`
-   - Container: `bilelmoussaoui/flatpak-github-actions:gnome-47` (with `--privileged`)
+   - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` (with `--privileged`)
    - Manifest: `flatpak/page.samuelm333.Cartridges.Devel.json`
    - Bundle output: `page.samuelm333.Cartridges.Devel.flatpak`

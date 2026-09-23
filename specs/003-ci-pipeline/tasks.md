@@ -87,3 +87,21 @@
 
 - [x] T018 Fix Flatpak runtime version in `flatpak/page.samuelm333.Cartridges.Devel.json` by updating `"runtime-version"` from `"master"` to `"47"` per FR-003, US3/AC1 (contradicts)
 - [x] T019 Add `blueprint-compiler` to package installation step in `.github/workflows/ci.yml` per FR-002, US3/AC1 (missing)
+
+---
+
+## Phase 8: Convergence
+
+**Purpose**: Remediate CI execution failures surfaced in `ci-logs/logs_97168997700`
+
+- [x] T020 Add `blueprint-compiler` build module to `flatpak/page.samuelm333.Cartridges.Devel.json` and `flatpak/page.samuelm333.Cartridges.json` per FR-001, FR-003, US1/AC1, US2/AC1 (missing)
+- [x] T021 Add `gettext` to `dnf install` packages in `.github/workflows/ci.yml` to provide `msgfmt` per FR-002, US3/AC1 (missing)
+
+---
+
+## Phase 9: GNOME Runtime 50 Update
+
+**Purpose**: Update Flatpak manifests and CI workflow containers to GNOME Runtime 50
+
+- [x] T022 Update `"runtime-version"` to `"50"` in `flatpak/page.samuelm333.Cartridges.Devel.json` and `flatpak/page.samuelm333.Cartridges.json`
+- [x] T023 Update container image to `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` in `.github/workflows/ci.yml`, `.github/workflows/publish-release.yml`, and `.github/workflows/nightly.yml`

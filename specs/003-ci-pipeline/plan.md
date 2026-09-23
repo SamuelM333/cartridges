@@ -16,15 +16,16 @@ Build and configure GitHub Actions CI/CD workflows tailored strictly to Linux an
 **Language/Version**: Python >= 3.13, GitHub Actions YAML, Bash, Meson >= 1.1.0, Blueprint Compiler.
 
 **Primary Dependencies**:
-- Linux Container: `bilelmoussaoui/flatpak-github-actions:gnome-47`.
+- Linux Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` (or `bilelmoussaoui/flatpak-github-actions:gnome-50`).
 - Builder Action: `flatpak/flatpak-github-actions/flatpak-builder@v6.5`.
 - Workflow Utilities: `actions/checkout@v4`, `actions/cache@v4`, `softprops/action-gh-release@v2.2.2`.
+- Flatpak Runtime & SDK: `org.gnome.Platform//50`, `org.gnome.Sdk//50`.
 
 **Storage**: GitHub Actions cache storage (`actions/cache@v4`) for commit SHA deduplication; GitHub Releases for artifact hosting.
 
 **Testing**: Meson unit tests (`ninja -C _build test`), Pyright strict mode, Ruff lint/format, desktop/appstream/schema validation.
 
-**Target Platform**: Linux (Flatpak x86_64).
+**Target Platform**: Linux (Flatpak x86_64, GNOME 50).
 
 **Project Type**: Desktop application / CI-CD pipeline infrastructure.
 

@@ -43,15 +43,17 @@ Use `actions/cache@v4` with an exact key based on the HEAD commit SHA:
 ### A. Development Manifest (`flatpak/page.samuelm333.Cartridges.Devel.json`)
 - Application ID: `page.samuelm333.Cartridges.Devel`
 - Configuration option: `-Dprofile=development`
-- Runtime: `org.gnome.Platform//master` (or 47), SDK: `org.gnome.Sdk//master` (or 47).
-- Container: `bilelmoussaoui/flatpak-github-actions:gnome-47`.
+- Runtime: `org.gnome.Platform//50`, SDK: `org.gnome.Sdk//50`.
+- Modules: `blueprint-compiler` (git `v0.20.4`), `cartridges`, and `python3-pillow.json`.
+- Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`.
 - Builder Action: `flatpak/flatpak-github-actions/flatpak-builder@v6.5`.
 
 ### B. Production Manifest (`flatpak/page.samuelm333.Cartridges.json`)
 - Application ID: `page.samuelm333.Cartridges`
 - Configuration option: `-Dprofile=release`
-- Runtime: `org.gnome.Platform//47`, SDK: `org.gnome.Sdk//47`.
-- Container: `bilelmoussaoui/flatpak-github-actions:gnome-47`.
+- Runtime: `org.gnome.Platform//50`, SDK: `org.gnome.Sdk//50`.
+- Modules: `blueprint-compiler` (git `v0.20.4`), `cartridges`, and `python3-pillow.json`.
+- Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`.
 - Builder Action: `flatpak/flatpak-github-actions/flatpak-builder@v6.5`.
 
 ## 4. Release Metadata Extraction

@@ -18,7 +18,7 @@ concurrency:
 
 ## 4. Release Packaging & Assets
 - **Linux Flatpak Bundle**:
-  - Container: `bilelmoussaoui/flatpak-github-actions:gnome-47`
+  - Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`
   - Manifest: `flatpak/page.samuelm333.Cartridges.json` (Profile: release, ID: `page.samuelm333.Cartridges`)
   - Asset filename: `page.samuelm333.Cartridges.flatpak`
 
