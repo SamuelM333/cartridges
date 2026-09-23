@@ -131,4 +131,3 @@ Task: "Create data/page.samuelm333.Cartridges.service.in from data/page.kramo.Ca
 1. Complete Phase 5 to fully rename and migrate desktop integration configurations, flatpak development manifests, and icon resources.
 2. Complete build adjustments (`data/meson.build` and `po/POTFILES.in`).
 3. Run Phase 6 checks inside the `gtk-dev` Distrobox container to verify 100% automated test compliance.
-

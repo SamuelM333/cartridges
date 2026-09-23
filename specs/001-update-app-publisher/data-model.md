@@ -59,4 +59,3 @@ The GIO Application utilizes D-Bus activation to manage window single-instance b
 
 - **Service Name**: `page.samuelm333.Cartridges` (or `page.samuelm333.Cartridges.Devel`)
 - **Service Path**: `data/page.samuelm333.Cartridges.service.in` (to be compiled to `page.samuelm333.Cartridges.service` or `page.samuelm333.Cartridges.Devel.service` respectively)
-

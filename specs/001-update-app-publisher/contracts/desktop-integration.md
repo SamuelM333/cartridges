@@ -31,4 +31,3 @@ The desktop entry tells the window manager how to launch the application and ass
 - **Desktop File**: `page.samuelm333.Cartridges.desktop`
 - **Window Class (`WM_CLASS`)**: `page.samuelm333.Cartridges`
 - **Icon Association**: The window manager matches the window's `WM_CLASS` property (which must be `page.samuelm333.Cartridges`) to the desktop entry file name and icon file prefix to render the high-resolution app icon in the task bar and app grid.
-

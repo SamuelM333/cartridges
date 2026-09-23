@@ -26,19 +26,36 @@ As a Linux desktop gamer, I want Cartridges to automatically scan for installed 
 
 ---
 
-### User Story 2 - Fetch and Choose Cover Art from SteamGridDB (Priority: P1)
+#### User Story 2 - Cover Art Selection and Customization in Edit Mode (Priority: P1)
 
-As a user with games lacking cover art or who wants custom alternative artwork, I want to fetch cover art options directly from SteamGridDB using my personal API key, so that I can browse and select high-resolution covers for any game.
+As a user customizing game artwork, I want cover customization controls located directly on the cover in the Game Details Edit view, matching the legacy layout: a trash can icon to remove the cover image (with confirmation or reversibility), a folder icon to manually browse and choose a local image file via the native file chooser (with "Browse files" tooltip), and a globe/browser icon to fetch artwork options from SteamGridDB (with "Browse SteamGridDB" tooltip); and I want all cover modifications (setting, changing, or removing) staged so they are only applied when I click "Apply", and cleanly discarded/reversed if I click "Cancel".
 
-**Why this priority**: Consistent, visually striking grid artwork is essential for an enjoyable launcher experience.
+**Why this priority**: Reverting to the proven legacy cover overlay controls in the Game Details Edit pane avoids complex nested menus and popovers, restores immediate visual affordance (trash, folder, globe), clarifies action intentions with descriptive tooltips ("Browse files", "Browse SteamGridDB"), and preserves editing safety by ensuring that all cover modifications remain fully reversible until the user explicitly commits them with "Apply".
 
-**Independent Test**: Enter a valid SteamGridDB API key in settings. On a game with missing or placeholder artwork, trigger the cover search dialog, browse the returned cover options, select one, and confirm that the image downloads and updates the game's displayed cover.
+**Independent Test**:
+1. Open a game's details and verify that no cover action buttons are visible on the cover in normal view.
+2. Enter Edit mode by clicking "Edit": verify that the cover action buttons appear on the cover overlay:
+   - Folder button (`folder-symbolic`) with tooltip "Browse files" to manually select a local image.
+   - Globe button (`globe-symbolic` or `web-browser-symbolic`) with tooltip "Browse SteamGridDB" to browse SteamGridDB covers.
+   - Trash can button (`user-trash-symbolic`) with tooltip "Delete Cover" to remove the current cover (revealed when a cover is present).
+3. Click the folder button, pick a local image: verify that the cover preview updates immediately in the edit view, but the original cover on disk is NOT overwritten yet.
+4. Click "Cancel": verify that edit mode exits and the original cover is retained unchanged (action reversed).
+5. Enter Edit mode again, click the SteamGridDB globe button, select a cover from the picker: verify the preview updates.
+6. Click the trash can button: verify the cover preview clears (showing fallback/placeholder) and the trash button hides.
+7. Click "Apply": verify that the staged cover state (new image, SGDB selection, or removed cover) is committed and saved to disk.
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid SteamGridDB API key configured, **When** the user opens the cover picker for a game, **Then** matching cover art results (vertical/grid artwork) from SteamGridDB are retrieved and presented.
-2. **Given** a selected cover image, **When** confirmed, **Then** the image is downloaded asynchronously, stored in the local cache, and immediately reflected in the game details and grid.
-3. **Given** an invalid or empty SteamGridDB API key, **When** a user attempts to search for covers, **Then** a clear, friendly error prompt explains how to obtain and enter a free API key.
+1. **Given** a user viewing game details in standard view, **When** inspected, **Then** cover management buttons (folder, globe, trash) are not visible on the cover.
+2. **Given** the user enters Edit mode for a game, **When** viewing the cover image, **Then** cover action buttons are displayed directly in the cover overlay: a folder button (`folder-symbolic`) with tooltip "Browse files" to browse local files, a globe button with tooltip "Browse SteamGridDB" to browse SteamGridDB, and a trash can button to remove the cover (visible when a cover is set).
+3. **Given** the user clicks the folder button in Edit mode, **When** a local image is selected via the native OS file dialog, **Then** the cover preview in the edit pane updates immediately, but changes are held in a staged state and not written to disk until "Apply" is clicked.
+4. **Given** the user clicks the globe button in Edit mode, **When** an image from SteamGridDB is selected, **Then** the cover preview in the edit pane updates to the selected image, staged without modifying the saved game cover on disk.
+5. **Given** the user clicks the trash can button in Edit mode, **When** clicked, **Then** the cover preview in the edit pane is removed (reverting to placeholder), and the trash can button hides or becomes inactive, staged until committed.
+6. **Given** any cover modification is staged in Edit mode (local file chosen, SteamGridDB image chosen, or cover removed), **When** the user clicks "Cancel", **Then** all staged cover modifications are discarded and the game's existing cover remains untouched on disk.
+7. **Given** any cover modification is staged in Edit mode, **When** the user clicks "Apply", **Then** the staged cover changes are committed to disk (updating or removing the cover file in the covers cache directory) and updated in the game model.
+8. **Given** a user is adding or editing a game, **When** the Title field is empty, **Then** the Browse files folder button remains active and clickable, while the SteamGridDB cover button only triggers when the Title value is populated; if clicked or evaluated while empty, the Title entry displays an error indicator (red styling), which clears as soon as text is typed.
+9. **Given** the user opens the SteamGridDB cover chooser, **When** cover image choices are rendered, **Then** the selection dialog is sized generously relative to the main window (content size 760x520 or larger), and each image option is presented with its entire artwork and borders visible in the exact same aspect ratio (2:3) as covers in the game details view, without border clipping and without any textual labels (such as "Static" or "Animated").
+10. **Given** a cover image is selected from the SteamGridDB cover picker dialog, **When** the image is being fetched and processed for staging, **Then** an active loading spinner is displayed in the game details cover overlay, centered vertically and horizontally over the game cover, and hides once the cover preview is updated or processing completes.
 
 ---
 
@@ -135,7 +152,8 @@ As a user of SteamGridDB, I want options to manage my SteamGridDB API key, toggl
 
 1. **Given** SteamGridDB is disabled, **When** importing games, **Then** Cartridges does not execute network queries to SteamGridDB.
 2. **Given** SteamGridDB is enabled and "Prefer Animated Images" is checked, **When** fetching cover choices, **Then** animated APNG or GIF covers are selected and displayed where available.
-3. **Given** "Update Covers" is triggered, **When** the process runs, **Then** Cartridges queries SteamGridDB asynchronously for all games in the library and updates their cache, showing progress in the UI.
+3. **Given** "Update Covers" is triggered, **When** the process runs, **Then** Cartridges queries SteamGridDB asynchronously for all games in the library, and a progress section under Update Covers informs the user of images being downloaded by displaying the specific game currently being scanned and updated, a progress bar, and completion counts (e.g. "Updating: SuperTuxKart (3/15)").
+4. **Given** bulk cover fetching completes or is idle, **When** no update is running, **Then** the progress section under Update Covers is hidden, and the Update button returns to an actionable state.
 
 ### Edge Cases
 
@@ -158,8 +176,8 @@ As a user of SteamGridDB, I want options to manage my SteamGridDB API key, toggl
 - **FR-003**: System MUST filter out known utilities, base dependencies, runtime SDKs, and launcher frontends from the Flatpak import list.
 - **FR-004**: System MUST provide a secure configuration mechanism inside the Preferences dialog to store and persist a user-supplied SteamGridDB API key, enabling or disabling SteamGridDB cover integration dynamically based on the presence of a key.
 - **FR-005**: System MUST query the SteamGridDB API asynchronously for game cover artwork without blocking the main GTK application loop.
-- **FR-006**: System MUST present a cover selection dialog or view displaying available SteamGridDB thumbnail options for a selected game.
-- **FR-007**: System MUST download selected covers and save them into the application's local cover cache directory conforming to XDG standards.
+- **FR-006**: System MUST locate cover customization controls directly on the cover in the Game Details Edit pane matching the legacy overlay design: a folder button (`folder-symbolic`) with tooltip "Browse files" to select a local image, a globe button (`globe-symbolic`) with tooltip "Browse SteamGridDB" to open SteamGridDB cover selection (limited to 10 choices), and a trash button (`user-trash-symbolic`) to remove the current cover (revealed when a cover exists). All modifications (setting, changing, or removing a cover) MUST be staged in memory and only written to disk when the user clicks "Apply", remaining fully reversible if the user clicks "Cancel".
+- **FR-007**: System MUST download selected covers from SteamGridDB and save them into the application's local cover cache directory conforming to XDG standards.
 - **FR-008**: System MUST implement a central general Preferences dialog based on `Adw.PreferencesDialog` and GNOME Blueprint as a P0 requirement, integrating configurations for general settings, source-specific options (such as Flatpak), and SteamGridDB settings. Other legacy features (Bottles source, RetroArch source, and GNOME Search Provider) remain deferred to future specifications.
 - **FR-009**: All new modules, controllers, and data structures MUST pass Pyright in `strict` type-checking mode and comply with Ruff linting rules.
 - **FR-010**: All UI components (such as cover picker, preferences dialog, or API key entry) MUST be declared in GNOME Blueprint (`.blp`) format.
@@ -177,6 +195,13 @@ As a user of SteamGridDB, I want options to manage my SteamGridDB API key, toggl
 - **FR-022**: System MUST reference the legacy implementation's design, styling, widgets, and layout patterns (specifically matching `data/gtk/preferences.blp` in the `cartridges-main` reference) as closely as possible, and MUST NOT introduce any new, custom, or divergent UI/UX layout concepts.
 - **FR-023**: System MUST bundle and register a symbolic SVG icon for Flatpak (`flatpak-symbolic.svg`) to render its logo in the application's sidebar and lists.
 - **FR-024**: System MUST filter out and ignore Flatpak-exported application entries inside the Desktop source scanner (by checking for the presence of the `X-Flatpak` key in desktop entries) to completely prevent duplicated items in the game grid.
+- **FR-025**: System MUST provide a dedicated progress section or status indicator under "Update Covers" in Preferences informing the user of the images being downloaded by displaying the title of the game currently being scanned and updated, along with numerical and visual process feedback (such as current game index, total games count, and progress bar).
+- **FR-026**: System MUST open a native OS file chooser dialog filtering for image formats when clicking the folder icon button on the cover overlay in Edit mode, previewing the selected image immediately while staging file persistence until "Apply" is clicked.
+- **FR-027**: System MUST provide a dismissable status message row under the "Update Covers" section in Preferences upon completion or termination of cover downloads, detailing the outcome (e.g. number of successful updates vs total scanned, or warning/error notices) with an interactive dismiss button to close it.
+- **FR-028**: System MUST preserve a backup copy of original post-import cover artwork and, upon cover deletion or cancel, allow reverting without destructive loss until explicit confirmation via Apply.
+- **FR-029**: While adding or editing a game, the Browse files folder icon button MUST always remain active, whereas the SteamGridDB cover button MUST only be active when a non-empty Title value is populated; if the user attempts to trigger SteamGridDB search without a Title populated, the Title field MUST be visually styled with an error indicator (such as the `error` CSS class).
+- **FR-030**: When displaying cover candidates in the SteamGridDB cover picker dialog, the dialog content area MUST be scaled proportionally larger relative to the main application window (at least 760x520px content size), and each candidate thumbnail MUST be rendered in the same 2:3 aspect ratio matching the game details view, styled and framed such that the entire image and its complete perimeter/borders are fully visible without being cropped or clipped, and without any overlay or caption text labels.
+- **FR-031**: When a SteamGridDB cover image is selected from the cover picker, the cover overlay in the Game Details edit pane MUST display an active loading spinner centered both horizontally and vertically over the game cover widget throughout the background download and image processing, and automatically dismiss or hide the spinner upon completion or failure.
 
 ### Key Entities
 
@@ -185,7 +210,7 @@ As a user of SteamGridDB, I want options to manage my SteamGridDB API key, toggl
 - **Cover Candidate**: Data model representing an image candidate retrieved from SteamGridDB, including thumbnail URL, full image URL, author attribution, and dimensions.
 - **Preferences Dialog**: UI controller component using Gtk.Template with a Blueprint definition, responsible for rendering settings pages and groups, binding widgets to GSettings, and providing validation for folder selections.
 - **Danger Zone Manager**: Component responsible for safely executing database wiping (Remove All Games) and setting restoration (Reset App).
-- **SteamGridDB Fetcher**: Asynchronous background worker responsible for bulk updating library artwork without blocking the main GTK application loop.
+- **SteamGridDB Fetcher**: Asynchronous background worker responsible for bulk updating library artwork without blocking the main GTK application loop, reporting progress (current game title being scanned, downloaded images count, progress fraction) to the Preferences update progress section.
 
 ## Success Criteria *(mandatory)*
 
@@ -202,6 +227,12 @@ As a user of SteamGridDB, I want options to manage my SteamGridDB API key, toggl
 - **SC-009**: 100% of destructive operations require explicit confirmation and finish in less than 1 second once confirmed.
 - **SC-010**: Manual cover art updates run asynchronously in the background, keeping the user interface completely responsive with a stable 60 FPS framerate.
 - **SC-011**: All source files, specifications, and checklist documents have zero lint, formatting, or style errors.
+- **SC-012**: During bulk cover updates, 100% of scanned games are visually reflected in real-time in the progress section under "Update Covers" with accurate game titles and progress status.
+- **SC-013**: In the Game Details Edit view, the cover overlay presents the legacy action buttons: a folder button (`folder-symbolic`) with tooltip "Browse files", a globe button (`globe-symbolic`) with tooltip "Browse SteamGridDB", and a trash button (`user-trash-symbolic`, revealed when a cover is set); selecting a local file or SteamGridDB cover or clicking trash immediately updates the preview in edit mode, and all cover modifications are only committed to disk upon clicking "Apply", with "Cancel" cleanly reverting any unapplied changes.
+- **SC-014**: Upon completion of cover downloads, a dismissable status message is shown in the Update Covers section detailing the result, remaining visible until dismissed by the user or until a new update begins.
+- **SC-015**: While adding or editing a game, the Browse files button is always clickable, and the SteamGridDB button is disabled or highlights the Title field with a red error style when Title is empty, becoming normally enabled once a valid game title is typed.
+- **SC-016**: 100% of SteamGridDB candidate covers shown in the cover picker dialog match the 2:3 aspect ratio used throughout the Game Details cover view, preserving consistent visual proportion and showing the entire image and its complete perimeter/borders without border clipping, within an expanded selection dialog (at least 760x520px) sized generously relative to the main window.
+- **SC-017**: 100% of SteamGridDB cover downloads in Game Details display an active loading spinner centered horizontally and vertically over the cover preview from the moment a candidate is chosen until the newly processed cover is rendered or cancelled.
 
 ## Assumptions
 
@@ -212,4 +243,3 @@ As a user of SteamGridDB, I want options to manage my SteamGridDB API key, toggl
 - **A-005**: The Preferences dialog layout uses standard Adw.PreferencesPage and Adw.PreferencesGroup widgets to achieve an HIG-compliant presentation.
 - **A-006**: A pre-existing database layer or game list storage model exists that can be cleared by the Danger Zone "Remove All" command.
 - **A-007**: The user interface implementation is modeled directly after the pre-existing legacy UI structure in the read-only `cartridges-main` reference repository to ensure seamless continuity without introducing any brand-new visual design concepts.
-

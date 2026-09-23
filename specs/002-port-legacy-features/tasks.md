@@ -216,3 +216,55 @@
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+
+---
+
+## Phase 12: Convergence
+
+- [x] T041 Update source expander row icon names in `cartridges/ui/preferences.blp` from `*-source-symbolic` to `*-symbolic` per FR-023 (contradicts)
+- [x] T042 Wire up `CoverPicker` entry point in `cartridges/ui/game_details.py` and `cartridges/ui/game-details.blp` with missing API key alert per FR-006, US2 (partial)
+- [x] T043 Import gettext `_` and render cover thumbnail previews in `cartridges/ui/cover_picker.py` per FR-006, US2/AC1 (partial)
+- [x] T044 Increment `success_count` on successful cover save in `cartridges/ui/preferences.py` per FR-020, US8/AC3 (partial)
+
+---
+
+## Phase 13: Convergence
+
+- [x] T045 Initialize standard logging in `cartridges/__main__.py` and log requests/failures in `cartridges/utils/steamgriddb.py` and `cartridges/ui/preferences.py` per Constitution I (missing)
+- [x] T046 Add progress box with progress bar and status label under "Update Covers" in `cartridges/ui/preferences.blp` per FR-025, US8/AC3 (missing)
+- [x] T047 Update `_update_sgdb_covers` in `cartridges/ui/preferences.py` to update the progress bar and current game label in real time as each game is scanned per FR-025, US8/AC3 (missing)
+- [x] T048 Handle SteamGridDB authentication (401) and network errors with specific toasts/alerts instead of silent swallow in `cartridges/ui/preferences.py` per FR-020, US8/AC3 (partial)
+- [x] T049 Implement background automatic cover fetching on game discovery/startup in `cartridges/sources/__init__.py` when SteamGridDB is enabled per FR-005, US8/AC1 (missing)
+
+---
+
+## Phase 14: Cover Management Panel & Preferences Status Banner
+
+- [x] T050 [US2] Revert `cartridges/ui/game-details.blp` to legacy cover overlay layout with direct action buttons: pencil button (`document-edit-symbolic`), globe button (`globe-symbolic`), and trash button (`user-trash-symbolic`, revealed when a cover is present) per FR-006, FR-026, SC-013.
+- [x] T051 [US2] Implement staged cover editing in `cartridges/ui/game_details.py`: stage local image selection, SGDB selection, and cover removal in memory so preview updates immediately in Edit mode; commit changes to disk only upon `details.apply`; cleanly revert without disk changes upon `details.cancel` per FR-006, FR-026, FR-028, SC-013.
+- [x] T052 [US2] Limit SteamGridDB cover candidate queries to 10 images in `cartridges/ui/cover_picker.py` per US2.
+- [x] T053 [US8] Add dismissable `sgdb_status_row` under Update Covers in `cartridges/ui/preferences.blp` and `cartridges/ui/preferences.py` per FR-027.
+- [x] T054 Preserve original cover art prior to overwriting in `cartridges/utils/steamgriddb.py` `save_cover_from_url` per FR-028.
+
+---
+
+## Phase 15: Convergence
+
+- [x] T055 [US2] Update cover overlay buttons in `cartridges/ui/game-details.blp`: change pencil icon to folder icon (`folder-symbolic`) with tooltip "Browse files", and change globe tooltip to "Browse SteamGridDB" per FR-006, SC-013 (contradicts)
+- [x] T056 [US2] Ensure the Browse files folder button remains always active in Edit mode, including when adding a new game, supporting local image selection before a game instance is committed per FR-026, FR-029, SC-015 (missing)
+- [x] T057 [US2] Enforce Title requirement for SteamGridDB cover button in `cartridges/ui/game_details.py` and `cartridges/ui/game-details.blp`: only activate SteamGridDB search when the Title field is non-empty; if clicked without Title, add `error` CSS styling to `name_entry` and focus it, removing the error style once Title has text per FR-029, SC-015 (missing)
+- [x] T058 [US2] Fix cover image staging persistence on apply in `cartridges/ui/game_details.py`: guard `_on_game_changed` during `_apply()` to prevent synchronous reset of staged cover, ensuring staged file is moved to final covers directory and linked to game before exiting apply per FR-026, SC-013 (bugfix)
+
+---
+
+## Phase 16: Convergence - Cover Picker Sizing & Full Image Framing
+
+- [x] T059 [US2] Increase CoverPicker dialog dimensions in `cartridges/ui/cover_picker.blp` to `content-width: 800; content-height: 580;` relative to the main app window (920x700) per FR-030, SC-016.
+- [x] T060 [US2] Ensure complete cover image and border visibility in `cartridges/ui/cover_picker.py`: set picture size request to 140x210 (2:3 aspect ratio), use `Gtk.ContentFit.CONTAIN` or padding so that borders are never cut/clipped, and keep the full artwork perimeter cleanly visible per FR-030, SC-016.
+
+---
+
+## Phase 17: Convergence - Cover Overlay Loading Spinner
+
+- [x] T061 [US2] Add centered `Adw.Spinner` child to cover `Overlay` in `cartridges/ui/game-details.blp`, bound to `template.cover-loading` with `halign: center; valign: center;` per FR-031, SC-017.
+- [x] T062 [US2] Add `cover_loading` GObject boolean property in `cartridges/ui/game_details.py`, set to `True` during SteamGridDB background download and reset to `False` upon completion, failure, cancel, or apply per FR-031, SC-017.

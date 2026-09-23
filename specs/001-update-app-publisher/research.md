@@ -78,4 +78,3 @@ Honors open-source license attribution requirements and the user's explicit dire
 
 ### Alternatives Considered
 - **Overwrite developer name in About Dialog entirely**: Rejected because it scrubs historical credit, violating user instructions.
-

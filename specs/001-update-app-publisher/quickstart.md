@@ -79,5 +79,3 @@ All validation tests must pass successfully:
 3. Once loaded, confirm GNOME Builder has successfully parsed and selected the Flatpak configuration matching `flatpak/page.samuelm333.Cartridges.Devel.json`.
 4. Click the **Run** button (or build the target project).
 5. Verify the development build completes successfully and launches the application in the development profile window.
-
-
