@@ -1,0 +1,69 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force build even if commit was already cached"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  nightly:
+    name: Nightly Flatpak Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Commit Cache
+        id: check-cache
+        if: ${{ !(inputs.force) }}
+        uses: actions/cache@v4
+        with:
+          path: .nightly-flag
+          key: nightly-built-${{ github.sha }}
+
+      - name: Skip If Already Built
+        if: ${{ steps.check-cache.outputs.cache-hit == 'true' && !(inputs.force) }}
+        run: echo "Commit ${{ github.sha }} has already been built and published for nightly. Skipping."
+
+      - name: Build Nightly Flatpak Bundle
+        if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.5
+        with:
+          bundle: page.samuelm333.Cartridges.Devel.flatpak
+          manifest-path: flatpak/page.samuelm333.Cartridges.Devel.json
+
+      - name: Publish Nightly Release
+        if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
+        uses: softprops/action-gh-release@v2.2.2
+        with:
+          files: page.samuelm333.Cartridges.Devel.flatpak
+          fail_on_unmatched_files: true
+          tag_name: nightly
+          name: "Nightly Build"
+          body: "Rolling nightly development build of Cartridges from commit ${{ github.sha }}."
+          prerelease: true
+
+      - name: Create Cache Sentinel
+        if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
+        run: |
+          touch .nightly-flag
+
+      - name: Save Commit Cache
+        if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
+        uses: actions/cache/save@v4
+        with:
+          path: .nightly-flag
+          key: nightly-built-${{ github.sha }}
