@@ -1,9 +1,13 @@
 """Extract release notes from AppStream metainfo for GitHub Releases."""
 
+# ruff: noqa: INP001
+
 import re
 import sys
 import textwrap
 from pathlib import Path
+
+MIN_ARGS_WITH_OUTPUT = 3
 
 
 def extract_release_notes(metainfo_path: Path) -> str:
@@ -34,7 +38,7 @@ def main() -> None:
 
     if len(sys.argv) > 1:
         metainfo_file = Path(sys.argv[1])
-    if len(sys.argv) > 2:
+    if len(sys.argv) >= MIN_ARGS_WITH_OUTPUT:
         output_file = Path(sys.argv[2])
 
     notes = extract_release_notes(metainfo_file)

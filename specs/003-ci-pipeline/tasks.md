@@ -78,3 +78,12 @@
 - [x] T015 Run pre-commit hooks (`uv run pre-commit run --all-files`) and verify formatting of all YAML, JSON, and Python files
 - [x] T016 Run emoji check script (`python3 .specify/scripts/bash/check-emojis.py`) and verify 0 emojis across all files
 - [x] T017 Execute validation scenarios from `specs/003-ci-pipeline/quickstart.md`
+
+---
+
+## Phase 7: Convergence
+
+**Purpose**: Remediate CI execution failures surfaced in `ci-logs/logs_97164028902`
+
+- [x] T018 Fix Flatpak runtime version in `flatpak/page.samuelm333.Cartridges.Devel.json` by updating `"runtime-version"` from `"master"` to `"47"` per FR-003, US3/AC1 (contradicts)
+- [x] T019 Add `blueprint-compiler` to package installation step in `.github/workflows/ci.yml` per FR-002, US3/AC1 (missing)
