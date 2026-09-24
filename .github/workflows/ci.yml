@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [rewrite]
+  pull_request:
+    branches: [rewrite]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & Validation
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          dnf install -y python3-pip npm git desktop-file-utils libappstream-glib gettext
+          pip3 install --break-system-packages ruff meson ninja git+https://gitlab.gnome.org/GNOME/blueprint-compiler.git
+
+      - name: Meson Setup & Tests
+        run: |
+          meson setup _build
+          ninja -C _build test
+
+      - name: Validate AppStream & Desktop Metadata
+        run: |
+          ninja -C _build cartridges-update-po
+          appstream-util validate-relax data/page.samuelm333.Cartridges.metainfo.xml.in
+          desktop-file-validate data/page.samuelm333.Cartridges.desktop.in
+
+  flatpak:
+    name: Flatpak Build (Devel)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flatpak Builder
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.5
+        with:
+          bundle: page.samuelm333.Cartridges.Devel.flatpak
+          manifest-path: flatpak/page.samuelm333.Cartridges.Devel.json
+          run-tests: true

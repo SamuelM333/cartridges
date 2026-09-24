@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-21
 
-**Status**: Ready for Planning
+**Status**: Complete
 
 **Input**: User description: "I want to update the project metadata to replace the publisher of the app, from kramo to samuelm333, and update the Flatpak FQN (Application ID) to page.samuelm333.Cartridges. Only replace metadata relevant with publishing, without scrubbing away historical developer contributions or previous author's attribution (kramo)."
 
