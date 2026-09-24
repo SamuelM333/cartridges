@@ -74,18 +74,19 @@ As a contributor and reviewer, I want automated CI validation to run on every pu
 - **FR-004**: The system MUST provide a release workflow triggered when a semantic version tag (e.g. `v*`) is pushed.
 - **FR-005**: The release workflow MUST build the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` using the official application ID `page.samuelm333.Cartridges` and the production manifest `flatpak/page.samuelm333.Cartridges.json`.
 - **FR-006**: The release workflow MUST extract release notes for the published version from `data/page.samuelm333.Cartridges.metainfo.xml.in`.
-- **FR-007**: The release workflow MUST attach the built Linux Flatpak bundle to the GitHub Release matching the pushed tag.
+- **FR-007**: The release workflow MUST attach the built Linux Flatpak bundle (`page.samuelm333.Cartridges.flatpak`) as an asset to the GitHub Release matching the pushed tag, ensuring it is directly available for user download.
 - **FR-008**: The system MUST provide a nightly build workflow (`nightly.yml`) triggered via schedule (e.g., daily cron) and manual dispatch (`workflow_dispatch`).
 - **FR-009**: The nightly workflow MUST use `actions/cache` to store and restore the commit SHA of the last successfully built nightly package.
 - **FR-010**: The nightly workflow MUST skip the Flatpak build and release publication when the cached commit SHA matches the current HEAD commit SHA of the target branch.
-- **FR-011**: The nightly workflow MUST build `page.samuelm333.Cartridges.Devel.flatpak` on a cache miss (new commit) and update the designated `nightly` release with the new bundle and update the cache.
+- **FR-011**: The nightly workflow MUST build `page.samuelm333.Cartridges.Devel.flatpak` on a cache miss (new commit), publish or update the designated `nightly` pre-release with the new bundle attached as a downloadable asset, and update the cache.
 - **FR-012**: All workflows MUST declare strict minimal `permissions` adhering to the principle of least privilege.
 - **FR-013**: All workflow definitions and accompanying scripts MUST contain zero Unicode emoji characters.
+- **FR-014**: Both release and nightly GitHub Releases MUST make their respective compiled Flatpak bundle files (`page.samuelm333.Cartridges.flatpak` for tagged releases and `page.samuelm333.Cartridges.Devel.flatpak` for nightly pre-releases) directly accessible for public download from the release asset list.
 
 ### Key Entities
 
-- **Release Artifact**: Represents an official release distribution package (`page.samuelm333.Cartridges.flatpak`), tied to an immutable git tag and published on GitHub Releases with validated AppStream changelog notes.
-- **Nightly Artifact**: Represents a rolling pre-release package (`page.samuelm333.Cartridges.Devel.flatpak`) built from the latest commit on `rewrite`, updated only when code changes are detected.
+- **Release Artifact**: Represents an official release distribution package (`page.samuelm333.Cartridges.flatpak`), tied to an immutable git tag and published as a downloadable binary asset on GitHub Releases with validated AppStream changelog notes.
+- **Nightly Artifact**: Represents a rolling pre-release package (`page.samuelm333.Cartridges.Devel.flatpak`) built from the latest commit on `rewrite`, updated only when code changes are detected and attached as a downloadable binary asset to the GitHub Nightly pre-release.
 - **Cache Key**: A cache identifier maintained via `actions/cache` storing the git commit SHA of the most recent successful nightly build.
 - **Flatpak Manifest**: JSON specification defining the runtime, SDK, sandboxed permissions, and compilation commands for either development (`Devel`) or production releases.
 
@@ -93,10 +94,11 @@ As a contributor and reviewer, I want automated CI validation to run on every pu
 
 ### Measurable Outcomes
 
-- **SC-001**: Every git tag push triggers automated compilation of the Linux Flatpak bundle and attaches it to the GitHub Release without manual maintainer intervention.
-- **SC-002**: Scheduled nightly workflows evaluate `actions/cache` and completely skip build tasks in 100% of runs where HEAD has not advanced past the last cached nightly build commit SHA.
+- **SC-001**: Every git tag push triggers automated compilation of the Linux Flatpak bundle and attaches `page.samuelm333.Cartridges.flatpak` to the GitHub Release as a downloadable release asset without manual maintainer intervention.
+- **SC-002**: Scheduled nightly workflows evaluate `actions/cache`, skip build tasks in 100% of runs where HEAD has not advanced past the last cached nightly build commit SHA, and attach `page.samuelm333.Cartridges.Devel.flatpak` as a downloadable asset to the `nightly` release when new commits are built.
 - **SC-003**: Pull request builds detect and reject formatting errors, type discrepancies, and build failures within 10 minutes of push.
 - **SC-004**: Zero Unicode emojis are present across any created workflow configuration files or automated scripts.
+- **SC-005**: 100% of published tag releases and nightly pre-releases include their compiled Flatpak bundles available in the release assets list for end-user download.
 
 ## Assumptions
 
@@ -105,3 +107,4 @@ As a contributor and reviewer, I want automated CI validation to run on every pu
 - GitHub Actions is the CI/CD execution platform for the repository.
 - GitHub token credentials supplied by `GITHUB_TOKEN` have permission to publish releases when configured with `contents: write`.
 - The production Flatpak manifest `flatpak/page.samuelm333.Cartridges.json` will be maintained in the repository alongside `flatpak/page.samuelm333.Cartridges.Devel.json`.
+- Users and testers can install the downloadable `.flatpak` single-file bundles directly using `flatpak install --user <bundle-file>`.

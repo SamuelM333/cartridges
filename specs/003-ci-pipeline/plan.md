@@ -8,8 +8,9 @@
 
 Build and configure GitHub Actions CI/CD workflows tailored strictly to Linux and Flatpak:
 1. **Pull Request & Branch CI (`ci.yml`)**: Continuous integration triggered on pull requests and pushes to `rewrite`, running code quality checks (pre-commit, Ruff, Pyright strict typechecking, Blueprint validation, Meson tests) and building the development Flatpak bundle (`page.samuelm333.Cartridges.Devel.flatpak`).
-2. **Production Release Workflow (`publish-release.yml`)**: Triggered upon publishing semantic version tags (`v*`), building the production Flatpak bundle (`page.samuelm333.Cartridges.flatpak`) using `flatpak/page.samuelm333.Cartridges.json`, extracting AppStream changelog notes from `data/page.samuelm333.Cartridges.metainfo.xml.in`, and attaching the bundle to the GitHub Release.
-3. **Nightly Build Workflow (`nightly.yml`)**: Triggered via daily cron schedule (`0 2 * * *`) and manual dispatch (`workflow_dispatch`), using GitHub `actions/cache` keyed on `nightly-built-${{ github.sha }}`. If the cache hits (meaning this commit has already been built), the workflow terminates immediately. If a cache miss occurs, it compiles `page.samuelm333.Cartridges.Devel.flatpak`, updates the rolling `nightly` release, and saves the commit SHA to GitHub cache.
+2. **Production Release Workflow (`publish-release.yml`)**: Triggered upon publishing semantic version tags (`v*`), building the production Flatpak bundle (`page.samuelm333.Cartridges.flatpak`) using `flatpak/page.samuelm333.Cartridges.json`, extracting AppStream changelog notes from `data/page.samuelm333.Cartridges.metainfo.xml.in`, creating the official GitHub Release with those notes, and attaching the `.flatpak` bundle directly to the release assets for user download.
+3. **Nightly Build Workflow (`nightly.yml`)**: Triggered via daily cron schedule (`0 2 * * *`) and manual dispatch (`workflow_dispatch`), using GitHub `actions/cache` keyed on `nightly-built-${{ github.sha }}`. If the cache hits (meaning this commit has already been built), the workflow terminates immediately. If a cache miss occurs, it compiles `page.samuelm333.Cartridges.Devel.flatpak`, creates or updates the rolling `nightly` pre-release on GitHub, attaches the development Flatpak bundle as a downloadable release asset, and saves the commit SHA to GitHub cache.
+
 
 ## Technical Context
 

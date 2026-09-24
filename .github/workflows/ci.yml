@@ -18,7 +18,7 @@ jobs:
     name: Lint & Validation
     runs-on: ubuntu-latest
     container:
-      image: bilelmoussaoui/flatpak-github-actions:gnome-47
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
       - name: Checkout
@@ -26,8 +26,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          dnf install -y python3-pip npm git desktop-file-utils libappstream-glib blueprint-compiler gettext
-          pip3 install --break-system-packages ruff meson ninja
+          dnf install -y python3-pip npm git desktop-file-utils libappstream-glib gettext
+          pip3 install --break-system-packages ruff meson ninja git+https://gitlab.gnome.org/GNOME/blueprint-compiler.git
 
       - name: Meson Setup & Tests
         run: |

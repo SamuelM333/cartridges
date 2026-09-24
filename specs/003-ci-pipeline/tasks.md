@@ -105,3 +105,11 @@
 
 - [x] T022 Update `"runtime-version"` to `"50"` in `flatpak/page.samuelm333.Cartridges.Devel.json` and `flatpak/page.samuelm333.Cartridges.json`
 - [x] T023 Update container image to `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` in `.github/workflows/ci.yml`, `.github/workflows/publish-release.yml`, and `.github/workflows/nightly.yml`
+
+---
+
+## Phase 10: Convergence
+
+**Purpose**: Remediate CI execution failure surfaced in `ci-logs/job-logs.txt`
+
+- [x] T024 Update `lint-and-test` job container image in `.github/workflows/ci.yml` to `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` and install `blueprint-compiler` via `pip3 install --break-system-packages git+https://gitlab.gnome.org/GNOME/blueprint-compiler.git` (or package equivalent supporting `--minify`) per FR-002, US3/AC1 (contradicts)
