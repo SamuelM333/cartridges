@@ -22,8 +22,8 @@
   <url type="vcs-browser">https://github.com/samuelm333/cartridges</url>
   <url type="bugtracker">https://github.com/samuelm333/cartridges/issues</url>
   <url type="translate">https://hosted.weblate.org/engage/cartridges/</url>
-  <url type="contact">https://discord.gg/yrJfddyt56</url>
-  <url type="contribute">https://github.com/samuelm333/cartridges/blob/rewrite/CONTRIBUTING.md</url>
+  <url type="contact">mailto:contact@samuelmurillo.xyz</url>
+  <url type="contribute">https://github.com/samuelm333/cartridges/blob/main/CONTRIBUTING.md</url>
 
   <translation type="gettext">cartridges</translation>
   <launchable type="desktop-id">@APP_ID@.desktop</launchable>
