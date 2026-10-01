@@ -41,11 +41,8 @@ jobs:
         if: ${{ steps.check-cache.outputs.cache-hit == 'true' && !(inputs.force) }}
         run: echo "Commit ${{ github.sha }} has already been built and published for nightly. Skipping."
 
-      - name: Set short git commit SHA
-        id: vars
-        run: |
-          calculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
+      - name: Commit Hash
+        uses: prompt/actions-commit-hash@v4
 
       - name: Build Nightly Flatpak Bundle
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
@@ -58,8 +55,8 @@ jobs:
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
         uses: softprops/action-gh-release@v3
         with:
-          name: "Nightly ${{ env.COMMIT_SHORT_SHA }}"
-          tag_name: nightly-${{ env.COMMIT_SHORT_SHA }}
+          name: "Nightly ${{ steps.commit.outputs.short }}"
+          tag_name: nightly-${{ steps.commit.outputs.short }}
           generate_release_notes: true
           files: page.samuelm333.Cartridges.Devel.flatpak
           fail_on_unmatched_files: true
