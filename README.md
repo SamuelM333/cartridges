@@ -1,5 +1,6 @@
 > [!CAUTION]
 > This project is in **alpha** and still in development.
+
 > [!WARNING]
 > This project uses AI. See [Contributing](CONTRIBUTING.md#speckit-workflow) for more info.
 
