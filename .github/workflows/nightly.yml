@@ -42,6 +42,7 @@ jobs:
         run: echo "Commit ${{ github.sha }} has already been built and published for nightly. Skipping."
 
       - name: Commit Hash
+        id: commit
         uses: prompt/actions-commit-hash@v4
 
       - name: Build Nightly Flatpak Bundle
