@@ -21,7 +21,8 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     env:
-      GI_TYPELIB_PATH: /usr/lib/girepository-1.0:/usr/lib64/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0:/app/lib/girepository-1.0
+      GI_TYPELIB_PATH: /var/lib/flatpak/runtime/org.gnome.Sdk/x86_64/50/active/files/lib/x86_64-linux-gnu/girepository-1.0:/app/lib/girepository-1.0
+      XDG_DATA_DIRS: /var/lib/flatpak/runtime/org.gnome.Sdk/x86_64/50/active/files/share:/usr/local/share:/usr/share
     steps:
       - name: Checkout
         uses: actions/checkout@v4
