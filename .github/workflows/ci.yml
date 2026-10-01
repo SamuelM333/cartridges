@@ -26,7 +26,6 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          dnf install -y python3-pip npm git desktop-file-utils libappstream-glib gettext
           pip3 install --break-system-packages ruff meson ninja git+https://gitlab.gnome.org/GNOME/blueprint-compiler.git
 
       - name: Meson Setup & Tests
@@ -37,8 +36,8 @@ jobs:
       - name: Validate AppStream & Desktop Metadata
         run: |
           ninja -C _build cartridges-update-po
-          appstream-util validate-relax data/page.samuelm333.Cartridges.metainfo.xml.in
-          desktop-file-validate data/page.samuelm333.Cartridges.desktop.in
+          appstreamcli validate --no-net _build/data/*.metainfo.xml
+          desktop-file-validate _build/data/*.desktop
 
   flatpak:
     name: Flatpak Build (Devel)
