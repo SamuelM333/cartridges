@@ -44,7 +44,8 @@ jobs:
       - name: Set short git commit SHA
         id: vars
         run: |
-          echo "COMMIT_SHORT_SHA=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
 
       - name: Build Nightly Flatpak Bundle
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
