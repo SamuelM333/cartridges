@@ -113,3 +113,20 @@
 **Purpose**: Remediate CI execution failure surfaced in `ci-logs/job-logs.txt`
 
 - [x] T024 Update `lint-and-test` job container image in `.github/workflows/ci.yml` to `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` and install `blueprint-compiler` via `pip3 install --break-system-packages git+https://gitlab.gnome.org/GNOME/blueprint-compiler.git` (or package equivalent supporting `--minify`) per FR-002, US3/AC1 (contradicts)
+
+---
+
+## Phase 11: Convergence
+
+**Purpose**: Remediate container compatibility and dependency installation in GNOME 50 image for `lint-and-test` CI job
+
+- [x] T025 Remove `dnf` invocation and install required Python tooling directly via `pip3 install --break-system-packages ruff meson ninja git+https://gitlab.gnome.org/GNOME/blueprint-compiler.git` in `.github/workflows/ci.yml` per FR-002, US3/AC1 (contradicts)
+- [x] T026 Update AppStream metadata validation in `.github/workflows/ci.yml` to use `appstreamcli validate --no-net` instead of `appstream-util` per FR-002, US3/AC1 (contradicts)
+
+---
+
+## Phase 12: Convergence
+
+**Purpose**: Remediate Gtk 4.0 typelib search path failure during blueprint compilation in GNOME 50 container
+
+- [x] T028 Update `GI_TYPELIB_PATH` and `XDG_DATA_DIRS` in `.github/workflows/ci.yml` to reference the GNOME Sdk flatpak installation path `/var/lib/flatpak/runtime/org.gnome.Sdk/x86_64/50/active/files` per FR-002, US3/AC1 (contradicts)
