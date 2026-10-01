@@ -21,10 +21,10 @@ jobs:
       options: --privileged
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build Flatpak Bundle
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.5
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: page.samuelm333.Cartridges.flatpak
           manifest-path: flatpak/page.samuelm333.Cartridges.json
@@ -38,7 +38,7 @@ jobs:
         run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2.2.2
+        uses: softprops/action-gh-release@v3
         with:
           files: page.samuelm333.Cartridges.flatpak
           fail_on_unmatched_files: true
