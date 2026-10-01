@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [rewrite]
+    branches: [main]
   pull_request:
-    branches: [rewrite]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +25,7 @@ jobs:
       XDG_DATA_DIRS: /var/lib/flatpak/runtime/org.gnome.Sdk/x86_64/50/active/files/share:/usr/local/share:/usr/share
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Dependencies
         run: |
@@ -50,10 +50,10 @@ jobs:
       options: --privileged
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Flatpak Builder
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.5
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
         with:
           bundle: page.samuelm333.Cartridges.Devel.flatpak
           manifest-path: flatpak/page.samuelm333.Cartridges.Devel.json
