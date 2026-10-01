@@ -1,5 +1,5 @@
 {
-  "id": "page.samuelm333.Cartridges.Devel",
+  "id": "page.samuelm333.Cartridges",
   "runtime": "org.gnome.Platform",
   "runtime-version": "50",
   "sdk": "org.gnome.Sdk",
@@ -48,7 +48,7 @@
       "name": "cartridges",
       "builddir": true,
       "buildsystem": "meson",
-      "config-opts": ["-Dprofile=development", "--libdir=lib"],
+      "config-opts": ["-Dprofile=release", "--libdir=lib"],
       "sources": [
         {
           "type": "dir",

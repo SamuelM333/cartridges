@@ -1,0 +1,46 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-flatpak:
+    name: Build Release Flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Flatpak Bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.5
+        with:
+          bundle: page.samuelm333.Cartridges.flatpak
+          manifest-path: flatpak/page.samuelm333.Cartridges.json
+
+      - name: Extract Release Notes
+        run: |
+          python3 .github/scripts/extract_release_notes.py data/page.samuelm333.Cartridges.metainfo.xml.in release_notes.md
+
+      - name: Get Tag Name
+        id: get_tag_name
+        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2.2.2
+        with:
+          files: page.samuelm333.Cartridges.flatpak
+          fail_on_unmatched_files: true
+          tag_name: ${{ steps.get_tag_name.outputs.tag_name }}
+          body_path: release_notes.md
