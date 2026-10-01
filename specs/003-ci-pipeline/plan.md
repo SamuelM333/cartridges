@@ -1,6 +1,6 @@
 # Implementation Plan: Automated CI Pipeline, Release Flatpak, and Nightly Builds (Linux/Flatpak)
 
-**Branch**: `feat/003-ci-pipeline` | **Date**: 2026-09-23 | **Spec**: [specs/003-ci-pipeline/spec.md](file:///var/home/samuel/Projects/cartridges/specs/003-ci-pipeline/spec.md)
+**Branch**: `feat/003-ci-pipeline-review` | **Date**: 2026-09-23 | **Spec**: [specs/003-ci-pipeline/spec.md](file:///var/home/samuel/Projects/cartridges/specs/003-ci-pipeline/spec.md)
 
 **Input**: Feature specification from `specs/003-ci-pipeline/spec.md` scoped strictly to Linux/Flatpak, with GitHub `actions/cache` commit tracking for nightly builds.
 

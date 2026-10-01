@@ -1,11 +1,13 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.5.0 -> 1.6.0
+- Version change: 1.6.0 -> 2.0.0
 - List of modified principles:
-  * Principle I: "Strict Typing & Quality Assurance" -> "Strict Typing, Code Formatting & Quality Assurance" (mandates running repository formatting tools prior to marking any feature or spec complete)
+  * Section "Development & Branching Workflow": Renamed target and source branch from `rewrite` to `main`. Mandated that `main` is the primary trunk and only short-lived feature/bugfix branches are permitted.
+  * Section "Project Provenance & Fork Heritage": Updated foundation notes to reflect that the repository's `main` branch now embodies the modern rewrite codebase, replacing the historical legacy branch.
 - Added sections: None
 - Modified sections:
-  * Quality Gates & Verification: explicitly establishes `.pre-commit-config.yaml` as the canonical source of truth for mandatory formatting steps that must run before completing any spec or merging changes.
+  * Development & Branching Workflow
+  * Project Provenance & Fork Heritage
 - Removed sections: None
 - Follow-up TODOs: None
 -->
@@ -75,10 +77,12 @@ Before marking any specification or feature as complete, the following checks MU
    - Verification that all code, docstrings, and documentation remain completely free of emoji characters.
 
 ## Development & Branching Workflow
-To ensure stability and quality control during development, the following git and branching policies are strictly enforced:
-* **Branch Source**: Any development, feature, or bugfix branches MUST be branched directly from the `rewrite` branch. Feature branches must not be branched from `main`.
-* **Branch Protection for main**: The `main` branch is kept completely frozen. No direct pushes or merges to `main` are allowed.
-* **Target Branch for Merges**: All merged code, pull requests, and completed feature implementations MUST be merged exclusively into the `rewrite` branch.
+To ensure stability, simplicity, and quality control during development, the following git and branching policies are strictly enforced:
+* **Primary Trunk**: The `main` branch is the primary, default development trunk of the repository. It contains the active, modern codebase (formerly developed on `rewrite`).
+* **Branch Source**: Any development, feature, or bugfix branches MUST be branched directly from `main`.
+* **Short-Lived Branches Only**: All branches other than `main` must be short-lived feature or fix branches. Long-lived parallel branches are strictly prohibited.
+* **Target Branch for Merges**: All merged code, pull requests, and completed feature implementations MUST be merged exclusively into the `main` branch.
+* **Historical Operations**: Historical operations, legacy codebase comparisons, or inspection of pre-fork branches MUST be performed in the external repository `/var/home/samuel/Projects/cartridges-main`, keeping this repository clean.
 
 ## Governance
 This Constitution governs all architectural and structural decisions. No pull request violating these core principles shall be merged.
@@ -88,8 +92,8 @@ This Constitution governs all architectural and structural decisions. No pull re
 
 ### Project Provenance & Fork Heritage
 This project is an active downstream fork of the archived repository at [https://codeberg.org/kramo/cartridges](https://codeberg.org/kramo/cartridges).
-* **Source Foundation**: Development MUST build upon and align with the legacy codebase's `rewrite` branch, which contains the most up-to-date and high-quality architectural foundations.
-* **Code Quality Standard**: Legacy code from the original `main` branch of the upstream repository is considered of poor quality and MUST NOT be used as a design reference. Any functional legacy components brought over or adapted from that branch must be fully refactored to comply with Core Principle I (Strict Typing & QA).
+* **Source Foundation**: Development builds upon the architectural foundations originally established in the upstream `rewrite` branch, which now constitutes this repository's `main` branch.
+* **Code Quality Standard**: Legacy code from the original upstream repository's pre-rewrite codebase is considered of poor quality and MUST NOT be used as a design reference. Any functional components adapted from historical sources must be fully refactored to comply with Core Principle I (Strict Typing & QA).
 * **New Maintenance**: This fork is actively maintained by **samuelm333** ([samuelmurillo.xyz](https://samuelmurillo.xyz)), hosted on GitHub under the username [samuelm333](https://github.com/samuelm333).
 
-**Version**: 1.6.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-09-23
+**Version**: 2.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-01
