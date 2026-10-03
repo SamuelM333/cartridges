@@ -20,9 +20,10 @@ As a user configuring SteamGridDB integration, I want my API key to be concealed
 
 **Acceptance Scenarios**:
 
-1. **Given** a user has entered or saved an API key in Preferences, **When** viewing the SteamGridDB settings page, **Then** the key text is masked by default with obscuring glyphs.
-2. **Given** the API key field is currently masked, **When** the user clicks the eye icon toggle, **Then** the plain text of the API key becomes visible.
-3. **Given** the API key field is currently showing plain text, **When** the user clicks the eye icon toggle again, **Then** the text returns to masked mode.
+1. **Given** a user has entered or saved an API key in Preferences, **When** viewing the SteamGridDB settings page in masked mode, **Then** the field displays a fixed set amount of masked characters (e.g., 20 dots) that fits the input field rather than exposing the real string length.
+2. **Given** the API key field is focused or being edited, **When** the user clicks away from the input field or elsewhere in the preferences dialog, **Then** the input field loses focus and saves any changed text.
+3. **Given** the API key field is currently masked with the fixed set amount of characters, **When** the user clicks the eye icon toggle, **Then** the actual plain text of the API key becomes visible.
+4. **Given** the API key field is currently showing plain text, **When** the user clicks the eye icon toggle again, **Then** the display returns to the fixed set amount of masked characters.
 
 ---
 
@@ -124,8 +125,9 @@ As a user customizing game artwork, I want to see an active loading spinner over
 - **FR-004**: System MUST dismiss the initial centered loading spinner as soon as the first batch of candidate covers is rendered, or when the query resolves with an empty state or error.
 - **FR-005**: System MUST display a horizontally centered loading spinner at the bottom of the candidate list whenever additional candidate images are actively being fetched or processed.
 - **FR-006**: System MUST dismiss the bottom centered loading spinner when all additional image fetching operations have concluded or encountered an error.
-- **FR-007**: System MUST mask the SteamGridDB API key input field by default in the application preferences.
-- **FR-008**: System MUST provide an interactive reveal/hide toggle action (eye icon) alongside the API key input to switch between masked characters and plain text.
+- **FR-007**: System MUST mask the SteamGridDB API key input field by default in application preferences using a fixed set amount of masked characters that fits the input field (e.g. 20 bullet dots) whenever an API key is present, preventing disclosure of the real string length.
+- **FR-008**: System MUST release focus from the SteamGridDB API key input field whenever the user clicks away from the input field or outside it within the preferences dialog.
+- **FR-008a**: System MUST provide an interactive reveal/hide toggle action (eye icon) alongside the API key input to switch between the fixed set amount of masked characters and the actual plain text key.
 - **FR-009**: System MUST store downloaded cover picker preview images in a dedicated local cache directory conforming to platform cache conventions.
 - **FR-010**: System MUST retrieve preview images from the local cache rather than the network when a valid cached copy exists for a requested thumbnail URL.
 - **FR-011**: System MUST automatically purge transient preview cache files upon application exit or when entries exceed their designated expiration age.

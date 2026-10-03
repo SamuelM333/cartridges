@@ -33,6 +33,9 @@
 
 - [x] T003 [US1] Change `sgdb_key_entry_row` from `Adw.EntryRow` to `Adw.PasswordEntryRow` in `cartridges/ui/preferences.blp`
 - [x] T004 [US1] Update `sgdb_key_entry_row` type annotation to `Adw.PasswordEntryRow` and preserve GSettings binding in `cartridges/ui/preferences.py`
+- [x] T024 [US1] Display a fixed set amount of masked characters (20 dots) fitting the input field instead of matching real string length in `cartridges/ui/preferences.py`
+- [x] T025 [US1] Release focus from `sgdb_key_entry_row` when clicking away or pressing Enter/Escape in `cartridges/ui/preferences.py`
+- [x] T026 [US1] Validate focus loss and fixed mask display against `specs/004-steamgriddb-picker/quickstart.md`
 
 **Checkpoint**: User Story 1 functional and independently testable in Preferences.
 
@@ -158,3 +161,11 @@
 2. **Sprint 2 (Picker Stack & Spinners)**: Implement T007, T008 (US2 initial centered spinner), and T009, T010 (US3 progressive bottom spinner).
 3. **Sprint 3 (Image Caching)**: Implement T002, T011, T012, T013 (US4 preview cache and cleanup on exit).
 4. **Sprint 4 (QA)**: Execute T020, T021, T022 for compile, lint, type-check, and scenario verification.
+
+---
+
+## Phase 10: Convergence
+
+**Purpose**: Address convergence findings identified during review
+
+- [x] T023 Hide pen edit icon in API key entry row in `cartridges/ui/preferences.blp` or `cartridges/ui/style.css` per US1/AC1 (partial)

@@ -34,6 +34,8 @@ class CartridgesPreferences(Adw.PreferencesDialog):
 
 ## 3. Behavioral Guarantees
 
-- **Masked by default**: When opening preferences, the API key input is obscured with bullet characters.
-- **Toggle visibility**: Clicking the native eye icon reveals the plaintext characters without altering the underlying string stored in `SETTINGS["sgdb-key"]`.
-- **Keyboard / Accessibility**: Supports standard GNOME password row interactions, including keyboard navigation and clipboard operations.
+- **Fixed Mask Length**: When masked and an API key is configured, the field displays a fixed set amount of masked characters (e.g., 20 bullet dots) that fits the input field without disclosing the real key length or overflowing the entry width.
+- **Focus Loss on Click Away**: Clicking outside the entry row or anywhere within the preferences view immediately releases focus from the entry row and commits any changes.
+- **Toggle Visibility**: Clicking the eye icon toggle switches between the fixed set amount of masked characters and the actual plaintext API key.
+- **Editing Flow**: When the entry row is focused for editing, the real key is loaded so the user can edit or replace it. Upon focus loss, any updated key is saved to GSettings and replaced with the fixed mask display if currently masked.
+- **Keyboard & Accessibility**: Supports standard GNOME entry row interactions, including keyboard navigation, Enter/Escape to blur, and clipboard operations.

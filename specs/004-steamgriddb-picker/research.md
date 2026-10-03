@@ -118,3 +118,54 @@ Preview thumbnails downloaded from SteamGridDB should be cached locally so reope
 ### Alternatives Considered
 - *In-memory only cache*: Discarded on dialog close, causing redundant network traffic whenever user reopens chooser during session.
 - *Storing previews in `COVERS_DIR` (`$XDG_DATA_HOME`)*: Violates XDG conventions by mixing temporary unselected candidate previews with permanent library artwork.
+
+---
+
+## 5. Fixed Mask Length for Stored API Key
+
+### Context & Need
+By default, `Adw.PasswordEntryRow` renders one masked bullet character (`•`) for every character in the stored string. A standard SteamGridDB API key is 32 hexadecimal characters long. Rendering 32 dots reveals the exact length of the user's secret key and can cause horizontal scrolling or awkward layout inside the preferences row. The user wants the field to display a set amount of masked characters that comfortably fits the input field instead of matching the real string length.
+
+### Decision
+1. In `CartridgesPreferences`, maintain an internal string variable `self._real_sgdb_key` loaded from `SETTINGS.get_string("sgdb-key")`.
+2. Define `FIXED_MASK_CHARS = "•" * 20` (or 20 bullet dots) representing a populated, masked state.
+3. When the entry row is unfocused and masked:
+   - If `self._real_sgdb_key` is empty, set entry row text to `""`.
+   - If `self._real_sgdb_key` is populated, set entry row text to `FIXED_MASK_CHARS`.
+4. When the user toggles the eye reveal button or focuses the entry row to edit:
+   - Temporarily substitute `self._real_sgdb_key` into the entry row so the user views or edits their actual key.
+5. When the user finishes editing and focus is lost or reveal is toggled off:
+   - Save the edited text to `self._real_sgdb_key` and update `SETTINGS["sgdb-key"]`.
+   - Re-apply `FIXED_MASK_CHARS` if currently masked.
+
+### Rationale
+- Completely conceals both the contents and the exact length of the API key from observers.
+- Prevents text overflow or clipping within the entry row container.
+- Matches standard security practices seen in password managers and web console secret fields.
+
+### Alternatives Considered
+- *Native `Adw.PasswordEntryRow` length mapping*: No native property exists in Libadwaita to decouple mask bullet count from text buffer length without managing virtual display text.
+- *Placeholder text only*: Using placeholder text leaves the field looking empty rather than securely configured.
+
+---
+
+## 6. Focus Loss on Clicking Away
+
+### Context & Need
+In GTK 4, clicking on background containers, preferences group headers, or empty window regions does not inherently take keyboard focus away from an active `Gtk.Text` or `Adw.PasswordEntryRow`. Users expect that clicking away from the API key input row immediately releases focus, signaling that input is complete and triggering mask restoration.
+
+### Decision
+1. Attach a `Gtk.GestureClick` controller to the preferences view/page. In its release/press handler, if focus is currently within `sgdb_key_entry_row`, invoke `self.set_focus(None)` (or `root.set_focus(None)`).
+2. Attach an `EventControllerKey` to `sgdb_key_entry_row` to capture `Return`/`Enter` and `Escape`, clearing focus upon confirmation or cancellation.
+3. Attach a `Gtk.EventControllerFocus` to `sgdb_key_entry_row` to detect focus in and focus out events cleanly:
+   - `focus-enter`: Prepare field for editing (load real key if masked).
+   - `focus-leave`: Commit changes to GSettings, refresh sensitivity, and apply the fixed mask.
+
+### Rationale
+- Intuitive and responsive desktop UX matching standard desktop behavior.
+- Cleanly triggers the focus-out lifecycle needed to swap between editing text and the fixed display mask.
+- Non-disruptive: only clears focus if no other focusable widget was clicked.
+
+### Alternatives Considered
+- *Requiring explicit Enter key press only*: Inconvenient for mouse-driven users who expect clicking outside to commit and blur the field.
+- *Window-level global modal focus grabbing*: Too aggressive; can break tab navigation or interaction with other preference controls.

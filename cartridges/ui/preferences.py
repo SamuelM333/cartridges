@@ -13,12 +13,15 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from .window import Window
 
-from gi.repository import Adw, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk
 
 from cartridges import SETTINGS, STATE_SETTINGS
 from cartridges.config import PREFIX, PROFILE
 
 _logger = logging.getLogger(__name__)
+
+_MASK_CHAR_COUNT: int = 20
+_FIXED_MASK: str = "\u2022" * _MASK_CHAR_COUNT
 
 
 # Validation rules mapping:
@@ -200,16 +203,113 @@ class CartridgesPreferences(Adw.PreferencesDialog):
                 )
 
     def _setup_sgdb_key(self) -> None:
-        """Bind SteamGridDB API key entry row and lock/unlock switch."""
-        self.sgdb_key_entry_row.set_text(SETTINGS.get_string("sgdb-key"))
+        """Bind SteamGridDB API key entry row, fixed mask display, and focus loss."""
+        self._real_sgdb_key: str = SETTINGS.get_string("sgdb-key")
+        self._updating_key_display: bool = False
+        self._sgdb_focused: bool = False
+
+        text_widget: Gtk.Text | None = None
+
+        def inspect_widget(widget: Gtk.Widget) -> None:
+            nonlocal text_widget
+            if isinstance(widget, Gtk.Text):
+                text_widget = widget
+            elif (
+                isinstance(widget, Gtk.Image)
+                and widget.get_icon_name() == "adw-entry-edit-symbolic"
+            ):
+                widget.set_visible(False)
+
+            child = widget.get_first_child()
+            while child:
+                inspect_widget(child)
+                child = child.get_next_sibling()
+
+        inspect_widget(self.sgdb_key_entry_row)
+
+        def update_display() -> None:
+            self._updating_key_display = True
+            is_revealed = text_widget.get_visibility() if text_widget else False
+            if is_revealed or self._sgdb_focused:
+                self.sgdb_key_entry_row.set_text(self._real_sgdb_key)
+            else:
+                self.sgdb_key_entry_row.set_text(
+                    _FIXED_MASK if self._real_sgdb_key else ""
+                )
+            self._updating_key_display = False
+
+        if text_widget is not None:
+            text_widget.connect("notify::visibility", lambda *_: update_display())
+
+        def clear_focus() -> None:
+            self.set_focus(None)
+            root = self.get_root()
+            if root is not None and hasattr(root, "set_focus"):
+                root.set_focus(None)
+
+        focus_controller = Gtk.EventControllerFocus()
+
+        def on_focus_enter(*_: Any) -> None:
+            self._sgdb_focused = True
+            update_display()
+            self.sgdb_key_entry_row.select_region(0, -1)
+
+        def on_focus_leave(*_: Any) -> None:
+            self._sgdb_focused = False
+            update_display()
+
+        focus_controller.connect("enter", on_focus_enter)
+        focus_controller.connect("leave", on_focus_leave)
+        self.sgdb_key_entry_row.add_controller(focus_controller)
+
+        key_controller = Gtk.EventControllerKey()
+
+        def on_key_pressed(
+            _controller: Gtk.EventControllerKey,
+            keyval: int,
+            _keycode: int,
+            _state: Gdk.ModifierType,
+        ) -> bool:
+            if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_Escape):
+                clear_focus()
+                return True
+            return False
+
+        key_controller.connect("key-pressed", on_key_pressed)
+        self.sgdb_key_entry_row.add_controller(key_controller)
+
+        click_gesture = Gtk.GestureClick()
+        click_gesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+
+        def on_dialog_clicked(
+            _gesture: Gtk.GestureClick, _n: int, x: float, y: float
+        ) -> None:
+            current_focus = self.get_focus()
+            if current_focus and (
+                current_focus == self.sgdb_key_entry_row
+                or current_focus.is_ancestor(self.sgdb_key_entry_row)
+            ):
+                picked = self.pick(x, y, Gtk.PickFlags.DEFAULT)
+                if picked is None or (
+                    picked != self.sgdb_key_entry_row
+                    and not picked.is_ancestor(self.sgdb_key_entry_row)
+                ):
+                    clear_focus()
+
+        click_gesture.connect("pressed", on_dialog_clicked)
+        self.add_controller(click_gesture)
 
         def on_key_changed(*_: Any) -> None:
+            if self._updating_key_display:
+                return
             key = self.sgdb_key_entry_row.get_text()
+            self._real_sgdb_key = key
             SETTINGS.set_string("sgdb-key", key)
             self._update_sgdb_sensitivity(key)
 
         self.sgdb_key_entry_row.connect("changed", on_key_changed)
-        self._update_sgdb_sensitivity(SETTINGS.get_string("sgdb-key"))
+        update_display()
+        self._update_sgdb_sensitivity(self._real_sgdb_key)
 
     def _update_sgdb_sensitivity(self, key: str) -> None:
         """Enable or disable SteamGridDB controls based on API key presence."""

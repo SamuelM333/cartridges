@@ -42,18 +42,20 @@ ruff check
 
 ## 3. Manual Scenario Verification
 
-### Scenario 1: API Key Masking & Eye Icon Toggle *(To Do)*
+### Scenario 1: API Key Masking, Fixed Length & Focus Loss
 1. Launch Cartridges:
    ```bash
    ninja -C _build run
    ```
 2. Open Preferences via menu or `Ctrl+,` and select the **SteamGridDB** page.
-3. Observe the **API Key** row under **Authentication**.
-   - **Expected**: Any configured key characters appear masked with dots.
-4. Click the eye icon toggle button on the right edge of the row.
-   - **Expected**: Plaintext characters become visible.
-5. Click the eye icon again.
-   - **Expected**: Characters are obscured again.
+3. Observe the **API Key** row under **Authentication**:
+   - **Expected**: Any configured key appears masked with a fixed set amount of characters (e.g., 20 dots) that fits the field neatly, rather than displaying one dot per character of the real string.
+4. Click on the API key row to focus it, or click away elsewhere in the preferences dialog:
+   - **Expected**: Clicking away immediately releases focus from the API key row and commits any changes.
+5. Click the eye icon toggle button on the right edge of the row:
+   - **Expected**: The actual plaintext characters of the API key become visible.
+6. Click the eye icon again:
+   - **Expected**: The field returns to the fixed set amount of masked characters.
 
 ---
 
