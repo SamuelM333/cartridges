@@ -10,21 +10,63 @@ template $CoverPicker: Adw.Dialog {
     [top]
     Adw.HeaderBar {}
 
-    content: ScrolledWindow {
-      hscrollbar-policy: never;
+    content: Stack stack {
+      transition-type: crossfade;
 
-      child: FlowBox flowbox {
-        name: "flowbox";
-        selection-mode: none;
-        max-children-per-line: 4;
-        min-children-per-line: 3;
-        column-spacing: 16;
-        row-spacing: 16;
-        margin-top: 16;
-        margin-bottom: 16;
-        margin-start: 16;
-        margin-end: 16;
-      };
+      StackPage {
+        name: "loading";
+
+        child: Adw.Spinner initial_spinner {
+          halign: center;
+          valign: center;
+          width-request: 48;
+          height-request: 48;
+        };
+      }
+
+      StackPage {
+        name: "empty";
+
+        child: Adw.StatusPage status_page {
+          icon-name: "image-missing-symbolic";
+          title: _("No Covers Found");
+        };
+      }
+
+      StackPage {
+        name: "results";
+
+        child: ScrolledWindow {
+          hscrollbar-policy: never;
+
+          child: Box {
+            orientation: vertical;
+            spacing: 16;
+
+            FlowBox flowbox {
+              name: "flowbox";
+              selection-mode: none;
+              max-children-per-line: 4;
+              min-children-per-line: 3;
+              column-spacing: 16;
+              row-spacing: 16;
+              margin-top: 16;
+              margin-bottom: 16;
+              margin-start: 16;
+              margin-end: 16;
+            }
+
+            Adw.Spinner bottom_spinner {
+              halign: center;
+              valign: center;
+              width-request: 32;
+              height-request: 32;
+              margin-bottom: 24;
+              visible: false;
+            }
+          };
+        };
+      }
     };
   };
 }

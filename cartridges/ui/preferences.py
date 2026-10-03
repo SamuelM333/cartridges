@@ -132,7 +132,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     desktop_switch: Adw.SwitchRow = Gtk.Template.Child()
 
     # SteamGridDB
-    sgdb_key_entry_row: Adw.EntryRow = Gtk.Template.Child()
+    sgdb_key_entry_row: Adw.PasswordEntryRow = Gtk.Template.Child()
     sgdb_switch: Adw.SwitchRow = Gtk.Template.Child()
     sgdb_prefer_switch: Adw.SwitchRow = Gtk.Template.Child()
     sgdb_animated_switch: Adw.SwitchRow = Gtk.Template.Child()

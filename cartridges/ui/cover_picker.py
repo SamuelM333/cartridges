@@ -22,7 +22,11 @@ class CoverPicker(Adw.Dialog):
 
     __gtype_name__ = "CoverPicker"
 
+    stack: Gtk.Stack = Gtk.Template.Child()
+    initial_spinner: Adw.Spinner = Gtk.Template.Child()
+    status_page: Adw.StatusPage = Gtk.Template.Child()
     flowbox: Gtk.FlowBox = Gtk.Template.Child()
+    bottom_spinner: Adw.Spinner = Gtk.Template.Child()
 
     def __init__(
         self,
@@ -38,6 +42,7 @@ class CoverPicker(Adw.Dialog):
         self._load_covers()
 
     def _load_covers(self) -> None:
+        self.stack.set_visible_child_name("loading")
         app = Gio.Application.get_default()
         if app is not None:
             app.create_asyncio_task(self._fetch_covers())
@@ -49,7 +54,7 @@ class CoverPicker(Adw.Dialog):
 
             candidates: list[tuple[str, str, bool]] = []
             if grids:
-                for item in grids[:10]:
+                for item in grids[:20]:
                     full_url = str(item.get("url", ""))
                     thumb_url = str(item.get("thumb") or full_url)
                     is_animated = bool(item.get("animated", False))
@@ -71,14 +76,52 @@ class CoverPicker(Adw.Dialog):
                 except steamgriddb.SgdbError:
                     pass
 
-            for full_url, thumb_url, _is_animated in candidates:
+            if not candidates:
+                GLib.idle_add(self._show_empty)
+                return
+
+            # Batch 1: first 6 items loaded while initial spinner is active
+            batch_size = 6
+            first_batch = candidates[:batch_size]
+            remaining_batches = candidates[batch_size:]
+
+            first_previews: list[tuple[str, bytes]] = []
+            for full_url, thumb_url, _is_animated in first_batch:
                 preview_data = await asyncio.to_thread(
-                    self._download_preview, thumb_url
+                    self._get_or_download_preview, thumb_url
                 )
                 if preview_data:
-                    GLib.idle_add(self._add_preview, full_url, preview_data)
+                    first_previews.append((full_url, preview_data))
+
+            if not first_previews and not remaining_batches:
+                GLib.idle_add(self._show_empty)
+                return
+
+            GLib.idle_add(
+                self._render_initial_batch, first_previews, bool(remaining_batches)
+            )
+
+            # Subsequent batches progressively loaded with bottom spinner
+            if remaining_batches:
+                for full_url, thumb_url, _is_animated in remaining_batches:
+                    preview_data = await asyncio.to_thread(
+                        self._get_or_download_preview, thumb_url
+                    )
+                    if preview_data:
+                        GLib.idle_add(self._add_preview, full_url, preview_data)
+                GLib.idle_add(self.bottom_spinner.set_visible, False)
         except steamgriddb.SgdbError:
-            pass
+            GLib.idle_add(self._show_empty)
+
+    def _get_or_download_preview(self, url: str) -> bytes | None:
+        cached = steamgriddb.get_cached_preview(url)
+        if cached is not None:
+            return cached
+
+        data = self._download_preview(url)
+        if data is not None:
+            steamgriddb.save_cached_preview(url, data)
+        return data
 
     def _download_preview(self, url: str) -> bytes | None:
         try:
@@ -87,6 +130,18 @@ class CoverPicker(Adw.Dialog):
                 return bytes(res.read())
         except (urllib.error.URLError, TimeoutError, OSError):
             return None
+
+    def _show_empty(self) -> None:
+        self.stack.set_visible_child_name("empty")
+        self.bottom_spinner.set_visible(False)
+
+    def _render_initial_batch(
+        self, previews: list[tuple[str, bytes]], has_more: bool
+    ) -> None:
+        for full_url, data in previews:
+            self._add_preview(full_url, data)
+        self.stack.set_visible_child_name("results")
+        self.bottom_spinner.set_visible(has_more)
 
     def _add_preview(self, url: str, data: bytes) -> None:
         try:
