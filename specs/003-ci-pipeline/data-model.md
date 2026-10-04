@@ -15,13 +15,24 @@ Represents an official immutable release asset attached to a GitHub Release.
   - File size must be greater than zero.
 
 ### Entity: Nightly Flatpak Artifact
-Represents a rolling pre-release build of the development tip on `rewrite`.
+Represents a rolling pre-release build of the development tip on `main`.
 - **Attributes**:
   - `name`: String filename (`page.samuelm333.Cartridges.Devel.flatpak`).
   - `release_tag`: Constant `nightly`.
-  - `commit_sha`: 40-character hex git commit hash of HEAD on `rewrite`.
+  - `commit_sha`: 40-character hex git commit hash of HEAD on `main`.
   - `build_timestamp`: ISO 8601 UTC timestamp.
   - `prerelease`: Boolean `true`.
+
+### Entity: PR Flatpak Artifact
+Represents a downloadable preview development build uploaded to GitHub Actions workflow artifacts during PR and branch validation.
+- **Attributes**:
+  - `name`: String artifact name (`page.samuelm333.Cartridges.Devel.flatpak`).
+  - `path`: String bundle path (`page.samuelm333.Cartridges.Devel.flatpak`).
+  - `workflow`: Workflow name (`CI`).
+  - `commit_sha`: Git commit hash of the pull request or pushed commit.
+- **Validation Rules**:
+  - Must compile against `flatpak/page.samuelm333.Cartridges.Devel.json` without errors.
+  - File size must be greater than zero.
 
 ### Entity: Nightly Cache Flag
 Represents the deduplication state stored within GitHub Actions Cache.
@@ -34,46 +45,18 @@ Represents the deduplication state stored within GitHub Actions Cache.
 
 ### Nightly Build Evaluation Lifecycle
 
-```
-[Trigger (Cron / Dispatch)]
-            |
-            v
-   [Check Cache Key]
-    nightly-built-${{ sha }}
-            |
-    +-------+-------+
-    |               |
-[Cache Hit]    [Cache Miss]
-    |               |
-    v               v
- [Exit 0]     [Build Flatpak Bundle]
- (Skip Build) (page.samuelm333.Cartridges.Devel)
-                    |
-                    v
-              [Upload to Release]
-              (tag: nightly)
-                    |
-                    v
-              [Save Cache Key]
-                    |
-                    v
-                 [Done]
-```
+1. **Trigger**: Scheduled daily cron (`0 2 * * *`) or manual dispatch (`workflow_dispatch`).
+2. **Check Cache Key**: Look up `nightly-built-${{ sha }}` in `actions/cache`.
+3. **Branch Decision**:
+   - **Cache Hit**: Exit cleanly with success (skip building and publishing).
+   - **Cache Miss**:
+     - Compile development Flatpak bundle (`page.samuelm333.Cartridges.Devel.flatpak`).
+     - Publish bundle to GitHub Release (tag: `nightly`).
+     - Create sentinel file and save `nightly-built-${{ sha }}` to `actions/cache`.
 
 ### Production Release Lifecycle
 
-```
-[Push Git Tag (v*)]
-         |
-         v
-   [Build Flatpak]
-(page.samuelm333.Cartridges.flatpak)
-         |
-         v
-   [Extract Release Notes]
-(from metainfo.xml.in)
-         |
-         v
-   [Publish GitHub Release]
- (Attach Flatpak Bundle)
-```
+1. **Trigger**: Push git tag matching `v*`.
+2. **Build Flatpak**: Compile production bundle `page.samuelm333.Cartridges.flatpak` via `flatpak-builder`.
+3. **Extract Release Notes**: Parse version changelog description from `data/page.samuelm333.Cartridges.metainfo.xml.in`.
+4. **Publish GitHub Release**: Attach Flatpak bundle asset and publish release notes.

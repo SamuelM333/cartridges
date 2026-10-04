@@ -22,7 +22,7 @@
 
 ---
 
-## Phase 3: User Story 1 - Automated Production Flatpak Release Distribution (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Automated Production Flatpak Release Distribution (Priority: P1) - MVP
 
 **Goal**: Automatically build and attach `page.samuelm333.Cartridges.flatpak` to GitHub Releases on `v*` tag push
 
@@ -130,3 +130,22 @@
 **Purpose**: Remediate Gtk 4.0 typelib search path failure during blueprint compilation in GNOME 50 container
 
 - [x] T028 Update `GI_TYPELIB_PATH` and `XDG_DATA_DIRS` in `.github/workflows/ci.yml` to reference the GNOME Sdk flatpak installation path `/var/lib/flatpak/runtime/org.gnome.Sdk/x86_64/50/active/files` per FR-002, US3/AC1 (contradicts)
+
+---
+
+## Phase 13: Downloadable PR Flatpak Artifact & Container Verification
+
+**Purpose**: Retain official Flathub infra container image for Flatpak builds, verify environment compatibility, and upload compiled `.flatpak` bundle as a downloadable workflow artifact.
+
+- [x] T029 Retain `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` container image across workflows for Flatpak builds per maintainer directive
+- [x] T030 Add `actions/upload-artifact@v4` step to `flatpak` job in `.github/workflows/ci.yml` uploading `page.samuelm333.Cartridges.Devel.flatpak` as a downloadable workflow artifact per FR-003a, US3/AC3
+- [x] T031 Validate `.github/workflows/ci.yml` syntax, YAML formatting, and zero-emoji compliance
+
+---
+
+## Phase 14: Ubuntu 26.04 Runner Migration
+
+**Purpose**: Update GitHub Actions workflow configurations to run on `ubuntu-26.04` host runners.
+
+- [x] T032 Update runner label to `runs-on: ubuntu-26.04` across `.github/workflows/ci.yml`, `.github/workflows/publish-release.yml`, and `.github/workflows/nightly.yml`
+- [x] T033 Verify YAML formatting, pre-commit validation, and zero-emoji compliance across all workflows

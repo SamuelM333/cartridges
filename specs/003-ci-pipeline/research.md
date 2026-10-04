@@ -86,3 +86,47 @@ All workflows declare top-level permissions:
 - `publish-release.yml`: `contents: write` (for publishing release assets).
 
 Concurrency rules ensure that subsequent pushes cancel in-flight PR runs, while release jobs run atomically without collision.
+
+## 6. Container Environment for CI Validation (`lint-and-test`)
+
+### Decision
+Use official `fedora:41` container image for the `lint-and-test` job in `.github/workflows/ci.yml`.
+
+### Rationale
+- **Native Distro Packages**: Fedora packages `blueprint-compiler`, `gtk4-devel`, `libadwaita-devel`, `glib2-devel`, `python3-gobject`, `python3-pillow`, `libmanette-devel`, `meson`, `ninja-build`, `appstream`, and `desktop-file-utils` directly in official repositories via `dnf`.
+- **Standard Library and Typelib Paths**: GNOME introspection typelibs and GSettings schemas install to standard system locations (`/usr/lib64/girepository-1.0` and `/usr/share/glib-2.0/schemas`), completely eliminating the need for custom `GI_TYPELIB_PATH` or `XDG_DATA_DIRS` environment workarounds.
+- **Clean Toolchain Setup**: Eliminates compiling `blueprint-compiler` from git via `pip3 install --break-system-packages git+...` during every CI run.
+- **Environment Parity**: Directly mirrors the Fedora-based development environment mandated by the project Constitution (`gtk-dev` Distrobox).
+
+### Alternatives Considered
+- `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`: Kept for `flatpak-builder` jobs (`flatpak`, `build-release-flatpak`, `nightly`) where Flatpak runtimes and SDKs are needed, but discarded for `lint-and-test` due to lack of a system package manager and non-standard typelib paths.
+- `ubuntu-latest`: Discarded because Ubuntu APT repositories do not ship native `blueprint-compiler` or the latest Libadwaita versions matching Cartridges requirements.
+- `fedora:rawhide`: Evaluated, but `fedora:41` provides a stable, reproducible release image with all required GNOME 47+ libraries.
+
+## 7. Pull Request Downloadable Artifact Upload
+
+### Decision
+Use `actions/upload-artifact@v4` in the `flatpak` job within `.github/workflows/ci.yml` to export `page.samuelm333.Cartridges.Devel.flatpak`.
+
+### Rationale
+- **Immediate Reviewer Feedback**: Reviewers and QA testers can immediately download and test the bundled development application using `flatpak install --user page.samuelm333.Cartridges.Devel.flatpak` directly from the Actions run summary without setting up local dev environments.
+- **Fail-Safe Integrity**: Setting `if-no-files-found: error` ensures CI fails if the bundle was not generated.
+
+### Alternatives Considered
+- Relying on nightly builds only: Discarded because nightly builds only reflect merged commits on `main`, not pre-merge pull requests undergoing active review.
+- Custom storage hosting: Discarded in favor of native GitHub Actions artifacts for zero extra infrastructure.
+
+---
+
+## 8. Host Runner Environment: ubuntu-26.04
+
+### Decision
+Standardize all workflow jobs (`runs-on: ubuntu-26.04`) on the modern Ubuntu 26.04 LTS GitHub Actions runner environment.
+
+### Rationale
+- **Modern Host Toolchains**: Ubuntu 26.04 provides the latest host Linux kernel, updated container daemon runtimes, modern host utilities, and security patches.
+- **Consistency**: Eliminates ambiguities across workflows by specifying explicit LTS version pins (`ubuntu-26.04`) rather than floating alias names.
+
+### Alternatives Considered
+- `ubuntu-latest`: Currently an alias that will eventually roll over, but explicit `ubuntu-26.04` pinning ensures predictable environment configurations.
+- `ubuntu-24.04` or `ubuntu-22.04`: Previous LTS generations, superseded by the Ubuntu 26 runner.
