@@ -1,13 +1,13 @@
 # Implementation Plan: Automated CI Pipeline, Release Flatpak, and Nightly Builds (Linux/Flatpak)
 
-**Branch**: `feat/003-ci-pipeline-review` | **Date**: 2026-09-23 | **Spec**: [specs/003-ci-pipeline/spec.md](file:///var/home/samuel/Projects/cartridges/specs/003-ci-pipeline/spec.md)
+**Branch**: `feat/003-ci-pipeline` | **Date**: 2026-09-23 | **Spec**: [specs/003-ci-pipeline/spec.md](file:///var/home/samuel/Projects/cartridges/specs/003-ci-pipeline/spec.md)
 
 **Input**: Feature specification from `specs/003-ci-pipeline/spec.md` scoped strictly to Linux/Flatpak, with GitHub `actions/cache` commit tracking for nightly builds.
 
 ## Summary
 
 Build and configure GitHub Actions CI/CD workflows tailored strictly to Linux and Flatpak:
-1. **Pull Request & Branch CI (`ci.yml`)**: Continuous integration triggered on pull requests and pushes to `rewrite`, running code quality checks (pre-commit, Ruff, Pyright strict typechecking, Blueprint validation, Meson tests) and building the development Flatpak bundle (`page.samuelm333.Cartridges.Devel.flatpak`).
+1. **Pull Request & Branch CI (`ci.yml`)**: Continuous integration triggered on pull requests and pushes to `main`, running code quality checks (pre-commit, Ruff, Pyright strict typechecking, Blueprint validation, Meson tests) in an official Fedora container image (`fedora:41`) with native distro packages, compiling the development Flatpak bundle (`page.samuelm333.Cartridges.Devel.flatpak`), and uploading it as a downloadable GitHub Actions workflow artifact for immediate testing.
 2. **Production Release Workflow (`publish-release.yml`)**: Triggered upon publishing semantic version tags (`v*`), building the production Flatpak bundle (`page.samuelm333.Cartridges.flatpak`) using `flatpak/page.samuelm333.Cartridges.json`, extracting AppStream changelog notes from `data/page.samuelm333.Cartridges.metainfo.xml.in`, creating the official GitHub Release with those notes, and attaching the `.flatpak` bundle directly to the release assets for user download.
 3. **Nightly Build Workflow (`nightly.yml`)**: Triggered via daily cron schedule (`0 2 * * *`) and manual dispatch (`workflow_dispatch`), using GitHub `actions/cache` keyed on `nightly-built-${{ github.sha }}`. If the cache hits (meaning this commit has already been built), the workflow terminates immediately. If a cache miss occurs, it compiles `page.samuelm333.Cartridges.Devel.flatpak`, creates or updates the rolling `nightly` pre-release on GitHub, attaches the development Flatpak bundle as a downloadable release asset, and saves the commit SHA to GitHub cache.
 
@@ -17,9 +17,12 @@ Build and configure GitHub Actions CI/CD workflows tailored strictly to Linux an
 **Language/Version**: Python >= 3.13, GitHub Actions YAML, Bash, Meson >= 1.1.0, Blueprint Compiler.
 
 **Primary Dependencies**:
-- Linux Container: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` (or `bilelmoussaoui/flatpak-github-actions:gnome-50`).
-- Builder Action: `flatpak/flatpak-github-actions/flatpak-builder@v6.5`.
-- Workflow Utilities: `actions/checkout@v4`, `actions/cache@v4`, `softprops/action-gh-release@v2.2.2`.
+- Host Runner: `ubuntu-26.04` across all workflow jobs.
+- Linux Containers:
+  - CI Lint & Validation: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` (or `bilelmoussaoui/flatpak-github-actions:gnome-50` for pre-bundled GNOME 50 Sdk/Platform).
+  - Flatpak Builder: `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50`.
+- Builder Action: `flatpak/flatpak-github-actions/flatpak-builder@v6.8`.
+- Workflow Utilities: `actions/checkout@v7`, `actions/upload-artifact@v4`, `actions/cache@v6`, `softprops/action-gh-release@v3`.
 - Flatpak Runtime & SDK: `org.gnome.Platform//50`, `org.gnome.Sdk//50`.
 
 **Storage**: GitHub Actions cache storage (`actions/cache@v4`) for commit SHA deduplication; GitHub Releases for artifact hosting.
@@ -47,7 +50,7 @@ Build and configure GitHub Actions CI/CD workflows tailored strictly to Linux an
 - [x] **Principle IV (Libadwaita & Desktop Integration)**: Official AppStream metadata and desktop file integration are preserved and validated.
 - [x] **Principle V (Resource & Asset Sandboxing)**: Flatpak manifests retain isolated XDG paths and portal permissions.
 - [x] **Principle VI (Zero Unicode Emojis)**: Zero emoji characters across all workflow YAML files, scripts, or markdown artifacts. Verified with `check-emojis.py`.
-- [x] **Principle VII (Branching Workflow)**: CI triggers on pull requests and pushes to `rewrite`. Feature branch `feat/003-ci-pipeline` branched from `rewrite`.
+- [x] **Principle VII (Branching Workflow)**: CI triggers on pull requests and pushes to `main`. Feature branch `feat/003-ci-pipeline` branched from `main`.
 
 ## Project Structure
 

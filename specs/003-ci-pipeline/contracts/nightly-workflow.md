@@ -5,7 +5,8 @@
 - **Manual Dispatch**: `workflow_dispatch` with optional boolean force input:
   - `force`: Boolean (default `false`) - Force build even if commit was already cached.
 
-## 2. Concurrency & Permissions
+## 2. Concurrency, Permissions & Runner
+- **Runner**: `ubuntu-26.04`
 - **Concurrency**:
   ```yaml
   concurrency:

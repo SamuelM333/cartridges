@@ -1,13 +1,11 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 1.6.0 -> 2.0.0
+- Version change: 2.0.0 -> 2.1.0
 - List of modified principles:
-  * Section "Development & Branching Workflow": Renamed target and source branch from `rewrite` to `main`. Mandated that `main` is the primary trunk and only short-lived feature/bugfix branches are permitted.
-  * Section "Project Provenance & Fork Heritage": Updated foundation notes to reflect that the repository's `main` branch now embodies the modern rewrite codebase, replacing the historical legacy branch.
+  * Section "Development & Branching Workflow": Added mandatory branch naming convention requiring feature branches to follow the format `feat/00X-name` and fix branches to follow `fix/00X-name`.
 - Added sections: None
 - Modified sections:
   * Development & Branching Workflow
-  * Project Provenance & Fork Heritage
 - Removed sections: None
 - Follow-up TODOs: None
 -->
@@ -80,6 +78,7 @@ Before marking any specification or feature as complete, the following checks MU
 To ensure stability, simplicity, and quality control during development, the following git and branching policies are strictly enforced:
 * **Primary Trunk**: The `main` branch is the primary, default development trunk of the repository. It contains the active, modern codebase (formerly developed on `rewrite`).
 * **Branch Source**: Any development, feature, or bugfix branches MUST be branched directly from `main`.
+* **Branch Naming Convention**: Feature branches MUST follow the strict naming pattern `feat/00X-name` (e.g., `feat/003-ci-pipeline`, `feat/004-steamgriddb-picker`), where `00X` is the three-digit feature number corresponding to the feature directory in `specs/`, and `name` is a concise kebab-case descriptor. Bugfix branches must similarly follow `fix/00X-name` or `fix/short-description`.
 * **Short-Lived Branches Only**: All branches other than `main` must be short-lived feature or fix branches. Long-lived parallel branches are strictly prohibited.
 * **Target Branch for Merges**: All merged code, pull requests, and completed feature implementations MUST be merged exclusively into the `main` branch.
 * **Historical Operations**: Historical operations, legacy codebase comparisons, or inspection of pre-fork branches MUST be performed in the external repository `/var/home/samuel/Projects/cartridges-main`, keeping this repository clean.
@@ -96,4 +95,4 @@ This project is an active downstream fork of the archived repository at [https:/
 * **Code Quality Standard**: Legacy code from the original upstream repository's pre-rewrite codebase is considered of poor quality and MUST NOT be used as a design reference. Any functional components adapted from historical sources must be fully refactored to comply with Core Principle I (Strict Typing & QA).
 * **New Maintenance**: This fork is actively maintained by **samuelm333** ([samuelmurillo.xyz](https://samuelmurillo.xyz)), hosted on GitHub under the username [samuelm333](https://github.com/samuelm333).
 
-**Version**: 2.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-01
+**Version**: 2.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-04

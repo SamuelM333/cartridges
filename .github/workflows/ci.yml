@@ -16,7 +16,7 @@ permissions:
 jobs:
   lint-and-test:
     name: Lint & Validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
@@ -44,7 +44,7 @@ jobs:
 
   flatpak:
     name: Flatpak Build (Devel)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
@@ -58,3 +58,10 @@ jobs:
           bundle: page.samuelm333.Cartridges.Devel.flatpak
           manifest-path: flatpak/page.samuelm333.Cartridges.Devel.json
           run-tests: true
+
+      - name: Upload Development Flatpak Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: page.samuelm333.Cartridges.Devel.flatpak
+          path: page.samuelm333.Cartridges.Devel.flatpak
+          if-no-files-found: error

@@ -42,18 +42,19 @@ As a tester and early-adopter user, I want nightly Flatpak builds generated from
 
 ---
 
-### User Story 3 - Pull Request & Push Code Quality & Flatpak CI (Priority: P3)
+### User Story 3 - Pull Request & Push Code Quality & Downloadable Flatpak CI (Priority: P3)
 
-As a contributor and reviewer, I want automated CI validation to run on every pull request and push to `rewrite`, validating code formatting, typing, blueprint compilation, test suites, and verifying that the development Flatpak compiles cleanly, so that broken commits and regressions are caught before merging.
+As a contributor, maintainer, or reviewer, I want automated CI validation to run on every pull request and push to `main`, validating code quality, typing, blueprint compilation, and test suites, and producing a downloadable `.flatpak` single-file bundle as a workflow artifact, so that reviewers and testers can download, install, and test proposed changes locally on their system without having to check out and compile the branch manually.
 
-**Why this priority**: Enforces Constitution Principle I (Strict Typing & QA) automatically on all incoming changes before maintainers review and merge code.
+**Why this priority**: Enforces Constitution Principle I (Strict Typing & QA) automatically on all incoming changes before maintainers review and merge code, while dramatically accelerating review cycles by providing immediately runnable application bundles for any pull request.
 
-**Independent Test**: Push a commit or create a PR targeting `rewrite`. Verify that automated checks execute pre-commit hooks, Pyright, Meson tests, and development Flatpak build validation.
+**Independent Test**: Push a commit or create a PR targeting `main`. Verify that automated checks execute pre-commit hooks, Pyright, Meson tests, build the development Flatpak bundle, and upload `page.samuelm333.Cartridges.Devel.flatpak` as a downloadable artifact attached to the GitHub Actions run.
 
 **Acceptance Scenarios**:
 
-1. **Given** a pull request targeting `rewrite`, **When** the CI workflow triggers, **Then** it verifies pre-commit formatting, static typing, and builds the development Flatpak bundle `page.samuelm333.Cartridges.Devel.flatpak` to ensure no compilation regressions.
+1. **Given** a pull request targeting `main`, **When** the CI workflow triggers, **Then** it verifies pre-commit formatting, static typing, and builds the development Flatpak bundle `page.samuelm333.Cartridges.Devel.flatpak` to ensure no compilation regressions.
 2. **Given** a commit that introduces formatting discrepancies, type errors, or broken blueprint files, **When** CI runs, **Then** the workflow fails with detailed diagnostic step logs.
+3. **Given** a successful Flatpak build step in the CI workflow on a pull request or branch push, **When** the build completes, **Then** the compiled `page.samuelm333.Cartridges.Devel.flatpak` bundle is uploaded as a downloadable GitHub Actions workflow artifact accessible from the run summary.
 
 ---
 
@@ -68,9 +69,11 @@ As a contributor and reviewer, I want automated CI validation to run on every pu
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide a continuous integration workflow (`ci.yml`) triggered on pull requests and pushes to `rewrite`.
+- **FR-001**: The system MUST provide a continuous integration workflow (`ci.yml`) triggered on pull requests and pushes to `main`.
 - **FR-002**: The CI workflow MUST run code quality checks including pre-commit hooks, Pyright strict type analysis, and Meson unit tests.
+- **FR-002a**: The CI lint and validation job (`lint-and-test`) MUST execute within an official Fedora container environment (e.g. `fedora:41`) using distribution packages (`dnf`) for toolchains and libraries, eliminating runtime typelib and search path workarounds.
 - **FR-003**: The CI workflow MUST build the development Flatpak bundle `page.samuelm333.Cartridges.Devel.flatpak` on Linux to verify build reproducibility.
+- **FR-003a**: The CI workflow MUST upload the compiled development Flatpak bundle (`page.samuelm333.Cartridges.Devel.flatpak`) as a downloadable workflow artifact on pull request and push runs, making the package directly retrievable from the workflow run summary.
 - **FR-004**: The system MUST provide a release workflow triggered when a semantic version tag (e.g. `v*`) is pushed.
 - **FR-005**: The release workflow MUST build the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` using the official application ID `page.samuelm333.Cartridges` and the production manifest `flatpak/page.samuelm333.Cartridges.json`.
 - **FR-006**: The release workflow MUST extract release notes for the published version from `data/page.samuelm333.Cartridges.metainfo.xml.in`.
@@ -81,12 +84,13 @@ As a contributor and reviewer, I want automated CI validation to run on every pu
 - **FR-011**: The nightly workflow MUST build `page.samuelm333.Cartridges.Devel.flatpak` on a cache miss (new commit), publish or update the designated `nightly` pre-release with the new bundle attached as a downloadable asset, and update the cache.
 - **FR-012**: All workflows MUST declare strict minimal `permissions` adhering to the principle of least privilege.
 - **FR-013**: All workflow definitions and accompanying scripts MUST contain zero Unicode emoji characters.
-- **FR-014**: Both release and nightly GitHub Releases MUST make their respective compiled Flatpak bundle files (`page.samuelm333.Cartridges.flatpak` for tagged releases and `page.samuelm333.Cartridges.Devel.flatpak` for nightly pre-releases) directly accessible for public download from the release asset list.
+- **FR-014**: Both release and nightly GitHub Releases MUST make their respective compiled Flatpak bundle files (`page.samuelm333.Cartridges.flatpak` for tagged releases and `page.samuelm333.Cartridges.Devel.flatpak` for nightly pre-releases) directly accessible for public download from the release asset list, and PR workflow runs MUST make development bundles available as downloadable workflow artifacts.
 
 ### Key Entities
 
 - **Release Artifact**: Represents an official release distribution package (`page.samuelm333.Cartridges.flatpak`), tied to an immutable git tag and published as a downloadable binary asset on GitHub Releases with validated AppStream changelog notes.
-- **Nightly Artifact**: Represents a rolling pre-release package (`page.samuelm333.Cartridges.Devel.flatpak`) built from the latest commit on `rewrite`, updated only when code changes are detected and attached as a downloadable binary asset to the GitHub Nightly pre-release.
+- **Nightly Artifact**: Represents a rolling pre-release package (`page.samuelm333.Cartridges.Devel.flatpak`) built from the latest commit on `main`, updated only when code changes are detected and attached as a downloadable binary asset to the GitHub Nightly pre-release.
+- **PR Flatpak Artifact**: Represents a preview build package (`page.samuelm333.Cartridges.Devel.flatpak`) produced during CI runs and uploaded as a downloadable GitHub Actions workflow artifact with standard retention.
 - **Cache Key**: A cache identifier maintained via `actions/cache` storing the git commit SHA of the most recent successful nightly build.
 - **Flatpak Manifest**: JSON specification defining the runtime, SDK, sandboxed permissions, and compilation commands for either development (`Devel`) or production releases.
 
@@ -99,11 +103,12 @@ As a contributor and reviewer, I want automated CI validation to run on every pu
 - **SC-003**: Pull request builds detect and reject formatting errors, type discrepancies, and build failures within 10 minutes of push.
 - **SC-004**: Zero Unicode emojis are present across any created workflow configuration files or automated scripts.
 - **SC-005**: 100% of published tag releases and nightly pre-releases include their compiled Flatpak bundles available in the release assets list for end-user download.
+- **SC-006**: 100% of successful pull request and branch push CI runs attach the compiled development `.flatpak` bundle as a downloadable artifact in the GitHub Actions run summary.
 
 ## Assumptions
 
 - Scope is strictly Linux and Flatpak; Windows and macOS builds from legacy `cartridges-main` are intentionally excluded.
-- Development occurs primarily on the `rewrite` branch as mandated by Constitution Core Principle VII.
+- Development occurs primarily on the `main` branch as mandated by Constitution Core Principle VII.
 - GitHub Actions is the CI/CD execution platform for the repository.
 - GitHub token credentials supplied by `GITHUB_TOKEN` have permission to publish releases when configured with `contents: write`.
 - The production Flatpak manifest `flatpak/page.samuelm333.Cartridges.json` will be maintained in the repository alongside `flatpak/page.samuelm333.Cartridges.Devel.json`.

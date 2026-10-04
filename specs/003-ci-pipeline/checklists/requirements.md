@@ -31,4 +31,4 @@
 
 ## Notes
 
-- All 16 quality verification checklist criteria satisfied. Scope reduced strictly to Linux/Flatpak per user directive. Ready for `/speckit-plan`.
+- All 16 quality verification checklist criteria satisfied. Scope includes Fedora container validation and downloadable `.flatpak` bundle artifacts for PR builds. Ready for `/speckit-plan`.
