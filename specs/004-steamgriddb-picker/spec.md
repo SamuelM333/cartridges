@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-03
 
-**Status**: Draft
+**Status**: Complete
 
 **Input**: User description: "make spec independet. move steamgriddb picker specs from 002 to 004. rename to 004-steamgriddb-picker. review steamgriddb chooser. 1. add a Spinner while the first images are loading 2. Add a Spinner at the bottom of the list while more images are being fetch. Should be horizontally centered in the list 3. Cache images. Clear on exit or expire 4. Hide API key and add an eye icon to show"
 
