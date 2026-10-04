@@ -99,3 +99,8 @@
 button.cover-picker-button {
   padding: 4px;
 }
+
+#sgdb-key-entry image.edit-icon {
+  opacity: 0;
+  -gtk-icon-size: 0px;
+}

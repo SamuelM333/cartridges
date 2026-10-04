@@ -1,16 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2022-2026 kramo
 
+import hashlib
 import json
 import logging
+import time
 import urllib.parse
 from io import BytesIO
+from pathlib import Path
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from cartridges import SETTINGS, cover
+from cartridges import CACHE_DIR, SETTINGS, cover
 from cartridges.cover import COVERS_DIR
+
+PREVIEWS_CACHE_DIR = CACHE_DIR / "previews"
+DEFAULT_CACHE_TTL = 604800  # 7 days in seconds
 
 _logger = logging.getLogger(__name__)
 
@@ -207,3 +213,77 @@ def save_cover_from_url(game_id: str, url: str) -> bool:
     except OSError as e:
         _logger.warning("Failed to save cover image for %s: %s", game_id, e)
         return False
+
+
+def get_cached_preview(
+    url: str, max_age_seconds: int = DEFAULT_CACHE_TTL
+) -> bytes | None:
+    """Retrieve cached preview image bytes if present and unexpired."""
+    key = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    cache_file = PREVIEWS_CACHE_DIR / f"{key}.bin"
+    if not cache_file.is_file():
+        return None
+
+    try:
+        mtime = cache_file.stat().st_mtime
+        if (time.time() - mtime) > max_age_seconds:
+            cache_file.unlink(missing_ok=True)
+            return None
+        return cache_file.read_bytes()
+    except OSError as e:
+        _logger.debug("Failed to read cached preview for %s: %s", url, e)
+        return None
+
+
+def save_cached_preview(url: str, data: bytes) -> Path | None:
+    """Persist downloaded preview image bytes to local cache directory."""
+    try:
+        PREVIEWS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        key = hashlib.sha256(url.encode("utf-8")).hexdigest()
+        cache_file = PREVIEWS_CACHE_DIR / f"{key}.bin"
+        cache_file.write_bytes(data)
+    except OSError as e:
+        _logger.debug("Failed to save cached preview for %s: %s", url, e)
+        return None
+    else:
+        return cache_file
+
+
+def prune_expired_previews(max_age_seconds: int = DEFAULT_CACHE_TTL) -> int:
+    """Scan the preview cache directory and delete files exceeding max_age_seconds."""
+    if not PREVIEWS_CACHE_DIR.is_dir():
+        return 0
+
+    count = 0
+    now = time.time()
+    try:
+        for entry in PREVIEWS_CACHE_DIR.iterdir():
+            if entry.is_file():
+                try:
+                    if (now - entry.stat().st_mtime) > max_age_seconds:
+                        entry.unlink(missing_ok=True)
+                        count += 1
+                except OSError:
+                    continue
+    except OSError as e:
+        _logger.debug("Failed to prune preview cache: %s", e)
+    return count
+
+
+def clear_preview_cache() -> int:
+    """Purge all temporary preview cache files."""
+    if not PREVIEWS_CACHE_DIR.is_dir():
+        return 0
+
+    count = 0
+    try:
+        for entry in PREVIEWS_CACHE_DIR.iterdir():
+            if entry.is_file():
+                try:
+                    entry.unlink(missing_ok=True)
+                    count += 1
+                except OSError:
+                    continue
+    except OSError as e:
+        _logger.debug("Failed to clear preview cache: %s", e)
+    return count

@@ -1,6 +1,11 @@
-using Gtk 4.0;
-using Adw 1;
+# Contract: Cover Picker UI & Loading Indicators
 
+**Module**: `cartridges.ui.cover_picker`
+**Template**: `cartridges/ui/cover_picker.blp`
+
+## 1. Widget Structure Contract
+
+```blueprint
 template $CoverPicker: Adw.Dialog {
   title: _("Choose Cover Art");
   content-width: 800;
@@ -15,7 +20,6 @@ template $CoverPicker: Adw.Dialog {
 
       StackPage {
         name: "loading";
-
         child: Adw.Spinner initial_spinner {
           halign: center;
           valign: center;
@@ -26,7 +30,6 @@ template $CoverPicker: Adw.Dialog {
 
       StackPage {
         name: "empty";
-
         child: Adw.StatusPage status_page {
           icon-name: "image-missing-symbolic";
           title: _("No Covers Found");
@@ -35,7 +38,6 @@ template $CoverPicker: Adw.Dialog {
 
       StackPage {
         name: "results";
-
         child: ScrolledWindow {
           hscrollbar-policy: never;
 
@@ -70,3 +72,40 @@ template $CoverPicker: Adw.Dialog {
     };
   };
 }
+```
+
+## 2. Programmatic Interface Contract
+
+```python
+class CoverPicker(Adw.Dialog):
+    """Dialog to choose a cover from SteamGridDB."""
+
+    stack: Gtk.Stack
+    initial_spinner: Adw.Spinner
+    status_page: Adw.StatusPage
+    flowbox: Gtk.FlowBox
+    bottom_spinner: Adw.Spinner
+
+    def __init__(
+        self,
+        game: Game | None = None,
+        game_name: str = "",
+        on_cover_selected: Callable[[str], None] | None = None,
+        **kwargs: Any,
+    ) -> None: ...
+
+    async def _fetch_covers(self) -> None:
+        """Asynchronously queries SteamGridDB and renders candidates in batches.
+
+        Flow:
+        1. stack.set_visible_child_name("loading")
+        2. Query game ID and grid options from SteamGridDB
+        3. If no grids found: stack.set_visible_child_name("empty")
+        4. Render batch 1 (initial candidates) -> stack.set_visible_child_name("results")
+        5. If more candidates exist:
+             bottom_spinner.set_visible(True)
+             Fetch and render subsequent candidates
+        6. When all done or on error: bottom_spinner.set_visible(False)
+        """
+        ...
+```

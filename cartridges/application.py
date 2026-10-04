@@ -34,11 +34,26 @@ class Application(Adw.Application):
         sources.load()
         collections.load()
         self._check_auto_fetch_sgdb_covers()
+        self._prune_preview_cache()
+
+    @override
+    def do_shutdown(self):
+        from .utils import steamgriddb
+
+        steamgriddb.clear_preview_cache()
+        Adw.Application.do_shutdown(self)
 
     @override
     def do_activate(self):
         window = self.props.active_window or Window(application=self)
         window.present()
+
+    def _prune_preview_cache(self) -> None:
+        import asyncio
+
+        from .utils import steamgriddb
+
+        self.create_asyncio_task(asyncio.to_thread(steamgriddb.prune_expired_previews))
 
     def _present_about_dialog(self):
         about = Adw.AboutDialog(appdata_resource_path=f"{PREFIX}/{APP_ID}.metainfo.xml")
