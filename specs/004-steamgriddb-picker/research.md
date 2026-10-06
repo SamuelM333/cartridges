@@ -1,23 +1,25 @@
 # Research & Technical Decisions: SteamGridDB Cover Picker and Credentials UX
 
 **Feature**: SteamGridDB Cover Picker and Credentials UX
-**Branch**: `004-steamgriddb-picker`
-**Date**: 2026-10-03
+**Branch**: `feat/004-sgdb-sticky-search`
+**Date**: 2026-10-06
 
 ## Codebase Status & Implementation Review
 
-An architectural review of the existing codebase reveals that several components of this feature are already built and verified:
+An architectural review of the existing codebase confirms that US1 through US6 are completed and merged into main. The current scope centers on US7:
 
 | User Story / Requirement | Code Location | Status | Notes |
 |--------------------------|---------------|--------|-------|
-| **US1**: API key masking & eye icon | `cartridges/ui/preferences.blp`, `preferences.py` | To Do | Currently uses `Adw.EntryRow`. Needs migration to `Adw.PasswordEntryRow`. |
+| **US1**: API key masking & eye icon | `cartridges/ui/preferences.blp`, `preferences.py` | Done | Implemented via `Adw.PasswordEntryRow`. |
 | **US2 (part a)**: Dialog sizing (>= 760x520) | `cartridges/ui/cover_picker.blp` | Done | Configured to 800x580 (`content-width: 800; content-height: 580;`). |
 | **US2 (part b)**: 2:3 aspect ratio, no clipping | `cartridges/ui/cover_picker.py` | Done | Thumbnail picture sized to 140x210 with `CONTAIN` fit and no text overlays. |
-| **US2 (part c)**: Initial centered loading spinner & empty page | `cartridges/ui/cover_picker.blp`, `cover_picker.py` | To Do | Needs `Gtk.Stack` with `loading` (`Adw.Spinner`), `empty` (`Adw.StatusPage`), and `results`. |
-| **US3**: Bottom centered spinner for progressive batches | `cartridges/ui/cover_picker.blp`, `cover_picker.py` | To Do | Needs vertical `Gtk.Box` holding `flowbox` and centered `bottom_spinner`. |
-| **US4**: Thumbnail caching & lifecycle cleanup | `cartridges/utils/steamgriddb.py`, `application.py` | To Do | Needs XDG cache storage (`~/.cache/cartridges/previews/`), hashing, TTL pruning, and shutdown cleanup. |
-| **US5**: Title prerequisite & error styling | `cartridges/ui/game_details.py` | Done | Lines 273-277 validate non-empty title, add `error` class to `name_entry`, and focus entry. |
-| **US6**: Cover selection & staging feedback spinner | `cartridges/ui/game_details.py` | Done | Lines 328-372 use `self.cover_loading` GObject property with centered spinner overlay during async download. |
+| **US2 (part c)**: Initial centered loading spinner & empty page | `cartridges/ui/cover_picker.blp`, `cover_picker.py` | Done | Implemented via `Gtk.Stack` with `loading`, `empty`, and `results`. |
+| **US3**: Bottom centered spinner for progressive batches | `cartridges/ui/cover_picker.blp`, `cover_picker.py` | Done | Implemented via vertical `Gtk.Box` holding `flowbox` and centered `bottom_spinner`. |
+| **US4**: Thumbnail caching & lifecycle cleanup | `cartridges/utils/steamgriddb.py`, `application.py` | Done | Implemented in `$XDG_CACHE_HOME/cartridges/previews/` with TTL and exit cleanup. |
+| **US5**: Title prerequisite & error styling | `cartridges/ui/game_details.py` | Done | Validates non-empty title, adds `error` class to `name_entry`, and focuses entry. |
+| **US6**: Cover selection & staging feedback spinner | `cartridges/ui/game_details.py` | Done | Centered spinner overlay during async download in Game Details. |
+| **US7**: Sticky search bar in cover chooser | `cartridges/ui/cover_picker.blp`, `cover_picker.py` | To Do | Persistent `SearchEntry` in `Adw.ToolbarView` `[top]`, pre-populated with initial query, re-searching on activate. |
+
 
 ---
 
@@ -169,3 +171,58 @@ In GTK 4, clicking on background containers, preferences group headers, or empty
 ### Alternatives Considered
 - *Requiring explicit Enter key press only*: Inconvenient for mouse-driven users who expect clicking outside to commit and blur the field.
 - *Window-level global modal focus grabbing*: Too aggressive; can break tab navigation or interaction with other preference controls.
+
+---
+
+## 7. Sticky Search Bar in Cover Chooser
+
+### Context & Need
+When browsing SteamGridDB for covers, the initial search term queried is the game title saved in Cartridges. However, titles often contain extra edition tags (e.g., "Game of the Year Edition"), regional variances, or typos that yield suboptimal or empty results from SteamGridDB. Users need a persistent search bar in the cover picker dialog that:
+1. Is sticky at the top so it remains accessible even while scrolling through dozens of results.
+2. Is pre-populated with the queried search term so users know what was queried.
+3. Allows editing the search term and pressing Enter to re-query SteamGridDB without leaving the dialog or having to cancel and rename the game.
+
+### Decision
+1. **Widget Architecture in Blueprint**:
+   - In `cartridges/ui/cover_picker.blp`, inside `Adw.ToolbarView`, add a second `[top]` child beneath `Adw.HeaderBar`:
+     ```blueprint
+     [top]
+     Adw.Clamp {
+       maximum-size: 500;
+       margin-top: 6;
+       margin-bottom: 10;
+       margin-start: 16;
+       margin-end: 16;
+
+       child: SearchEntry search_entry {
+         placeholder-text: _("Search SteamGridDB…");
+         activate => $_on_search_activated();
+         search-changed => $_on_search_changed();
+       };
+     }
+     ```
+   - Placing the clamp and `SearchEntry` within the `[top]` slot of `Adw.ToolbarView` guarantees that the search entry stays fixed ("sticky") above the dialog's scrollable `content: Stack stack`, with zero vertical displacement during scrolling.
+2. **Pre-population**:
+   - In `CoverPicker.__init__`, initialize `self.search_entry.set_text(self.game_name)`.
+   - The user immediately sees the initial title searched for.
+3. **Re-searching & Asynchronous Cancellation**:
+   - When the user presses Enter (`activate` signal), extract the query string via `self.search_entry.get_text().strip()`.
+   - If the query is empty or whitespace-only, do not send an empty query.
+   - Maintain a search generation counter (`self._search_generation: int = 0`). Increment `self._search_generation` on each new search.
+   - Any background task from an earlier generation checking `if generation != self._search_generation:` aborts cleanly without rendering stale results.
+   - Cancel any existing `self._fetch_task` if still running.
+   - Clear existing `flowbox` items, set `self.stack.set_visible_child_name("loading")`, reset `bottom_spinner`, and launch `_fetch_covers()` with the new query.
+4. **State Persistence Across Stack Transitions**:
+   - Because the search bar is located in `Adw.ToolbarView [top]` outside `Gtk.Stack`, it remains visible, interactive, and pre-populated across all stack states (`loading`, `results`, and `empty`).
+   - If a search yields `empty` ("No Covers Found"), the user can immediately refine the query in the search bar without having to dismiss or reopen the dialog.
+
+### Rationale
+- Strictly follows GNOME HIG and Libadwaita layout patterns by utilizing `Adw.ToolbarView` top bars.
+- `Adw.Clamp` ensures consistent max width across varied screen sizes and window scaling.
+- Explicit activation (Enter key) avoids spamming SteamGridDB API on every keystroke, which would quickly exhaust rate limits and cause UI jank.
+- Generation counter ensures race conditions between overlapping network queries are safely eliminated.
+
+### Alternatives Considered
+- *Search Entry inside HeaderBar title widget*: Cluttered; reduces title readability and restricts search bar width in an 800px modal dialog.
+- *Search Entry inside ScrolledWindow / Flowbox*: Scrolls off-screen when browsing results, violating the requirement for a persistent, sticky search bar.
+- *Auto-search on keystroke (search-changed) with debounce*: While viable, auto-querying an external authenticated REST API with rate limits can easily cause unwanted network traffic for incomplete words. Explicit activation matches standard desktop chooser patterns.

@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-03
+**Updated**: 2026-10-06
 **Feature**: [spec.md](file:///var/home/samuel/Projects/cartridges/specs/004-steamgriddb-picker/spec.md)
 
 ## Content Quality
@@ -31,5 +32,6 @@
 
 ## Notes
 
-- Feature moved and consolidated from 002 to create an independent, self-contained SteamGridDB picker specification.
+- Feature updated on 2026-10-06 to add a persistent sticky search bar pre-populated with the initial search query.
+- User Story 7 added with 5 acceptance scenarios, edge cases, functional requirements FR-015 through FR-019, and success criteria SC-009 through SC-012.
 - All items reviewed and confirmed compliant with project standards and constitution principles.

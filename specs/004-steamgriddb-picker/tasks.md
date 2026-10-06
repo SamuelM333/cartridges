@@ -1,7 +1,7 @@
 # Tasks: SteamGridDB Cover Picker and Credentials UX
 
 **Feature**: SteamGridDB Cover Picker and Credentials UX
-**Branch**: `004-steamgriddb-picker`
+**Branch**: `feat/004-sgdb-sticky-search`
 **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 **Status**: Completed
 
@@ -169,3 +169,54 @@
 **Purpose**: Address convergence findings identified during review
 
 - [x] T023 Hide pen edit icon in API key entry row in `cartridges/ui/preferences.blp` or `cartridges/ui/style.css` per US1/AC1 (partial)
+
+---
+
+## Phase 11: User Story 7 - Sticky Search Bar in Cover Chooser (Priority: P1)
+
+**Goal**: Add a persistent, sticky search bar to `CoverPicker` positioned at the top of the dialog inside `Adw.ToolbarView`'s top section, pre-populated with the queried search term, enabling users to refine queries, fix typos, and search alternative titles with asynchronous results updating.
+
+**Independent Test**: In Game Details edit mode, click the globe button for a game. Verify the search bar is positioned at the top and pre-populated with the game title. Scroll through candidate covers and verify the search bar stays fixed at the top with 0px vertical displacement. Edit query to another valid title and press Enter; verify loading spinner displays and new covers are loaded. Search for an invalid title; verify empty state displays while search bar remains visible and interactive.
+
+### Implementation for User Story 7
+
+- [x] T027 [US7] Add sticky SearchEntry inside Adw.Clamp in Adw.ToolbarView [top] in cartridges/ui/cover_picker.blp
+- [x] T028 [US7] Bind search_entry template child and pre-populate with self.game_name in cartridges/ui/cover_picker.py
+- [x] T029 [US7] Implement _on_search_activated and _on_search_changed callbacks with empty-query check in cartridges/ui/cover_picker.py
+- [x] T030 [US7] Add search generation tracking and cancellation of in-flight tasks during re-query in cartridges/ui/cover_picker.py
+- [x] T031 [US7] Clear existing flowbox items and transition stack to loading state on new query in cartridges/ui/cover_picker.py
+
+**Checkpoint**: User Story 7 functional and independently testable in CoverPicker.
+
+---
+
+## Phase 12: Polish & Cross-Cutting Concerns for Feature Update
+
+**Purpose**: Quality assurance, static typing verification, and HIG compliance check for sticky search bar
+
+- [x] T032 [P] Run blueprint-compiler compile on cartridges/ui/cover_picker.blp
+- [x] T033 [P] Run Pyright type checking and Ruff lint verification on cartridges/ui/cover_picker.py
+- [x] T034 Validate Scenario 7 against specs/004-steamgriddb-picker/quickstart.md
+
+---
+
+## Dependencies & Execution Order (Updated for US7)
+
+### Phase Dependencies
+
+- **Phases 1-10**: Completed and merged.
+- **User Story 7 (Phase 11)**: Ready for immediate implementation.
+- **Polish (Phase 12)**: Depends on completion of Phase 11.
+
+### Parallel Opportunities
+
+- T027 (`cover_picker.blp`) and T028 (`cover_picker.py`) can be drafted in tandem.
+- T032 (`blueprint-compiler`) and T033 (`pyright` / `ruff`) run in parallel during verification.
+
+---
+
+## Implementation Strategy (US7 Incremental Delivery)
+
+1. **Sprint 5 (UI Layout)**: Implement T027 to place `SearchEntry` inside `Adw.Clamp` under `[top]` in `cartridges/ui/cover_picker.blp`.
+2. **Sprint 6 (Controller Integration)**: Implement T028, T029, T030, and T031 in `cartridges/ui/cover_picker.py` to handle pre-population, Enter key activation, generation tracking, and result clearing.
+3. **Sprint 7 (QA & Verification)**: Execute T032 (blueprint compilation), T033 (type checking & linting), and T034 (Scenario 7 validation).

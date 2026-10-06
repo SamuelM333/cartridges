@@ -1,8 +1,8 @@
 # Data Model: SteamGridDB Cover Picker and Credentials UX
 
 **Feature**: SteamGridDB Cover Picker and Credentials UX
-**Branch**: `004-steamgriddb-picker`
-**Date**: 2026-10-03
+**Branch**: `feat/004-sgdb-sticky-search`
+**Date**: 2026-10-06
 
 ## 1. Entities & Data Models
 
@@ -59,39 +59,64 @@ Stored in the application's GSettings schema (`page.samuelm333.Cartridges`).
 State machine managing the chooser dialog presentation.
 
 ```
-       [Open Dialog]
-             │
-             ▼
-      ┌──────────────┐
-      │   LOADING    │  Initial centered spinner active
-      └──────┬───────┘
-             │
-             ├──────────────────────────┐
-             │                          │
-      [1st batch ready]         [No results / Error]
-             │                          │
-             ▼                          ▼
-      ┌──────────────┐           ┌──────────────┐
-      │   RESULTS    │           │    EMPTY     │
-      │ (with bottom │           │ Status page  │
-      │   spinner)   │           │ with message │
-      └──────┬───────┘           └──────────────┘
-             │
-      [All batches complete]
-             │
-             ▼
-      ┌──────────────┐
-      │   RESULTS    │
-      │ (bottom      │
-      │ spinner off) │
-      └──────────────┘
+       [Open Dialog with Game Name]
+                     │
+                     ▼
+       ┌───────────────────────────┐
+       │     SearchEntry (top)     │  Sticky at top, pre-populated with search term
+       └─────────────┬─────────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │   LOADING    │  Initial centered spinner active
+              └──────┬───────┘
+                     │
+                     ├──────────────────────────┐
+                     │                          │
+              [1st batch ready]         [No results / Error]
+                     │                          │
+                     ▼                          ▼
+              ┌──────────────┐           ┌──────────────┐
+              │   RESULTS    │           │    EMPTY     │
+              │ (with bottom │           │ Status page  │
+              │   spinner)   │           │ with message │
+              └──────┬───────┘           └──────┬───────┘
+                     │                          │
+              [All complete]                    │
+                     │                          │
+                     ▼                          │
+              ┌──────────────┐                  │
+              │   RESULTS    │                  │
+              │   (steady)   │                  │
+              └──────┬───────┘                  │
+                     │                          │
+                     └──────────┬───────────────┘
+                                │
+                    [SearchEntry activated]
+                     (query text edited)
+                                │
+                                ▼
+                     (Increment generation)
+                     (Cancel in-flight task)
+                     (Clear candidates)
+                                │
+                                └───► (Transitions back to LOADING)
 ```
 
 #### State Transition Details
-1. **Initial**: `stack.set_visible_child_name("loading")`, `initial_spinner.start()`.
+1. **Initial**: `search_entry.set_text(self.game_name)`, `stack.set_visible_child_name("loading")`, `initial_spinner.start()`.
 2. **First Batch Rendered**: `stack.set_visible_child_name("results")`. If additional items exist to fetch, `bottom_spinner.set_visible(True)`.
 3. **All Candidates Loaded**: `bottom_spinner.set_visible(False)`.
 4. **No Candidates / Search Error**: `stack.set_visible_child_name("empty")`, display `Adw.StatusPage`.
+5. **Search Re-activation**:
+   - Triggered when user edits `search_entry` and presses Enter.
+   - If `query.strip()` is non-empty:
+     - Increment `self._search_generation`.
+     - Cancel any in-flight `_fetch_task`.
+     - Remove existing cover child widgets from `flowbox`.
+     - `bottom_spinner.set_visible(False)`.
+     - `stack.set_visible_child_name("loading")`.
+     - Launch `_fetch_covers()` with the new query.
 
 ---
 
@@ -102,3 +127,14 @@ State machine managing the chooser dialog presentation.
 |----------|------|-------------|
 | `cover_loading` | `bool` | GObject boolean property controlling the centered loading spinner overlay in the Game Details cover view. Set to `True` during asynchronous cover download/processing, reset to `False` on completion, error, cancel, or apply. |
 | `name_entry` error state | `bool` | CSS class `"error"` dynamically added to `name_entry` when SteamGridDB search is triggered with an empty title, cleared as soon as characters are entered. |
+
+---
+
+### 1.6 Cover Search Query & Task State (`CoverSearchState`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `query` | `str` | Textual search query active in `search_entry`. Pre-populated with initial game title, updated on user entry. |
+| `search_generation` | `int` | Monotonically increasing counter incremented on every search activation. Asynchronous tasks compare their local generation with `self._search_generation` to discard stale results. |
+| `fetch_task` | `asyncio.Task[None] \| None` | Reference to the currently running background async task, allowing explicit cancellation when a new query is submitted. |
+| `sticky_position` | `str` | Fixed position inside `Adw.ToolbarView` `[top]`, guaranteeing zero vertical scroll displacement while browsing candidate results. |
