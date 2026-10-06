@@ -1,11 +1,13 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 2.0.0 -> 2.1.0
+- Version change: 2.1.0 -> 2.2.0
 - List of modified principles:
-  * Section "Development & Branching Workflow": Added mandatory branch naming convention requiring feature branches to follow the format `feat/00X-name` and fix branches to follow `fix/00X-name`.
+  * Section "Libadwaita Patterns & GNOME HIG Conventions": Added subsection 7 designating adwaita-1-demo as the canonical living reference implementation for UI layouts, widgets, and style patterns.
+  * Section "Development Environment & Local Builds": Added tooling note regarding adwaita-1-demo availability and gresource inspection within the gtk-dev container.
 - Added sections: None
 - Modified sections:
-  * Development & Branching Workflow
+  * Libadwaita Patterns & GNOME HIG Conventions
+  * Development Environment & Local Builds
 - Removed sections: None
 - Follow-up TODOs: None
 -->
@@ -49,9 +51,10 @@ All UI components in Cartridges MUST adopt standard Libadwaita patterns and comm
 4. **Adaptive Presentation & Layout**: Utilize `Adw.Breakpoint` to ensure responsive adaptation between desktop and compact mobile/handheld dimensions. Keep layout margins, paddings, and typography standard with Libadwaita system tokens.
 5. **Feedback & Progress**: Use in-app `Adw.Toast` notifications (with undo actions for destructive operations) rather than intrusive blocking dialogs for non-critical confirmations. Display progress using standard `Gtk.ProgressBar` or `Adw.Spinner` embedded directly in contextual action rows.
 6. **Actions & Menus**: Leverage `Gio.ActionGroup`, `Gio.ActionMap`, and `Gtk.MenuButton` with standard GNOME primary menu structures and keyboard shortcuts.
+7. **Canonical Reference Implementation (`adwaita-1-demo`)**: The `adwaita-1-demo` application provisioned in the development environment serves as the canonical reference implementation for all Libadwaita widgets, styling patterns, and layout structures. When architecting or implementing new UI components, developers and coding agents MUST consult `adwaita-1-demo` to inspect how official patterns are constructed. UI templates and styles can be extracted directly for reference using `gresource extract /usr/bin/adwaita-1-demo <resource_path>`.
 
 ### Development Environment & Local Builds
-To guarantee build environment reproducibility, all local compilation, building, and validation checks MUST be executed inside the `gtk-dev` Distrobox container. This container environment must be provisioned with the following dependencies (installed via `sudo dnf install` or equivalent): `gcc`, `meson`, `ninja-build`, and `gtk4-devel`.
+To guarantee build environment reproducibility, all local compilation, building, and validation checks MUST be executed inside the `gtk-dev` Distrobox container. This container environment must be provisioned with the following dependencies (installed via `sudo dnf install` or equivalent): `gcc`, `meson`, `ninja-build`, `gtk4-devel`, and `libadwaita-devel` (which includes `adwaita-1-demo` for live UI reference and template extraction).
 
 ## Quality Gates & Verification
 All code changes and specifications are subject to a strict automated quality gate before they can be merged or marked as complete. The file `.pre-commit-config.yaml` is the canonical source of truth for all formatting and validation steps.
@@ -95,4 +98,4 @@ This project is an active downstream fork of the archived repository at [https:/
 * **Code Quality Standard**: Legacy code from the original upstream repository's pre-rewrite codebase is considered of poor quality and MUST NOT be used as a design reference. Any functional components adapted from historical sources must be fully refactored to comply with Core Principle I (Strict Typing & QA).
 * **New Maintenance**: This fork is actively maintained by **samuelm333** ([samuelmurillo.xyz](https://samuelmurillo.xyz)), hosted on GitHub under the username [samuelm333](https://github.com/samuelm333).
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-04
+**Version**: 2.2.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-06
