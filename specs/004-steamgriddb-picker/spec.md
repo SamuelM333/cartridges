@@ -1,12 +1,14 @@
 # Feature Specification: SteamGridDB Cover Picker and Credentials UX
 
-**Feature Branch**: `004-steamgriddb-picker`
+**Feature Branch**: `feat/004-sgdb-sticky-search`
 
 **Created**: 2026-10-03
+**Updated**: 2026-10-06
 
 **Status**: Complete
 
 **Input**: User description: "make spec independet. move steamgriddb picker specs from 002 to 004. rename to 004-steamgriddb-picker. review steamgriddb chooser. 1. add a Spinner while the first images are loading 2. Add a Spinner at the bottom of the list while more images are being fetch. Should be horizontally centered in the list 3. Cache images. Clear on exit or expire 4. Hide API key and add an eye icon to show"
+**Update Input (2026-10-06)**: "004 add to sgdb chooser a sticky search bar pre populated with the search made"
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -106,14 +108,35 @@ As a user customizing game artwork, I want to see an active loading spinner over
 
 ---
 
+### User Story 7 - Sticky Search Bar in Cover Chooser (Priority: P1)
+
+As a player selecting game cover artwork from SteamGridDB, I want the cover chooser dialog to feature a persistent, sticky search bar pre-populated with the initial search query, so that I always know what term was queried and can easily search for alternate titles, regional names, or fix typos without leaving the dialog.
+
+**Why this priority**: Game titles in libraries often include extra tags (e.g. edition names, franchise subtitles) or regional spelling variations that might return suboptimal SteamGridDB results. A sticky, pre-populated search bar allows the user to refine or adjust their search immediately without scrolling away from results or leaving the picker.
+
+**Independent Test**: Open the cover picker for a game (e.g., "Portal 2"); verify that a sticky search bar appears at the top of the dialog pre-populated with "Portal 2"; scroll through candidate artwork and verify the search bar stays fixed at the top; edit the search text to "Portal" and press Enter; verify that a new search is initiated, the loading spinner is shown, and the candidate covers update to match the new query.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user opens the SteamGridDB cover picker for a game, **When** the dialog appears, **Then** a sticky search bar is visible at the top of the dialog, pre-populated with the initial search query (the game's title).
+2. **Given** candidate covers are loaded and the user scrolls through the results, **When** scrolling vertically through the artwork grid, **Then** the search bar remains fixed in place at the top of the view and does not scroll off-screen.
+3. **Given** the cover search yields no results (the empty state is active), **When** viewing the empty state, **Then** the sticky search bar remains visible, interactive, and populated with the searched term, allowing the user to refine or retry their query.
+4. **Given** the user edits the text in the sticky search bar and submits the query (e.g. by pressing Enter or activating the search entry), **When** the search is submitted, **Then** the dialog transitions to a loading state, issues a new search to SteamGridDB for the updated query, and replaces the candidate cover list with the new results.
+5. **Given** the user clears the search bar or enters only whitespace and attempts to submit, **When** submitted, **Then** the dialog prevents a blank query from querying the API and retains the current state or prompts the user.
+
+---
+
 ### Edge Cases
 
 - What happens when network connectivity is lost while initial images are loading? The initial centered spinner is dismissed and a user-friendly error message or empty state is presented with an option to retry or dismiss.
 - What happens when network connectivity is lost while subsequent batches are being fetched? The bottom centered spinner is dismissed gracefully, leaving all already loaded candidate images selectable and intact.
-- What happens when a game has zero matching grids on SteamGridDB? The initial spinner is dismissed and an explicit "No covers found" notification is presented.
+- What happens when a game has zero matching grids on SteamGridDB? The initial spinner is dismissed and an explicit "No covers found" notification is presented, with the sticky search bar remaining visible so the user can immediately try an alternate query.
 - What happens when the API key input is completely empty? The field is displayed in its standard empty state and the eye icon toggle remains functional without crashing or displaying invalid placeholders.
 - What happens when the local cache directory has restricted permissions or disk is full? The application logs a diagnostic warning and falls back to ephemeral memory loading for previews without crashing the UI.
 - What happens when the user clicks the SteamGridDB button while Title contains only whitespace? It is treated as empty, triggering the Title error styling and preventing picker launch.
+- What happens when a user submits a search with the same query that is already displayed? The system does not duplicate existing artwork and may refresh results cleanly.
+- What happens when a user submits a new query while previous results are still loading? Submitting a new query cancels or supersedes in-flight network requests and transitions cleanly to loading results for the new query.
+- What happens when the user types in the search bar but does not press Enter? Typing alone does not trigger network requests; search is only initiated upon explicit activation/submission to prevent unwanted API requests.
 
 ## Requirements *(mandatory)*
 
@@ -134,6 +157,11 @@ As a user customizing game artwork, I want to see an active loading spinner over
 - **FR-012**: System MUST only allow opening the SteamGridDB cover picker when a non-empty game Title is provided; if triggered with an empty Title, the Title input field MUST be styled with a visual error indicator and the picker MUST NOT open.
 - **FR-013**: When a candidate cover is selected from the picker, the cover overlay in Game Details MUST display a centered loading spinner over the cover preview widget throughout background downloading and staging.
 - **FR-014**: All network queries, thumbnail caching, and image decoding routines MUST execute asynchronously without blocking the user interface main loop.
+- **FR-015**: System MUST include a persistent, sticky search bar positioned at the top of the SteamGridDB cover picker dialog content that remains visible and stationary while the user scrolls through candidate artwork.
+- **FR-016**: System MUST pre-populate the sticky search bar with the initial search query (the game title) when opening the cover picker dialog.
+- **FR-017**: System MUST allow users to edit the query in the sticky search bar and trigger a new search (e.g. via Enter or search entry activation), initiating an asynchronous SteamGridDB query and refreshing the candidate list with the new results.
+- **FR-018**: System MUST keep the sticky search bar visible, interactive, and functional across all dialog states, including loading, results display, and empty/no-results states.
+- **FR-019**: System MUST prevent empty or whitespace-only search submissions from initiating requests to SteamGridDB.
 
 ### Key Entities
 
@@ -141,6 +169,7 @@ As a user customizing game artwork, I want to see an active loading spinner over
 - **Preview Cache**: Local persistent or transient cache store indexed by candidate identifier or thumbnail URL, containing image bytes and timestamp metadata for expiration management.
 - **API Key Credential**: Authentication secret utilized to access the SteamGridDB service, managed securely in settings with masked display and interactive reveal capabilities.
 - **Picker Dialog State**: State machine managing the presentation of the picker dialog across initial loading, results with progressive pagination, and empty/error conditions.
+- **Cover Search Query**: Represents the active textual query submitted to SteamGridDB, maintained and displayed in the sticky search bar across dialog states.
 
 ## Success Criteria *(mandatory)*
 
@@ -154,6 +183,10 @@ As a user customizing game artwork, I want to see an active loading spinner over
 - **SC-006**: The SteamGridDB API key is 100% masked on initial display in preferences, and toggling the eye icon updates the visibility mode instantaneously without modifying the underlying stored key.
 - **SC-007**: Triggering SteamGridDB cover search with an empty Title highlights the field with an error style 100% of the time and prevents dialog launch, reverting to normal styling once text is entered.
 - **SC-008**: 100% of SteamGridDB cover downloads in Game Details display an active loading spinner centered horizontally and vertically over the cover preview from the moment a candidate is chosen until the newly processed cover is rendered or cancelled.
+- **SC-009**: 100% of cover chooser dialog sessions present a sticky search bar at the top of the dialog pre-populated with the initial search query.
+- **SC-010**: Scrolling through candidate cover results preserves the search bar at the top with 0 vertical scroll displacement (100% sticky).
+- **SC-011**: Submitting a refined or alternate query via the search bar initiates a new search and updates the chooser results or empty state within 1 second of API response.
+- **SC-012**: 100% of empty or error states in the cover picker retain an active sticky search bar enabling immediate query revision.
 
 ## Assumptions
 
@@ -162,3 +195,4 @@ As a user customizing game artwork, I want to see an active loading spinner over
 - Cache entries have a default expiration window of 7 days if not cleared on application exit.
 - The cover chooser presents candidates in a scrollable grid format, accommodating an initial batch followed by progressive loading of subsequent candidates.
 - Staging cover artwork in Game Details holds modifications until the user explicitly commits them with "Apply".
+- The search bar utilizes standard GTK search entry components placed in the dialog's top toolbar area to ensure sticky positioning.

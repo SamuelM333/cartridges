@@ -1,8 +1,8 @@
 # Quickstart & Verification Guide: SteamGridDB Cover Picker and Credentials UX
 
 **Feature**: SteamGridDB Cover Picker and Credentials UX
-**Branch**: `004-steamgriddb-picker`
-**Date**: 2026-10-03
+**Branch**: `feat/004-sgdb-sticky-search`
+**Date**: 2026-10-06
 
 ## 1. Prerequisites & Environment
 
@@ -59,7 +59,7 @@ ruff check
 
 ---
 
-### Scenario 2: Initial Loading Spinner in Cover Picker *(To Do)*
+### Scenario 2: Initial Loading Spinner in Cover Picker *(Done)*
 1. In the main Cartridges window, click on any game with a valid title to open Game Details.
 2. Click the edit button, then click the **Browse SteamGridDB** globe button.
    - **Expected**: The cover picker dialog opens immediately displaying a prominent loading spinner centered in the window.
@@ -68,7 +68,7 @@ ruff check
 
 ---
 
-### Scenario 3: Bottom Centered Spinner for Progressive Batches *(To Do)*
+### Scenario 3: Bottom Centered Spinner for Progressive Batches *(Done)*
 1. In the open cover picker dialog, scroll down toward the bottom of the candidate list.
    - **Expected**: While additional candidate images are being fetched, a loading spinner is visible and horizontally centered below the grid.
 2. Once all candidate covers for the query have loaded:
@@ -76,7 +76,7 @@ ruff check
 
 ---
 
-### Scenario 4: Thumbnail Caching & Cleanup *(To Do)*
+### Scenario 4: Thumbnail Caching & Cleanup *(Done)*
 1. Open the cover picker for a game to load candidate thumbnails.
 2. Verify cache storage on the host:
    ```bash
@@ -106,3 +106,20 @@ ruff check
    - **Expected**: An active loading spinner is centered horizontally and vertically over the cover preview while downloading and processing.
 3. Once download and processing completes:
    - **Expected**: The spinner hides and the newly staged cover preview is displayed.
+
+---
+
+### Scenario 7: Sticky Search Bar in Cover Chooser *(Done)*
+1. In Game Details for any game (e.g. "Portal 2"), enter edit mode and click the globe button ("Browse SteamGridDB").
+2. Observe the top of the cover picker dialog:
+   - **Expected**: A search bar is displayed at the top inside the dialog toolbar view, pre-populated with "Portal 2".
+3. Scroll down through candidate covers in the grid:
+   - **Expected**: The search bar stays stationary at the top with 0 vertical scroll displacement (sticky).
+4. Edit the text in the search entry to "Portal" and press Enter:
+   - **Expected**: The dialog transitions to the centered loading spinner, previous results are cleared, and new covers matching "Portal" are rendered.
+5. Type a title with no results (e.g. "NonExistentGameXYZ12345") and press Enter:
+   - **Expected**: The dialog transitions to the "No Covers Found" empty state, while the search bar remains visible and interactive at the top, populated with "NonExistentGameXYZ12345".
+6. Edit the search bar back to a valid title (e.g. "Portal 2") and press Enter:
+   - **Expected**: The dialog transitions back to loading and displays the covers.
+7. Clear the search entry so it contains only whitespace and press Enter:
+   - **Expected**: No blank query is submitted to the API, and the view does not crash or change state.

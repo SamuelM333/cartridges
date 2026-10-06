@@ -23,6 +23,7 @@ class CoverPicker(Adw.Dialog):
     __gtype_name__ = "CoverPicker"
 
     stack: Gtk.Stack = Gtk.Template.Child()
+    search_entry: Gtk.SearchEntry = Gtk.Template.Child()
     initial_spinner: Adw.Spinner = Gtk.Template.Child()
     status_page: Adw.StatusPage = Gtk.Template.Child()
     flowbox: Gtk.FlowBox = Gtk.Template.Child()
@@ -39,18 +40,60 @@ class CoverPicker(Adw.Dialog):
         self.game = game
         self.game_name = game_name or (game.name if game else "")
         self.on_cover_selected = on_cover_selected
+        self._search_generation: int = 0
+        self._fetch_task: asyncio.Task[None] | None = None
+        self._last_searched_query: str = self.game_name
+        self.search_entry.set_text(self.game_name)
+        self.connect("closed", lambda *_: self._cancel_in_flight())
         self._load_covers()
 
+    def _cancel_in_flight(self) -> None:
+        if self._fetch_task is not None and not self._fetch_task.done():
+            self._fetch_task.cancel()
+            self._fetch_task = None
+
+    @Gtk.Template.Callback()
+    def _on_search_activated(self, entry: Gtk.SearchEntry) -> None:
+        query = entry.get_text().strip()
+        if not query:
+            return
+        if (
+            query == self._last_searched_query
+            and self.stack.get_visible_child_name() == "results"
+        ):
+            return
+        self.game_name = query
+        self._last_searched_query = query
+        self._load_covers()
+
+    @Gtk.Template.Callback()
+    def _on_search_changed(self, _entry: Gtk.SearchEntry) -> None:
+        pass
+
     def _load_covers(self) -> None:
+        self._search_generation += 1
+        generation = self._search_generation
+        self._cancel_in_flight()
+        self.flowbox.remove_all()
         self.stack.set_visible_child_name("loading")
+        self.bottom_spinner.set_visible(False)
         app = Gio.Application.get_default()
         if app is not None:
-            app.create_asyncio_task(self._fetch_covers())
+            self._fetch_task = app.create_asyncio_task(
+                self._fetch_covers(generation, self.game_name)
+            )
 
-    async def _fetch_covers(self) -> None:
+    async def _fetch_covers(self, generation: int, query: str) -> None:
+        if not query:
+            GLib.idle_add(self._show_empty, generation)
+            return
         try:
-            sgdb_id = await asyncio.to_thread(steamgriddb.get_game_id, self.game_name)
+            sgdb_id = await asyncio.to_thread(steamgriddb.get_game_id, query)
+            if generation != self._search_generation:
+                return
             grids = await asyncio.to_thread(steamgriddb.get_grid_covers, sgdb_id)
+            if generation != self._search_generation:
+                return
 
             candidates: list[tuple[str, str, bool]] = []
             if grids:
@@ -65,6 +108,8 @@ class CoverPicker(Adw.Dialog):
                     anim_url = await asyncio.to_thread(
                         steamgriddb.get_image_url, sgdb_id, True
                     )
+                    if generation != self._search_generation:
+                        return
                     candidates.append((anim_url, anim_url, True))
                 except steamgriddb.SgdbError:
                     pass
@@ -72,12 +117,17 @@ class CoverPicker(Adw.Dialog):
                     static_url = await asyncio.to_thread(
                         steamgriddb.get_image_url, sgdb_id, False
                     )
+                    if generation != self._search_generation:
+                        return
                     candidates.append((static_url, static_url, False))
                 except steamgriddb.SgdbError:
                     pass
 
+            if generation != self._search_generation:
+                return
+
             if not candidates:
-                GLib.idle_add(self._show_empty)
+                GLib.idle_add(self._show_empty, generation)
                 return
 
             # Batch 1: first 6 items loaded while initial spinner is active
@@ -90,15 +140,23 @@ class CoverPicker(Adw.Dialog):
                 preview_data = await asyncio.to_thread(
                     self._get_or_download_preview, thumb_url
                 )
+                if generation != self._search_generation:
+                    return
                 if preview_data:
                     first_previews.append((full_url, preview_data))
 
+            if generation != self._search_generation:
+                return
+
             if not first_previews and not remaining_batches:
-                GLib.idle_add(self._show_empty)
+                GLib.idle_add(self._show_empty, generation)
                 return
 
             GLib.idle_add(
-                self._render_initial_batch, first_previews, bool(remaining_batches)
+                self._render_initial_batch,
+                generation,
+                first_previews,
+                bool(remaining_batches),
             )
 
             # Subsequent batches progressively loaded with bottom spinner
@@ -107,11 +165,18 @@ class CoverPicker(Adw.Dialog):
                     preview_data = await asyncio.to_thread(
                         self._get_or_download_preview, thumb_url
                     )
+                    if generation != self._search_generation:
+                        return
                     if preview_data:
-                        GLib.idle_add(self._add_preview, full_url, preview_data)
-                GLib.idle_add(self.bottom_spinner.set_visible, False)
-        except steamgriddb.SgdbError:
-            GLib.idle_add(self._show_empty)
+                        GLib.idle_add(
+                            self._add_preview, generation, full_url, preview_data
+                        )
+                GLib.idle_add(self._hide_bottom_spinner, generation)
+        except asyncio.CancelledError:
+            return
+        except (steamgriddb.SgdbError, urllib.error.URLError, TimeoutError, OSError):
+            if generation == self._search_generation:
+                GLib.idle_add(self._show_empty, generation)
 
     def _get_or_download_preview(self, url: str) -> bytes | None:
         cached = steamgriddb.get_cached_preview(url)
@@ -131,19 +196,29 @@ class CoverPicker(Adw.Dialog):
         except (urllib.error.URLError, TimeoutError, OSError):
             return None
 
-    def _show_empty(self) -> None:
+    def _show_empty(self, generation: int) -> None:
+        if generation != self._search_generation:
+            return
         self.stack.set_visible_child_name("empty")
         self.bottom_spinner.set_visible(False)
 
+    def _hide_bottom_spinner(self, generation: int) -> None:
+        if generation == self._search_generation:
+            self.bottom_spinner.set_visible(False)
+
     def _render_initial_batch(
-        self, previews: list[tuple[str, bytes]], has_more: bool
+        self, generation: int, previews: list[tuple[str, bytes]], has_more: bool
     ) -> None:
+        if generation != self._search_generation:
+            return
         for full_url, data in previews:
-            self._add_preview(full_url, data)
+            self._add_preview(generation, full_url, data)
         self.stack.set_visible_child_name("results")
         self.bottom_spinner.set_visible(has_more)
 
-    def _add_preview(self, url: str, data: bytes) -> None:
+    def _add_preview(self, generation: int, url: str, data: bytes) -> None:
+        if generation != self._search_generation:
+            return
         try:
             btn = Gtk.Button()
             btn.add_css_class("card")

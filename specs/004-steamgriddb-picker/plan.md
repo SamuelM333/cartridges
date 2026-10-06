@@ -1,16 +1,16 @@
 # Implementation Plan: SteamGridDB Cover Picker and Credentials UX
 
-**Branch**: `004-steamgriddb-picker` | **Date**: 2026-10-03 | **Spec**: [spec.md](./spec.md)
+**Branch**: `feat/004-sgdb-sticky-search` | **Date**: 2026-10-06 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/004-steamgriddb-picker/spec.md`
+**Input**: Feature specification from `/specs/004-steamgriddb-picker/spec.md` with 2026-10-06 addition: "004 add to sgdb chooser a sticky search bar pre populated with the search made"
 
 ## Summary
 
-This feature enhances the SteamGridDB cover art selection and authentication workflow in Cartridges. An architectural assessment confirms that core parts of the user experience (dialog sizing, 2:3 aspect ratio thumbnail presentation, empty Title validation with error styling, and cover staging download spinners) are already fully implemented. The remaining work focuses on:
-1. Upgrading the SteamGridDB API key input in Preferences to `Adw.PasswordEntryRow` with a fixed set amount of masked characters (e.g. 20 dots) fitting the input field, automatic focus loss when clicking away, and an eye-icon toggle to reveal the actual plaintext key.
-2. Enhancing `CoverPicker` with a `Gtk.Stack` featuring an initial centered `Adw.Spinner` and empty status page.
-3. Adding a horizontally centered `Adw.Spinner` at the bottom of the candidate list for progressive batch loading.
-4. Implementing local thumbnail caching under `$XDG_CACHE_HOME/cartridges/previews/` with TTL expiration pruning and automatic cleanup on application exit.
+This feature enhances the SteamGridDB cover art selection and authentication workflow in Cartridges. Core user experience elements (API key masking, dialog sizing, 2:3 aspect ratio thumbnails, initial/bottom loading spinners, thumbnail caching, title error validation, and cover staging download spinners) have already been implemented and merged. The current scope focuses on:
+1. Adding a persistent, sticky search bar to `CoverPicker` positioned at the top of the dialog inside `Adw.ToolbarView`'s top section.
+2. Pre-populating the search entry with the active search query (the game title) on initialization.
+3. Enabling users to edit the query and trigger a new search (via Enter or search entry activation) to query alternative titles, sequels, or regional names.
+4. Ensuring the search bar remains stationary (0px vertical displacement) while scrolling through cover results, and remains interactive across loading, results, and empty states.
 
 ## Current Implementation Status
 
@@ -19,11 +19,12 @@ This feature enhances the SteamGridDB cover art selection and authentication wor
 | **US1** | API key masking, fixed length & focus loss | **Done** | `Adw.PasswordEntryRow` with 20-character fixed mask and click-away focus loss in `preferences.py`. |
 | **US2 (part a)** | Dialog sizing (>= 760x520) | **Done** | `cover_picker.blp` sets `content-width: 800; content-height: 580;`. |
 | **US2 (part b)** | 2:3 aspect ratio thumbnails | **Done** | `cover_picker.py` sets `140x210` with `Gtk.ContentFit.CONTAIN`. |
-| **US2 (part c)** | Initial centered spinner & empty state | **To Do** | Implement `Gtk.Stack` with `loading`, `empty`, and `results` in `cover_picker.blp` and `cover_picker.py`. |
-| **US3** | Centered bottom spinner for batches | **To Do** | Add `bottom_spinner: Adw.Spinner` centered below `flowbox` in `cover_picker.blp` and wire in `cover_picker.py`. |
-| **US4** | Thumbnail caching & lifecycle cleanup | **To Do** | Implement cache storage, SHA-256 keys, TTL pruning, and exit cleanup in `steamgriddb.py` and `application.py`. |
+| **US2 (part c)** | Initial centered spinner & empty state | **Done** | `Gtk.Stack` with `loading`, `empty`, and `results` in `cover_picker.blp` and `cover_picker.py`. |
+| **US3** | Centered bottom spinner for batches | **Done** | `bottom_spinner: Adw.Spinner` centered below `flowbox` in `cover_picker.blp` and `cover_picker.py`. |
+| **US4** | Thumbnail caching & lifecycle cleanup | **Done** | Implemented cache storage, SHA-256 keys, TTL pruning, and exit cleanup in `steamgriddb.py` and `application.py`. |
 | **US5** | Search triggering & title validation | **Done** | Implemented in `game_details.py` (lines 273-277: validates title, adds `"error"` CSS class, focuses entry). |
-| **US6** | Cover staging download spinner | **Done** | Implemented in `game_details.py` (lines 328-372: `cover_loading` GObject property with centered spinner). |
+| **US6** | Cover selection & staging feedback spinner | **Done** | Implemented in `game_details.py` (lines 328-372: `cover_loading` GObject property with centered spinner). |
+| **US7** | Sticky search bar in cover chooser | **Done** | Added `SearchEntry` inside `Adw.Clamp` under `Adw.ToolbarView` `[top]`, pre-populated with `game_name`, generation tracking, task cancellation, and re-query on activation. |
 
 ## Technical Context
 
@@ -81,14 +82,9 @@ specs/004-steamgriddb-picker/
 
 ```text
 cartridges/
-├── application.py       # [MODIFY] Hook preview cache cleanup on application shutdown
-├── ui/
-│   ├── cover_picker.blp # [MODIFY] Add Gtk.Stack, initial Adw.Spinner, and bottom Adw.Spinner
-│   ├── cover_picker.py  # [MODIFY] Wire stack states, progressive batching, and cache lookups
-│   ├── preferences.blp  # [MODIFY] Change API key row from Adw.EntryRow to Adw.PasswordEntryRow
-│   └── preferences.py   # [MODIFY] Update sgdb_key_entry_row type annotation
-└── utils/
-    └── steamgriddb.py   # [MODIFY] Add preview cache management (get, save, prune, clear)
+└── ui/
+    ├── cover_picker.blp # [MODIFY] Add sticky SearchEntry inside Adw.ToolbarView [top]
+    └── cover_picker.py  # [MODIFY] Bind search_entry, pre-populate with game_name, handle activate signal
 ```
 
 **Structure Decision**: Standard single GNOME application structure with existing modular subpackages (`cartridges/ui`, `cartridges/utils`).

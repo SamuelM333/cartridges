@@ -10,6 +10,21 @@ template $CoverPicker: Adw.Dialog {
     [top]
     Adw.HeaderBar {}
 
+    [top]
+    Adw.Clamp {
+      maximum-size: 500;
+      margin-top: 6;
+      margin-bottom: 10;
+      margin-start: 16;
+      margin-end: 16;
+
+      child: SearchEntry search_entry {
+        placeholder-text: _("Search SteamGridDB…");
+        activate => $_on_search_activated();
+        search-changed => $_on_search_changed();
+      };
+    }
+
     content: Stack stack {
       transition-type: crossfade;
 
