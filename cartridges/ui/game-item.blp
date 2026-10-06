@@ -96,15 +96,17 @@ template $GameItem: Box {
     }
 
     [overlay]
-    Button play {
+    Button action_button {
+      icon-name: "media-playback-start-symbolic";
+      tooltip-text: _("Play");
       action-name: "game.play";
-      label: _("Play");
-      halign: center;
-      valign: end;
-      margin-bottom: 12;
+      halign: start;
+      valign: start;
+      margin-top: 6;
+      margin-start: 6;
 
       styles [
-        "pill",
+        "circular",
       ]
     }
   }

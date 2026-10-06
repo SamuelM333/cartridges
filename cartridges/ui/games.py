@@ -40,7 +40,7 @@ class GameActions(Gio.SimpleActionGroup):
         self.add_action_entries((
             ("add", lambda *_: add()),
             ("edit", lambda *_: edit(self.game)),
-            ("play", lambda *_: self.game.play()),
+            ("play", lambda *_: play(self.game)),
             ("details", lambda *_: self._show_details()),
             ("hide", lambda *_: hide(self.game)),
             ("unhide", lambda *_: unhide(self.game)),
@@ -118,6 +118,15 @@ def add():
     if window.navigation_view.props.visible_page_tag != "details":
         window.navigation_view.push_by_tag("details")
     window.details.add()
+
+
+def play(game: Game):
+    """Launch `game` and notify the user with a toast."""
+    game.play()
+    _window().send_toast(
+        # Translators: {} is the name of the game that was launched
+        _("Launched {}").format(game.name),
+    )
 
 
 def edit(game: Game):
