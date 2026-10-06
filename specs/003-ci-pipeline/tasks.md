@@ -149,3 +149,13 @@
 
 - [x] T032 Update runner label to `runs-on: ubuntu-26.04` across `.github/workflows/ci.yml`, `.github/workflows/publish-release.yml`, and `.github/workflows/nightly.yml`
 - [x] T033 Verify YAML formatting, pre-commit validation, and zero-emoji compliance across all workflows
+
+---
+
+## Phase 15: Nightly Production Mode Release Update
+
+**Purpose**: Update nightly build workflow to compile and distribute production mode Flatpak bundles.
+
+- [x] T034 [US2] Update Flatpak builder step in `.github/workflows/nightly.yml` to compile `page.samuelm333.Cartridges.flatpak` using `flatpak/page.samuelm333.Cartridges.json`
+- [x] T035 [US2] Update release publish step in `.github/workflows/nightly.yml` to upload `files: page.samuelm333.Cartridges.flatpak`
+- [x] T036 Execute validation scenario F from `specs/003-ci-pipeline/quickstart.md`, YAML formatting verification, and zero-emoji compliance check

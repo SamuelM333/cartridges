@@ -15,13 +15,16 @@ Represents an official immutable release asset attached to a GitHub Release.
   - File size must be greater than zero.
 
 ### Entity: Nightly Flatpak Artifact
-Represents a rolling pre-release build of the development tip on `main`.
+Represents a rolling pre-release build of the latest commit on `main` compiled in production mode.
 - **Attributes**:
-  - `name`: String filename (`page.samuelm333.Cartridges.Devel.flatpak`).
+  - `name`: String filename (`page.samuelm333.Cartridges.flatpak`).
   - `release_tag`: Constant `nightly`.
   - `commit_sha`: 40-character hex git commit hash of HEAD on `main`.
   - `build_timestamp`: ISO 8601 UTC timestamp.
   - `prerelease`: Boolean `true`.
+- **Validation Rules**:
+  - Must compile against `flatpak/page.samuelm333.Cartridges.json` without errors.
+  - File size must be greater than zero.
 
 ### Entity: PR Flatpak Artifact
 Represents a downloadable preview development build uploaded to GitHub Actions workflow artifacts during PR and branch validation.
@@ -50,7 +53,7 @@ Represents the deduplication state stored within GitHub Actions Cache.
 3. **Branch Decision**:
    - **Cache Hit**: Exit cleanly with success (skip building and publishing).
    - **Cache Miss**:
-     - Compile development Flatpak bundle (`page.samuelm333.Cartridges.Devel.flatpak`).
+     - Compile production Flatpak bundle (`page.samuelm333.Cartridges.flatpak`) using `flatpak/page.samuelm333.Cartridges.json`.
      - Publish bundle to GitHub Release (tag: `nightly`).
      - Create sentinel file and save `nightly-built-${{ sha }}` to `actions/cache`.
 
