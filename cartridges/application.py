@@ -21,7 +21,7 @@ class Application(Adw.Application):
     @override
     def do_startup(self):
         Adw.Application.do_startup(self)
-        self.props.style_manager.props.color_scheme = Adw.ColorScheme.PREFER_DARK
+        self.props.style_manager.props.color_scheme = Adw.ColorScheme.DEFAULT
 
         self.add_action_entries((
             ("preferences", lambda *_: self._present_preferences_dialog()),
