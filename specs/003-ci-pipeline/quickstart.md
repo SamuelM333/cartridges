@@ -56,3 +56,17 @@ print(f'Computed cache key: {cache_key}')
 "
 ```
 **Expected Outcome**: Prints `Computed cache key: nightly-built-<sha>` with valid 40-character hex hash.
+
+### Scenario F: Nightly Workflow Production Bundle Verification
+Verify that `.github/workflows/nightly.yml` references the production bundle `page.samuelm333.Cartridges.flatpak` and manifest `flatpak/page.samuelm333.Cartridges.json`:
+```bash
+python3 -c "
+with open('.github/workflows/nightly.yml', encoding='utf-8') as f:
+    content = f.read()
+assert 'flatpak/page.samuelm333.Cartridges.json' in content
+assert 'bundle: page.samuelm333.Cartridges.flatpak' in content
+assert 'files: page.samuelm333.Cartridges.flatpak' in content
+print('Nightly workflow verified for production mode.')
+"
+```
+**Expected Outcome**: Verification passes, confirming nightly runs produce and publish production bundles.

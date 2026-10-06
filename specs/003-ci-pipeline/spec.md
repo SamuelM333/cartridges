@@ -1,12 +1,14 @@
 # Feature Specification: Automated CI Pipeline, Release Flatpak, and Nightly Builds (Linux/Flatpak)
 
-**Feature Branch**: `feat/003-ci-pipeline`
+**Feature Branch**: `feat/003-nightly-prod-mode`
 
 **Created**: 2026-09-23
+**Updated**: 2026-10-06
 
 **Status**: Complete
 
 **Input**: User description: "003 Bring back the CI pipeline available in main. Requirements: Build flatpak on release. Build nightly flatpak - Avoid building and releasing the same commit multiple times. Scope decisions: reduce the scope to just linux/flatpak. Keep using GitHub Actions. Use GitHub actions/cache to keep the last built git hash and use that as flag."
+**Update Input (2026-10-06)**: "003 ci update: make nightly releases run in prod mode"
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -26,19 +28,19 @@ As a Cartridges maintainer and end user on Linux, I want GitHub Actions to autom
 
 ---
 
-### User Story 2 - Nightly Flatpak Builds with actions/cache Commit Tracking (Priority: P2)
+### User Story 2 - Nightly Production Flatpak Builds with actions/cache Commit Tracking (Priority: P2)
 
-As a tester and early-adopter user, I want nightly Flatpak builds generated from the `rewrite` branch on a regular schedule (or workflow dispatch), while automatically skipping redundant builds if no new commits have landed since the last nightly run using `actions/cache`, so that GitHub Actions compute resources are conserved and users do not download duplicate packages.
+As a tester and early-adopter user, I want nightly Flatpak builds generated in production mode (`page.samuelm333.Cartridges.flatpak`) on a regular schedule (or workflow dispatch), while automatically skipping redundant builds if no new commits have landed since the last nightly run using `actions/cache`, so that GitHub Actions compute resources are conserved, users do not download duplicate packages, and nightly testers test the authentic production runtime profile rather than a development sandbox.
 
-**Why this priority**: Continuous testing on development builds allows catching regressions early on the latest GNOME development runtimes while eliminating unnecessary CI churn and redundant releases. Using GitHub `actions/cache` to store the last-built git SHA provides an instant, self-contained mechanism without requiring extra repository commits or API calls.
+**Why this priority**: Running nightly builds in production mode ensures that early testers exercise the exact same configuration, sandboxing permissions, application ID (`page.samuelm333.Cartridges`), and release profile optimizations (`-Dprofile=release`) used in final releases, uncovering packaging bugs early without requiring extra repository commits or API calls.
 
-**Independent Test**: Run the nightly workflow on a new commit on `rewrite`. Confirm that the cache does not match the current commit SHA, the nightly Flatpak bundle is built and published to the `nightly` release, and the current commit SHA is saved into `actions/cache`. Then trigger the workflow again on the same commit and confirm that the cache hit detects the identical commit SHA and skips building and publishing.
+**Independent Test**: Run the nightly workflow on a new commit on `main`. Confirm that the cache does not match the current commit SHA, the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` is built using the production manifest `flatpak/page.samuelm333.Cartridges.json`, published to the `nightly` release, and the current commit SHA is saved into `actions/cache`. Then trigger the workflow again on the same commit and confirm that the cache hit detects the identical commit SHA and skips building and publishing.
 
 **Acceptance Scenarios**:
 
-1. **Given** a scheduled or manually dispatched nightly workflow run, **When** `actions/cache` is queried with the key based on the current HEAD commit SHA, **Then** if the cache key is not found (cache miss), the workflow proceeds to build `page.samuelm333.Cartridges.Devel.flatpak`.
-2. **Given** a successful nightly build, **When** the publish step finishes, **Then** the new bundle is uploaded to the Nightly release and the current commit SHA is saved to GitHub cache.
-3. **Given** the nightly workflow runs when HEAD on `rewrite` matches the commit SHA stored in `actions/cache` (cache hit), **When** the check step evaluates the cache status, **Then** all compilation and publishing jobs are cleanly skipped.
+1. **Given** a scheduled or manually dispatched nightly workflow run, **When** `actions/cache` is queried with the key based on the current HEAD commit SHA, **Then** if the cache key is not found (cache miss), the workflow proceeds to build the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` using `flatpak/page.samuelm333.Cartridges.json`.
+2. **Given** a successful nightly build, **When** the publish step finishes, **Then** the production bundle `page.samuelm333.Cartridges.flatpak` is uploaded to the Nightly release and the current commit SHA is saved to GitHub cache.
+3. **Given** the nightly workflow runs when HEAD on `main` matches the commit SHA stored in `actions/cache` (cache hit), **When** the check step evaluates the cache status, **Then** all compilation and publishing jobs are cleanly skipped.
 
 ---
 
@@ -81,15 +83,15 @@ As a contributor, maintainer, or reviewer, I want automated CI validation to run
 - **FR-008**: The system MUST provide a nightly build workflow (`nightly.yml`) triggered via schedule (e.g., daily cron) and manual dispatch (`workflow_dispatch`).
 - **FR-009**: The nightly workflow MUST use `actions/cache` to store and restore the commit SHA of the last successfully built nightly package.
 - **FR-010**: The nightly workflow MUST skip the Flatpak build and release publication when the cached commit SHA matches the current HEAD commit SHA of the target branch.
-- **FR-011**: The nightly workflow MUST build `page.samuelm333.Cartridges.Devel.flatpak` on a cache miss (new commit), publish or update the designated `nightly` pre-release with the new bundle attached as a downloadable asset, and update the cache.
+- **FR-011**: The nightly workflow MUST build the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` using the production manifest `flatpak/page.samuelm333.Cartridges.json` on a cache miss (new commit), publish or update the designated `nightly` pre-release with the new production bundle attached as a downloadable asset, and update the cache.
 - **FR-012**: All workflows MUST declare strict minimal `permissions` adhering to the principle of least privilege.
 - **FR-013**: All workflow definitions and accompanying scripts MUST contain zero Unicode emoji characters.
-- **FR-014**: Both release and nightly GitHub Releases MUST make their respective compiled Flatpak bundle files (`page.samuelm333.Cartridges.flatpak` for tagged releases and `page.samuelm333.Cartridges.Devel.flatpak` for nightly pre-releases) directly accessible for public download from the release asset list, and PR workflow runs MUST make development bundles available as downloadable workflow artifacts.
+- **FR-014**: Both release and nightly GitHub Releases MUST make their respective compiled production Flatpak bundle files (`page.samuelm333.Cartridges.flatpak`) directly accessible for public download from the release asset list, and PR workflow runs MUST make development preview bundles available as downloadable workflow artifacts.
 
 ### Key Entities
 
 - **Release Artifact**: Represents an official release distribution package (`page.samuelm333.Cartridges.flatpak`), tied to an immutable git tag and published as a downloadable binary asset on GitHub Releases with validated AppStream changelog notes.
-- **Nightly Artifact**: Represents a rolling pre-release package (`page.samuelm333.Cartridges.Devel.flatpak`) built from the latest commit on `main`, updated only when code changes are detected and attached as a downloadable binary asset to the GitHub Nightly pre-release.
+- **Nightly Artifact**: Represents a rolling pre-release package (`page.samuelm333.Cartridges.flatpak`) built in production mode from the latest commit on `main`, updated only when code changes are detected and attached as a downloadable binary asset to the GitHub Nightly pre-release.
 - **PR Flatpak Artifact**: Represents a preview build package (`page.samuelm333.Cartridges.Devel.flatpak`) produced during CI runs and uploaded as a downloadable GitHub Actions workflow artifact with standard retention.
 - **Cache Key**: A cache identifier maintained via `actions/cache` storing the git commit SHA of the most recent successful nightly build.
 - **Flatpak Manifest**: JSON specification defining the runtime, SDK, sandboxed permissions, and compilation commands for either development (`Devel`) or production releases.
@@ -99,10 +101,10 @@ As a contributor, maintainer, or reviewer, I want automated CI validation to run
 ### Measurable Outcomes
 
 - **SC-001**: Every git tag push triggers automated compilation of the Linux Flatpak bundle and attaches `page.samuelm333.Cartridges.flatpak` to the GitHub Release as a downloadable release asset without manual maintainer intervention.
-- **SC-002**: Scheduled nightly workflows evaluate `actions/cache`, skip build tasks in 100% of runs where HEAD has not advanced past the last cached nightly build commit SHA, and attach `page.samuelm333.Cartridges.Devel.flatpak` as a downloadable asset to the `nightly` release when new commits are built.
+- **SC-002**: Scheduled nightly workflows evaluate `actions/cache`, skip build tasks in 100% of runs where HEAD has not advanced past the last cached nightly build commit SHA, and attach `page.samuelm333.Cartridges.flatpak` (compiled in production mode) as a downloadable asset to the `nightly` release when new commits are built.
 - **SC-003**: Pull request builds detect and reject formatting errors, type discrepancies, and build failures within 10 minutes of push.
 - **SC-004**: Zero Unicode emojis are present across any created workflow configuration files or automated scripts.
-- **SC-005**: 100% of published tag releases and nightly pre-releases include their compiled Flatpak bundles available in the release assets list for end-user download.
+- **SC-005**: 100% of published tag releases and nightly pre-releases include their compiled production Flatpak bundles (`page.samuelm333.Cartridges.flatpak`) available in the release assets list for end-user download.
 - **SC-006**: 100% of successful pull request and branch push CI runs attach the compiled development `.flatpak` bundle as a downloadable artifact in the GitHub Actions run summary.
 
 ## Assumptions

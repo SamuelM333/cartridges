@@ -5,7 +5,7 @@
 This document establishes the architecture and design decisions for porting the CI/CD workflows from `cartridges-main` to the modern `rewrite` branch, scoped strictly to **Linux and Flatpak**:
 1. Continuous Integration (`ci.yml`): Pre-commit formatting/hygiene, Pyright strict typing, Meson unit tests, and development Flatpak bundle compilation (`page.samuelm333.Cartridges.Devel.flatpak`).
 2. Production Release Publishing (`publish-release.yml`): Tag-triggered packaging of the production Flatpak bundle (`page.samuelm333.Cartridges.flatpak`) attached to GitHub Releases with metadata-extracted changelogs.
-3. Automated Nightly Builds (`nightly.yml`): Scheduled and manual dispatch workflow building `page.samuelm333.Cartridges.Devel.flatpak` and publishing to a rolling `nightly` release, while leveraging GitHub `actions/cache` to prevent redundant builds when the HEAD commit has not advanced.
+3. Automated Nightly Builds (`nightly.yml`): Scheduled and manual dispatch workflow building the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` using the release manifest `flatpak/page.samuelm333.Cartridges.json` and publishing to a rolling `nightly` release, while leveraging GitHub `actions/cache` to prevent redundant builds when the HEAD commit has not advanced.
 
 ## 2. Nightly Deduplication via `actions/cache`
 
@@ -28,7 +28,7 @@ Use `actions/cache@v4` with an exact key based on the HEAD commit SHA:
    - Output `build_needed: false`.
    - Subsequent build and release steps skip execution (`if: steps.check-cache.outputs.cache-hit != 'true'`).
 4. If `steps.check-cache.outputs.cache-hit != 'true'`:
-   - Proceed to build Flatpak bundle.
+   - Proceed to build the production Flatpak bundle `page.samuelm333.Cartridges.flatpak` via `flatpak/page.samuelm333.Cartridges.json`.
    - Publish bundle to GitHub Release (tag `nightly`).
    - Create flag file `touch .nightly-flag`.
    - The cache action automatically saves the entry on workflow success or via an explicit `actions/cache/save@v4` step.
@@ -130,3 +130,18 @@ Standardize all workflow jobs (`runs-on: ubuntu-26.04`) on the modern Ubuntu 26.
 ### Alternatives Considered
 - `ubuntu-latest`: Currently an alias that will eventually roll over, but explicit `ubuntu-26.04` pinning ensures predictable environment configurations.
 - `ubuntu-24.04` or `ubuntu-22.04`: Previous LTS generations, superseded by the Ubuntu 26 runner.
+
+---
+
+## 9. Nightly Production Mode Strategy
+
+### Decision
+Build and publish nightly releases in production mode using `flatpak/page.samuelm333.Cartridges.json` (application ID `page.samuelm333.Cartridges`, `-Dprofile=release`, bundle `page.samuelm333.Cartridges.flatpak`) instead of the development manifest.
+
+### Rationale
+- **End-to-End Environment Parity**: Nightly pre-release builds test the authentic production runtime profile, sandbox permissions, and official GSettings schemas.
+- **Packaging Verification**: Validates production Meson build flags (`-Dprofile=release`) and metadata extraction on every nightly run, ensuring release readiness before tags are created.
+- **User Consistency**: Nightly users test the exact same application identifier and visual branding as stable release users.
+
+### Alternatives Considered
+- *Keep development profile for nightly*: Discarded per user requirement that nightly releases run in prod mode. PR workflow checks (`ci.yml`) continue to build and upload preview development bundles for active development review.

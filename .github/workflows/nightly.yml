@@ -49,8 +49,8 @@ jobs:
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: page.samuelm333.Cartridges.Devel.flatpak
-          manifest-path: flatpak/page.samuelm333.Cartridges.Devel.json
+          bundle: page.samuelm333.Cartridges.flatpak
+          manifest-path: flatpak/page.samuelm333.Cartridges.json
 
       - name: Publish Nightly Release
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
@@ -59,7 +59,7 @@ jobs:
           name: "Nightly ${{ steps.commit.outputs.short }}"
           tag_name: nightly-${{ steps.commit.outputs.short }}
           generate_release_notes: true
-          files: page.samuelm333.Cartridges.Devel.flatpak
+          files: page.samuelm333.Cartridges.flatpak
           fail_on_unmatched_files: true
           prerelease: true
 

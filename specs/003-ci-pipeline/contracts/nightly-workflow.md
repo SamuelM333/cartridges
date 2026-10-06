@@ -28,9 +28,10 @@
 - `cache-hit`: `'true'` if cache key exists; `'false'` or empty if not.
 
 ## 4. Output Artifacts
+- **Manifest**: `flatpak/page.samuelm333.Cartridges.json` (Production mode, release profile)
 - **Release Target**: GitHub Release tagged `nightly`.
 - **Assets**:
-  - `page.samuelm333.Cartridges.Devel.flatpak`
+  - `page.samuelm333.Cartridges.flatpak`
 - **Title**: `Nightly Build (${{ github.sha }})`
 - **Body**: Automatically generated summary referencing the commit SHA and build timestamp.
 - **Prerelease**: `true`
