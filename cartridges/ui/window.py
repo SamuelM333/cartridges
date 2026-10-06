@@ -192,7 +192,7 @@ class Window(Adw.ApplicationWindow):
         game = model.get_item(position)
         if game is not None:
             if SETTINGS.get_boolean("cover-launches-game"):
-                game.play()
+                games.play(game)
             else:
                 self.details.game = game
                 self.navigation_view.push_by_tag("details")

@@ -38,11 +38,7 @@
     opacity, transform;
 }
 
-#game-item overlay > button.hidden {
-  opacity: 0;
-  transform: translateY(3px);
-}
-
+#game-item overlay > button.hidden,
 #game-item overlay > menubutton.hidden > button {
   opacity: 0;
   transform: translateY(-6px);

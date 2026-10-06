@@ -24,7 +24,7 @@ class GameItem(Gtk.Box):
     motion: Gtk.EventControllerMotion = Gtk.Template.Child()
     options: Gtk.MenuButton = Gtk.Template.Child()
     collections_box: CollectionsBox = Gtk.Template.Child()
-    play: Gtk.Button = Gtk.Template.Child()
+    action_button: Gtk.Button = Gtk.Template.Child()
 
     game_actions: GameActions = Gtk.Template.Child()
     collection_actions: CollectionActions = Gtk.Template.Child()
@@ -39,21 +39,24 @@ class GameItem(Gtk.Box):
         self.insert_action_group("collection", self.collection_actions)
         self._reveal_buttons()
 
-        SETTINGS.connect("changed::cover-launches-game", self._update_play_button)
-        self._update_play_button()
+        SETTINGS.connect("changed::cover-launches-game", self._update_action_button)
+        self._update_action_button()
 
-    def _update_play_button(self, *_args: Any) -> None:
+    def _update_action_button(self, *_args: Any) -> None:
         if SETTINGS.get_boolean("cover-launches-game"):
-            self.play.set_label(_("Details"))
-            self.play.set_action_name("game.details")
+            self.action_button.set_icon_name("help-about-symbolic")
+            self.action_button.set_tooltip_text(_("Details"))
+            self.action_button.set_action_name("game.details")
         else:
-            self.play.set_label(_("Play"))
-            self.play.set_action_name("game.play")
+            self.action_button.set_icon_name("media-playback-start-symbolic")
+            self.action_button.set_tooltip_text(_("Play"))
+            self.action_button.set_action_name("game.play")
 
     @Gtk.Template.Callback()
-    def _reveal_buttons(self, *_args):
+    def _reveal_buttons(self, *_args: Any) -> None:
+        contains_pointer = self.motion.props.contains_pointer
         for widget, reveal in (
-            (self.play, contains_pointer := self.motion.props.contains_pointer),
+            (self.action_button, contains_pointer),
             (self.options, contains_pointer or self.options.props.active),
         ):
             widget.props.can_focus = widget.props.can_target = reveal
