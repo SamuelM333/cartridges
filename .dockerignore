@@ -1,0 +1,30 @@
+# Git and documentation
+.git/
+.github/
+
+# Python virtual environments and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Meson / Ninja build directories
+_build/
+builddir/
+
+# Docker artifacts
+Dockerfile*
+.dockerignore
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
