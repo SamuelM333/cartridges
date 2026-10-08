@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2026 samuelm333
 
+import contextlib
 import json
+import logging
 from json import JSONDecodeError
 
 from . import DATA_DIR
 
 _PATH = DATA_DIR / "last-played.json"
+
+_logger = logging.getLogger(__name__)
 
 _history: dict[str, int] | None = None
 
@@ -39,13 +43,23 @@ def load() -> dict[str, int]:
 
 
 def record(game_id: str, timestamp: int):
-    """Record that the game with `game_id` was launched at `timestamp`."""
+    """Record that the game with `game_id` was launched at `timestamp`.
+
+    The time is always kept in memory. Failing to save it to disk is logged and
+    never raised, so it cannot prevent a game from launching.
+    """
     history = load()
     history[game_id] = timestamp
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     tmp = _PATH.with_suffix(".json.tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(history, f, indent=4, sort_keys=True)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with tmp.open("w", encoding="utf-8") as f:
+            json.dump(history, f, indent=4, sort_keys=True)
 
-    tmp.replace(_PATH)
+        tmp.replace(_PATH)
+    except OSError as e:
+        _logger.warning("Could not save play history to %s: %s", _PATH, e)
+        # Nothing more to do if this fails too, the failure is already logged
+        with contextlib.suppress(OSError):
+            tmp.unlink(missing_ok=True)

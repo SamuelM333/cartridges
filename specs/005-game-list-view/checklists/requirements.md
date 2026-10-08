@@ -36,3 +36,4 @@
 - Ready for planning (`/speckit-plan`).
 - 2026-10-08 amendment (time-precise "Last Played" sorting: User Story 5, FR-014 to FR-020, SC-007 to SC-009) re-validated; all items still pass, no [NEEDS CLARIFICATION] markers. The existing plan.md and tasks.md predate the amendment and need regenerating.
 - 2026-10-08 follow-up ("launched game must move first"): FR-018 tightened to require first position, FR-021 added (other sort modes unaffected), acceptance scenarios 7-8 and three edge cases added. Re-validated; all items pass, no [NEEDS CLARIFICATION] markers.
+- 2026-10-08 follow-up ("launching a game must not fail when recording its last-played time fails"): FR-022 to FR-025, acceptance scenarios 9-11, SC-010, three edge cases, and one assumption added. Re-validated; all items pass, no [NEEDS CLARIFICATION] markers. plan.md and tasks.md updated to cover the new requirements (tasks T041 to T047).

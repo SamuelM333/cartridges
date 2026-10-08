@@ -150,3 +150,25 @@ How `Gtk.GridView` handles scroll position and keyboard focus when the focused i
 ### Alternatives Considered
 - *Connect `notify::last-played` on every game and re-sort on change*: Rejected. It adds one signal handler per game for a value that changes only on launch or load; an explicit call at the single launch point is simpler.
 - *Remove and re-insert the item at position 0*: Rejected. It fights the sorter model and would break under other sort modes.
+
+## 10. Non-Fatal Recording When Saving Fails (Follow-up 2026-10-08)
+
+### Problem Statement
+`Game.play()` records the launch before spawning the process (section 8). `play_history.record()` calls `mkdir`, writes a temporary file, and replaces the target, none of which handle `OSError`. Any storage problem (full disk, read-only or permission-denied data directory under a restrictive Flatpak sandbox, directory cannot be created, replace fails) therefore raises out of `Game.play()` and the game never starts (violates FR-022).
+
+### Decision
+- `record()` updates the cached mapping first, so the session state and any later successful save include the time (FR-023, spec edge case).
+- The directory creation, temp-file write, and replace are wrapped in `try`/`except OSError`. On failure, `record()` logs one warning via the module logger (`logging.getLogger(__name__).warning(..., exc_info=...)` style used elsewhere in the project) naming the file and the error (FR-024), then returns normally.
+- On failure, the temporary file is removed with `tmp.unlink(missing_ok=True)` in its own `OSError` guard, so a failed cleanup neither raises nor masks the original warning (FR-025). The existing target file is only ever touched by the final atomic replace, so it stays intact when anything earlier fails.
+- `Game.play()` needs no ordering change: `last_played` is set before `record()`, `record()` no longer raises, and the process is then spawned and `exit-after-launch` handled as today (FR-022).
+
+### Rationale
+- Fixing it inside `record()` protects every present and future caller and keeps `Game.play()` free of storage concerns (Principle II).
+- Catching `OSError` (the base of `PermissionError`, `FileNotFoundError`, and disk-full errors) covers the listed cases without a blanket `Exception` catch, keeping Ruff `BLE001` satisfied.
+- Updating memory before writing means an earlier failed save is repaired by the next successful one.
+
+### Alternatives Considered
+- *Catch the error in `Game.play()`*: Rejected. Duplicates the guard at each call site and leaves `record()` unsafe for other callers.
+- *Show an `Adw.Toast` or dialog on failure*: Rejected. The spec limits reporting to the log (assumption in spec); it would add a translated string and noise for a problem unrelated to what the user asked for.
+- *Retry or queue the write in the background*: Rejected. Added complexity for a rare failure; the next launch's save already includes the missed time.
+- *Catch `Exception`*: Rejected. Would hide programming errors such as `TypeError` from `json.dump`.

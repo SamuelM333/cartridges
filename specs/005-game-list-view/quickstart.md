@@ -117,6 +117,16 @@ Covers the spec edge case "Launching a game while scrolled far down the library"
 2. Focus a card with the keyboard (Tab / arrow keys) and press Enter with "Cover Image Launches Game" enabled.
 3. **Verify**: the grid does not jump to the top, and keyboard focus is not moved to an unrelated card. Record the observed behavior; if focus is lost, follow the fallback in research.md section 9.
 
+### Scenario 11: Launch Survives a Failed Save (Follow-up)
+Covers User Story 5 scenarios 9-11, FR-022 to FR-025, SC-010.
+1. Make the data directory unwritable (for example `chmod a-w ~/.local/share/cartridges`, or a Flatpak override that makes it read-only). Select sort mode "Last Played".
+2. Launch a game that is not first, using a harmless executable. **Verify**: the game starts, the "Launched <name>" toast appears, no error dialog is shown, and the game moves to the first position.
+3. Open that game's details. **Verify**: the "Last played" label reads as recent.
+4. Run Cartridges from a terminal and check the output. **Verify**: exactly one warning per failed launch naming the file and the reason, and no `last-played.json.tmp` in the data directory.
+5. Enable "Exit After Launching Games" and launch again. **Verify**: the game starts and the application exits normally.
+6. Restore write permission, launch another game, and reopen Cartridges. **Verify**: both the earlier and the new game appear in the saved file and the order matches.
+7. With a valid `last-played.json` present, repeat step 2 with the directory unwritable and restart. **Verify**: the earlier history is unchanged.
+
 ## 5. Automated Quality Gate Checks
 
 ```bash
@@ -128,4 +138,7 @@ pyright
 
 # Meson test suite execution
 ninja -C _build test
+
+# Play-history unit checks, including save-failure cases (no GTK needed)
+python3 tests/test_play_history.py
 ```

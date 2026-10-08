@@ -10,6 +10,8 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Amendment (2026-10-08) - Time-precise "Last Played" sorting (User Story 5, FR-014 to FR-021)**: `Game.last_played` is already a Unix timestamp with one-second precision and `_sort` already compares the full value with an alphabetical tie-break, so the sort comparator itself needs no change. The defects are that (a) launching a game from Cartridges never sets `last_played`, (b) nothing tells the sorter to re-sort after a launch, and (c) games from launcher sources (Steam, Lutris, Heroic, ...) are rebuilt from the launcher on every start, so a Cartridges-recorded time would be lost on restart. The fix adds a small source-agnostic play-history store (`cartridges/play_history.py`, persisted to `$XDG_DATA_HOME/cartridges/last-played.json`), records the launch time inside `Game.play()` before the process is spawned (and before any `exit-after-launch` quit), merges the stored time with the launcher-reported time using `max()` when sources load, and calls `sorter.changed()` after a launch so the game moves to the first position under the "Last Played" sort.
 
+**Amendment (2026-10-08, follow-up) - Resilient recording (FR-022 to FR-025, SC-010)**: `play_history.record()` currently lets `OSError` (full disk, read-only or permission-denied data directory, failed directory creation, failed file replace) escape, and `Game.play()` calls it before spawning the process, so a storage problem stops the game from launching. The fix keeps recording first but makes it non-fatal: `record()` updates the in-memory mapping first, then attempts the write inside a handler for `OSError`, logs one warning with the reason, and removes the temporary file (itself best-effort). `Game.play()` is unchanged apart from relying on this contract: it still sets `last_played` before recording, so the session-level sort and label stay correct. No UI change, no new strings.
+
 ## Technical Context
 
 **Language/Version**: Python 3.12+ (PyGObject / GTK 4)
@@ -18,7 +20,7 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Storage**: GSettings (`page.samuelm333.Cartridges`), XDG cache directory for cover art, per-game JSON for imported games (`$XDG_DATA_HOME/cartridges/games/`), and (new) a single play-history JSON file `$XDG_DATA_HOME/cartridges/last-played.json` mapping `game_id` to a Unix timestamp
 
-**Testing**: Pre-commit validation hooks, Pyright static analysis in strict mode, Meson/Ninja test suites, gettext pot file extraction, unit tests for the play-history store under `tests/`
+**Testing**: Pre-commit validation hooks, Pyright static analysis in strict mode, Meson/Ninja test suites, gettext pot file extraction, unit tests for the play-history store under `tests/` (including save-failure cases)
 
 **Target Platform**: Linux Desktop (Flatpak sandbox, GNOME 47+)
 
@@ -26,23 +28,25 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Performance Goals**: Hover button reveal latency < 250ms; setting swap reaction < 100ms across all grid items; toast dispatch latency < 50ms; launched game reaches first position < 1s (SC-008); play-history write is a single small file, well under 10ms
 
-**Constraints**: Flatpak sandbox isolation; zero emoji characters anywhere in code or documentation; proper gettext placeholder formatting for translators; play-history write must complete synchronously before `exit-after-launch` quits the application; corrupt or missing history file must never prevent the library from loading (SC-009)
+**Constraints**: Flatpak sandbox isolation; zero emoji characters anywhere in code or documentation; proper gettext placeholder formatting for translators; play-history write must complete synchronously before `exit-after-launch` quits the application; corrupt or missing history file must never prevent the library from loading (SC-009); a failure to save the history must never prevent a game from launching (SC-010)
 
-**Scale/Scope**: Refactor `cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`, `cartridges/ui/style.css`, `cartridges/ui/games.py`, and `cartridges/ui/window.py`. Amendment adds `cartridges/play_history.py` and touches `cartridges/games.py` (`Game.play`), `cartridges/sources/__init__.py` (`Source._get_games` merge), and `cartridges/ui/games.py` (`play` re-sort).
+**Scale/Scope**: Refactor `cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`, `cartridges/ui/style.css`, `cartridges/ui/games.py`, and `cartridges/ui/window.py`. Amendment adds `cartridges/play_history.py` (follow-up hardens `record()` against `OSError`) and touches `cartridges/games.py` (`Game.play`), `cartridges/sources/__init__.py` (`Source._get_games` merge), and `cartridges/ui/games.py` (`play` re-sort).
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Principle I (Strict Typing & QA)**: All Python methods and attributes must have complete type annotations; Pyright in strict mode and Ruff `ALL` must pass. The new `play_history` module exposes fully typed functions (`dict[str, int]`, `str`, `int`) with no `Any`. -> PASS
+- **Principle I (Strict Typing & QA)**: All Python methods and attributes must have complete type annotations; Pyright in strict mode and Ruff `ALL` must pass. The new `play_history` module exposes fully typed functions (`dict[str, int]`, `str`, `int`) with no `Any`. The follow-up catches the specific `OSError` rather than a blanket `Exception`, so Ruff `BLE001` and `S110` stay satisfied. -> PASS
 - **Principle II (Modular Game Sources)**: Game list view UI logic remains decoupled from game discovery and source retrieval logic. Domain model `cartridges/games.py` remains free of UI widget references. The play-history merge lives in the shared `Source._get_games` wrapper, so individual source modules (`steam.py`, `lutris.py`, ...) are untouched and keep reporting only what their launcher knows. -> PASS
 - **Principle III (Blueprint-Driven Declarative UI)**: Layout adjustments are written in Blueprint (`cartridges/ui/game-item.blp`) and mapped to controller classes via `Gtk.Template`. The amendment has no layout changes. -> PASS
 - **Principle IV (Libadwaita Patterns & GNOME HIG)**: Buttons adhere to GNOME HIG standards using standard circular styles, symbolic icons, and Libadwaita popovers; feedback uses dismissable `Adw.Toast` via `Adw.ToastOverlay`. Re-sorting reuses the existing `Gtk.SortListModel` / `Gtk.CustomSorter`; no custom list widgets. -> PASS
-- **Principle V (Resource & Asset Sandboxing)**: Assets bundled via GResource; cover image fetching remains asynchronous and sandboxed. The play-history file lives under the XDG data directory alongside existing game data. The write is a small local file done synchronously; this is deliberate (it must land before `exit-after-launch` quits) and is not an external resource fetch. -> PASS
+- **Principle V (Resource & Asset Sandboxing)**: Assets bundled via GResource; cover image fetching remains asynchronous and sandboxed. The play-history file lives under the XDG data directory alongside existing game data. The write is a small local file done synchronously, with failures logged and tolerated; this is deliberate (it must land before `exit-after-launch` quits) and is not an external resource fetch. -> PASS
 - **Principle VI (Emoji-Free Code and Documentation)**: Zero emoji characters across all markdown documents, templates, and Python sources. -> PASS
 - **Branching Workflow**: Branch `feat/005-game-list-view` branched directly from `main`. -> PASS
 
 **Post-design re-check (2026-10-08)**: Re-evaluated after writing research.md sections 6-9, data-model.md section 5, and contracts section 6. No new violations.
+
+**Post-design re-check (follow-up)**: Re-evaluated after adding research.md section 10, the failure-handling parts of data-model.md section 5 and contracts section 6, and quickstart Scenario 11. Principle IV is served better (sandbox permission limits now degrade gracefully instead of failing the launch). No new violations.
 
 ## Project Structure
 
@@ -84,7 +88,7 @@ po/
 ├── POTFILES.in          # Translatable source file manifest (includes cartridges/ui/games.py)
 └── cartridges.pot       # Translation catalog template
 tests/
-└── test_play_history.py # NEW (amendment): round-trip, corrupt-file, and max-merge checks
+└── test_play_history.py # NEW (amendment): round-trip, corrupt-file, and save-failure checks
 ```
 
 **Structure Decision**: The feature is strictly contained within the UI layer (`cartridges/ui/`) of the desktop application. The launch toast notification is dispatched via `_window().send_toast(...)` inside `cartridges/ui/games.py`, keeping domain logic (`cartridges/games.py`) cleanly separated from the UI presentation layer. For the amendment, recording and persisting the launch time is domain logic and lives in `cartridges/games.py` and `cartridges/play_history.py`; only the re-sort trigger lives in the UI layer, because the sorter is a UI-layer object.
@@ -108,7 +112,7 @@ To ensure first-class localization across all supported languages, the implement
 4. **Catalog Verification Gate**:
    - The implementation phase MUST run `ninja -C _build cartridges-pot` to verify that `po/cartridges.pot` extracts the new msgid and its associated translator comment cleanly without syntax warnings or errors.
 
-The amendment introduces no new user-visible strings.
+The amendment and its follow-up introduce no new user-visible strings; the save-failure warning goes to the developer log only and is not translated.
 
 ## Complexity Tracking
 

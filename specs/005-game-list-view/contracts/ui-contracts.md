@@ -170,12 +170,22 @@ Module `cartridges.play_history` is a domain-layer module with no GTK widget imp
 | Function | Signature | Behavior |
 |----------|-----------|----------|
 | `load` | `load() -> dict[str, int]` | Returns the cached mapping of `game_id` to Unix seconds, reading `DATA_DIR / "last-played.json"` on first call. Missing or invalid file returns `{}`; invalid entries are skipped. Never raises. |
-| `record` | `record(game_id: str, timestamp: int) -> None` | Sets `game_id` to `timestamp` in the cached mapping and atomically rewrites the file. Synchronous. |
+| `record` | `record(game_id: str, timestamp: int) -> None` | Sets `game_id` to `timestamp` in the cached mapping, then atomically rewrites the file. Synchronous. Never raises `OSError`: on a storage failure it logs one warning with the reason, removes the temporary file (best effort), leaves the existing file untouched, and returns normally (FR-022 to FR-025). |
 
 ### Callers
 
 | Caller | Contract |
 |--------|----------|
-| `Game.play()` (`cartridges/games.py`) | MUST set `self.last_played = int(time.time())` and call `play_history.record(self.game_id, self.last_played)` before spawning the process and before any `exit-after-launch` quit. |
+| `Game.play()` (`cartridges/games.py`) | MUST set `self.last_played = int(time.time())` and call `play_history.record(self.game_id, self.last_played)` before spawning the process and before any `exit-after-launch` quit. MUST NOT depend on `record()` succeeding: the process is always spawned afterwards. |
 | `Source._get_games()` (`cartridges/sources/__init__.py`) | MUST set `game.last_played = max(game.last_played, play_history.load().get(game.game_id, 0))` for every yielded game. |
 | Individual source modules (`cartridges/sources/*.py`) | MUST NOT read or write play history; they report only what their launcher knows. |
+
+### Failure Handling Contract (Follow-up 2026-10-08)
+
+| Condition | In-memory `last_played` / cache | Log | Files on disk | Launch |
+|-----------|--------------------------------|-----|---------------|--------|
+| Save succeeds | Updated | None | History file updated atomically | Proceeds |
+| Directory cannot be created | Updated | One warning | Unchanged, no temp file | Proceeds |
+| Temp-file write fails (disk full, permission denied, read-only) | Updated | One warning | Existing file unchanged, temp file removed | Proceeds |
+| Replace fails | Updated | One warning | Existing file unchanged, temp file removed | Proceeds |
+| Temp-file cleanup also fails | Updated | One warning (the original error) | Existing file unchanged | Proceeds |
