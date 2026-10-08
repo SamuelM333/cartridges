@@ -183,6 +183,36 @@
 
 ---
 
+## Phase 12: User Story 6 - Show or Hide Game Titles in the Library (Priority: P3, amendment 2026-10-09)
+
+**Note**: Task IDs continue after T047 (Phase 11, the save-failure follow-up).
+
+**Goal**: Add a General-page preference that shows or hides the title under each cover in the main view, on by default, applied live to every card, persisted, with the name still exposed to assistive technology and still visible for games without a cover (FR-026 to FR-030).
+
+**Independent Test**: Open Preferences, General, turn "Show Game Titles" off, and confirm titles vanish from all covers immediately (except covers-less games), that hover buttons, toast, search, sort and the details view are unchanged, and that the choice survives a restart (quickstart Scenario 12).
+
+**Background for the implementer** (from research.md section 11, data-model.md section 6, contracts/ui-contracts.md section 7): the card title is the final `Label { label: bind template.game as <$Game>.name; ellipsize: middle; }` in `cartridges/ui/game-item.blp`. Switch rows in `cartridges/ui/preferences.blp` are bound to GSettings by `Preferences._bind_switches` in `cartridges/ui/preferences.py`, which looks up a template child named after the key with `-` replaced by `_` plus `_switch`. `GameItem` in `cartridges/ui/game_item.py` already reacts to a setting live via `SETTINGS.connect("changed::cover-launches-game", self._update_action_button)`; follow that pattern. The placeholder for games without a cover shows only the application icon, so the title MUST stay visible for them. DO NOT touch hover buttons, `cartridges/ui/games.py` (toast, sorting), or the details view.
+
+### Implementation for User Story 6
+
+- [X] T048 [P] [US6] In `data/page.samuelm333.Cartridges.gschema.xml.in`, add `<key name="show-game-titles" type="b"><default>true</default></key>` immediately after the `cover-launches-game` key, matching the file's indentation and formatting ("Game titles MUST be shown by default, including for existing users who have no stored preference"). Validate with `glib-compile-schemas --strict --dry-run` on a copy with the `@APP_ID@` and `@PREFIX@` placeholders substituted, or via the meson build
+- [X] T049 [P] [US6] In `cartridges/ui/preferences.blp`, inside `general_page`, add a new `Adw.PreferencesGroup appearance_group { title: _("Appearance"); }` between `behavior_group` and `images_group`, containing `Adw.SwitchRow show_game_titles_switch { title: _("Show Game Titles"); subtitle: _("Display the name under each cover in the library"); }`. Keep Blueprint formatting valid (`blueprint-compiler format --fix --no-diff`)
+- [X] T050 [US6] In `cartridges/ui/preferences.py`, add `show_game_titles_switch: Adw.SwitchRow = Gtk.Template.Child()` next to `cover_launches_game_switch`, and add `"show-game-titles",` to the `switches` set in `_bind_switches` (after `"cover-launches-game"`) so it binds to `active` with `Gio.SettingsBindFlags.DEFAULT` (depends on T049)
+- [X] T051 [P] [US6] In `cartridges/ui/game-item.blp`, give the final title label the id `title_label` (`Label title_label { ... }`, keeping `label: bind template.game as <$Game>.name;` and `ellipsize: middle;`), and add an `accessibility { label: bind template.game as <$Game>.name; }` block to the `$GameItem` template so the name is exposed whether or not the label is visible (FR-029, SC-012)
+- [X] T052 [US6] In `cartridges/ui/game_item.py`, add `title_label: Gtk.Label = Gtk.Template.Child()` and a method `_update_title(self, *_args: Any) -> None` that calls `self.title_label.set_visible(SETTINGS.get_boolean("show-game-titles") or self.game is None or self.game.cover is None)` (rule: "title visible = show-game-titles OR game has no cover"). In `__init__`, call `SETTINGS.connect("changed::show-game-titles", self._update_title)` next to the existing `cover-launches-game` connection and call `self._update_title()` once. Because grid items are rebound to different games, also connect `notify::game` on the item to re-run `_update_title` and to move a `notify::cover` handler: keep the handler id and the connected game in instance attributes, disconnect the old one when `game` changes, and connect `notify::cover` on the new game to `_update_title`. Keep full Pyright-strict annotations (depends on T051)
+- [ ] T053 [US6] Make the new strings translatable: `po/POTFILES.in` currently lists no preferences files, so add `cartridges/ui/preferences.blp` and `cartridges/ui/preferences.py` in sorted position (after `cartridges/ui/games.py`), then run `ninja -C _build cartridges-pot` and confirm `po/cartridges.pot` contains the msgids "Appearance", "Show Game Titles", and "Display the name under each cover in the library". Expect the catalog to also gain the pre-existing preferences strings; that is intended (depends on T049)
+
+### Verification for User Story 6
+
+- [ ] T054 [P] [US6] Run `blueprint-compiler format --fix --no-diff` on `cartridges/ui/preferences.blp` and `cartridges/ui/game-item.blp`, then `pyright` (strict) and `ruff check` / `ruff format --check` on `cartridges/ui/game_item.py` and `cartridges/ui/preferences.py`; fix all findings (depends on T050, T052)
+- [ ] T055 [US6] Run `meson setup _build --reconfigure && ninja -C _build && ninja -C _build test` inside the `gtk-dev` Distrobox container and confirm the schema compiles and the app starts (depends on T048, T050, T052)
+- [ ] T056 [US6] Execute quickstart Scenario 12 from `specs/005-game-list-view/quickstart.md` against `_build/cartridges/cartridges`: default shown, switch present in "Appearance", live hide and show, unchanged hover/toast/search/sort/details, accessible name present, persistence after restart, and large-library reflow; if rows do not reflow, apply the `queue_resize()` fallback from research.md section 11 (depends on T055)
+- [ ] T057 [P] [US6] Verify Constitution Principle VI (no emoji) across the changed files and `specs/005-game-list-view/`, and run `pre-commit run --all-files` (depends on T054)
+
+**Checkpoint**: User Story 6 complete. The titles preference works live, persists, defaults to shown, keeps names accessible, and leaves all other behavior unchanged.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -198,6 +228,7 @@
 - **User Story 5 (Phase 9)**: Depends on Phase 8 (`play()` in `cartridges/ui/games.py` must exist). Independent of US2, US3, and US4.
 - **Amendment Polish (Phase 10)**: Depends on Phase 9.
 - **Save-Failure Follow-up (Phase 11)**: Depends on Phase 9 (`play_history.record()` and `Game.play()` must exist). Independent of Phase 10, whose T036 to T040 can run before or after it; re-run T036 and T040 if Phase 11 lands first.
+- **Show/Hide Titles (Phase 12)**: Depends only on the existing grid card (Phase 2 and Phase 3). Independent of Phases 8 to 10.
 
 ### Within User Story 5
 
@@ -217,6 +248,16 @@ T041 (harden record) -> T042 (Game.play docstring)
 T041 + T042 + T043 -> T044 (pyright/ruff) -> T047 (emoji check, pre-commit)
 ```
 
+### Within User Story 6
+
+```text
+T048 (schema) ---------------------------\
+T049 (preferences.blp) -> T050 (prefs.py) -+-> T055 (build) -> T056 (quickstart)
+                     \-> T053 (POTFILES + pot)
+T051 (game-item.blp) -> T052 (game_item.py) -/
+T050 + T052 -> T054 (format/lint) -> T057 (emoji, pre-commit)
+```
+
 ### Parallel Opportunities
 
 - T001 and T002 can run in parallel during Setup.
@@ -227,6 +268,15 @@ T041 + T042 + T043 -> T044 (pyright/ruff) -> T047 (emoji check, pre-commit)
 - T035 (`tests/test_play_history.py`) can be written in parallel with T031-T033 once T030 exists.
 - T036 and T037 can run in parallel during Phase 10.
 - T042 (`cartridges/games.py` docstring) and T043 (`tests/test_play_history.py`) can be done in parallel once T041 is in place; T044 and T047 can run in parallel at the end of Phase 11.
+
+### Parallel Example: User Story 6
+
+```text
+At the start of Phase 12:
+  Agent A: T048  (data/page.samuelm333.Cartridges.gschema.xml.in)
+  Agent B: T049 then T050 and T053  (cartridges/ui/preferences.blp, preferences.py, po/POTFILES.in)
+  Agent C: T051 then T052  (cartridges/ui/game-item.blp, game_item.py)
+```
 
 ### Parallel Example: User Story 5
 
@@ -260,7 +310,12 @@ After T030 completes:
 8. User Story 5 -> Time-precise "Last Played" sorting; launched game moves to the first position (amendment 2026-10-08)
 9. Amendment Polish -> Type checks, tests, and quickstart Scenarios 8-10
 10. Save-Failure Follow-up -> Non-fatal history recording, failure tests, and quickstart Scenario 11 (FR-022 to FR-025, SC-010)
+11. User Story 6 -> Show/hide game titles preference (amendment 2026-10-09)
 
 ### Amendment Delivery (current work)
 
 Phases 1-9 are implemented (commit `3be3332`). Remaining work is Phase 10 verification (T036 to T040) and the Phase 11 follow-up. The smallest shippable slice for the follow-up is T041 (the fix) plus T043 (its tests); T042 is a docstring-only change and T044 to T047 are the verification gates. Because T041 removes a path where a launch can fail outright, it should ship before the next release.
+
+### Titles Amendment Delivery (2026-10-09)
+
+The smallest shippable slice for User Story 6 is T048 to T052 (key, switch, card behavior with accessible name); T053 makes the strings translatable and T054 to T057 are the verification gates. Tests are not requested for this story: the behavior is GTK widget state that is covered by quickstart Scenario 12 rather than by a unit test.

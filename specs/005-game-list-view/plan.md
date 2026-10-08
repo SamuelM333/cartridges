@@ -12,13 +12,15 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Amendment (2026-10-08, follow-up) - Resilient recording (FR-022 to FR-025, SC-010)**: `play_history.record()` currently lets `OSError` (full disk, read-only or permission-denied data directory, failed directory creation, failed file replace) escape, and `Game.play()` calls it before spawning the process, so a storage problem stops the game from launching. The fix keeps recording first but makes it non-fatal: `record()` updates the in-memory mapping first, then attempts the write inside a handler for `OSError`, logs one warning with the reason, and removes the temporary file (itself best-effort). `Game.play()` is unchanged apart from relying on this contract: it still sets `last_played` before recording, so the session-level sort and label stay correct. No UI change, no new strings.
 
+**Amendment (2026-10-09) - Show/hide game titles (User Story 6, FR-026 to FR-030, SC-011, SC-012)**: Each grid card ends with a `Label` bound to the game name (`cartridges/ui/game-item.blp`). The change adds a boolean GSettings key `show-game-titles` (default `true`), a switch for it on the General page of Preferences bound through the existing `_bind_switches` mechanism, and makes the card label's visibility follow the key. Three details matter: (a) a game with no cover keeps its title visible, because the placeholder cover shows only the application icon (FR-029); (b) a hidden label drops out of the accessibility tree, so the card gets an explicit accessible label bound to the game name (FR-029); (c) all cards must react live, so `GameItem` listens to `changed::show-game-titles` the same way it already does for `cover-launches-game`. No new Python module and no change to sorting or actions.
+
 ## Technical Context
 
 **Language/Version**: Python 3.12+ (PyGObject / GTK 4)
 
 **Primary Dependencies**: GTK 4, Libadwaita 1.6+, Blueprint Compiler, Meson, Ninja, GNU gettext
 
-**Storage**: GSettings (`page.samuelm333.Cartridges`), XDG cache directory for cover art, per-game JSON for imported games (`$XDG_DATA_HOME/cartridges/games/`), and (new) a single play-history JSON file `$XDG_DATA_HOME/cartridges/last-played.json` mapping `game_id` to a Unix timestamp
+**Storage**: GSettings (`page.samuelm333.Cartridges`, new boolean key `show-game-titles`), XDG cache directory for cover art, per-game JSON for imported games (`$XDG_DATA_HOME/cartridges/games/`), and (new) a single play-history JSON file `$XDG_DATA_HOME/cartridges/last-played.json` mapping `game_id` to a Unix timestamp
 
 **Testing**: Pre-commit validation hooks, Pyright static analysis in strict mode, Meson/Ninja test suites, gettext pot file extraction, unit tests for the play-history store under `tests/` (including save-failure cases)
 
@@ -30,7 +32,7 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Constraints**: Flatpak sandbox isolation; zero emoji characters anywhere in code or documentation; proper gettext placeholder formatting for translators; play-history write must complete synchronously before `exit-after-launch` quits the application; corrupt or missing history file must never prevent the library from loading (SC-009); a failure to save the history must never prevent a game from launching (SC-010)
 
-**Scale/Scope**: Refactor `cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`, `cartridges/ui/style.css`, `cartridges/ui/games.py`, and `cartridges/ui/window.py`. Amendment adds `cartridges/play_history.py` (follow-up hardens `record()` against `OSError`) and touches `cartridges/games.py` (`Game.play`), `cartridges/sources/__init__.py` (`Source._get_games` merge), and `cartridges/ui/games.py` (`play` re-sort).
+**Scale/Scope**: Refactor `cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`, `cartridges/ui/style.css`, `cartridges/ui/games.py`, and `cartridges/ui/window.py`. Title amendment touches `data/page.samuelm333.Cartridges.gschema.xml.in`, `cartridges/ui/preferences.blp`, `cartridges/ui/preferences.py`, `cartridges/ui/game-item.blp`, and `cartridges/ui/game_item.py`. Play-history amendment adds `cartridges/play_history.py` (follow-up hardens `record()` against `OSError`) and touches `cartridges/games.py` (`Game.play`), `cartridges/sources/__init__.py` (`Source._get_games` merge), and `cartridges/ui/games.py` (`play` re-sort).
 
 ## Constitution Check
 
@@ -43,6 +45,8 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 - **Principle V (Resource & Asset Sandboxing)**: Assets bundled via GResource; cover image fetching remains asynchronous and sandboxed. The play-history file lives under the XDG data directory alongside existing game data. The write is a small local file done synchronously, with failures logged and tolerated; this is deliberate (it must land before `exit-after-launch` quits) and is not an external resource fetch. -> PASS
 - **Principle VI (Emoji-Free Code and Documentation)**: Zero emoji characters across all markdown documents, templates, and Python sources. -> PASS
 - **Branching Workflow**: Branch `feat/005-game-list-view` branched directly from `main`. -> PASS
+
+**Post-design re-check (2026-10-09, title toggle)**: Principle III: the label and switch are declared in Blueprint, the visibility rule lives in the controller. Principle IV: uses a standard `Adw.SwitchRow` in an `Adw.PreferencesGroup` on the existing General page, and keeps names available to assistive technology. Principle I: fully typed handlers, no `Any` beyond the existing `*_args: Any` signal-handler convention. Principle VI: no emoji. No violations. The new user-visible strings (switch title and subtitle, group title) use gettext; `po/POTFILES.in` does not list the preferences files yet, so task T053 adds them before `ninja -C _build cartridges-pot` can extract the strings.
 
 **Post-design re-check (2026-10-08)**: Re-evaluated after writing research.md sections 6-9, data-model.md section 5, and contracts section 6. No new violations.
 

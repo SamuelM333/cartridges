@@ -197,3 +197,33 @@ record(game_id, timestamp)
 | Launch B, save fails | `{A: t1, B: t2}` | `{A: t1}` (unchanged, no temp file) |
 | Launch C, save succeeds | `{A: t1, B: t2, C: t3}` | `{A: t1, B: t2, C: t3}` |
 | Restart after the failed save only | Loaded from disk: `{A: t1}` | `{A: t1}` (B's launch is not remembered) |
+
+## 6. Show Titles Preference Model (Amendment 2026-10-09)
+
+### Settings Schema addition (`page.samuelm333.Cartridges`)
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `show-game-titles` | `b` | `true` | When false, the title label under each cover in the main game list is hidden (except for games without a cover). |
+
+### Title Visibility Rule
+
+```text
+title visible = show-game-titles OR game has no cover
+```
+
+| `show-game-titles` | Game has cover | Title label | Accessible name of the card |
+|--------------------|----------------|-------------|-----------------------------|
+| true | yes | Visible | Game name |
+| true | no | Visible | Game name |
+| false | yes | Hidden | Game name |
+| false | no | Visible | Game name |
+
+### State Transitions
+
+| Event | Effect |
+|-------|--------|
+| Switch toggled in Preferences | GSettings emits `changed::show-game-titles`; every `GameItem` recomputes the rule; the value is persisted by GSettings |
+| Cover added to a cover-less game | `notify::cover` on the game; the card recomputes the rule (title hides if the setting is off) |
+| Cover removed from a game | Same recompute (title appears) |
+| Application restart | GSettings supplies the stored value; absent value yields `true` |

@@ -86,6 +86,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     # Behavior & Images
     exit_after_launch_switch: Adw.SwitchRow = Gtk.Template.Child()
     cover_launches_game_switch: Adw.SwitchRow = Gtk.Template.Child()
+    show_game_titles_switch: Adw.SwitchRow = Gtk.Template.Child()
     high_quality_images_switch: Adw.SwitchRow = Gtk.Template.Child()
 
     # Import Behavior
@@ -171,6 +172,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         switches = {
             "exit-after-launch",
             "cover-launches-game",
+            "show-game-titles",
             "high-quality-images",
             "auto-import",
             "remove-missing",
