@@ -127,6 +127,7 @@ def play(game: Game):
         # Translators: {} is the name of the game that was launched
         _("Launched {}").format(game.name),
     )
+    sorter.changed(Gtk.SorterChange.DIFFERENT)
 
 
 def edit(game: Game):

@@ -6,6 +6,7 @@
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 from shlex import quote
 from types import UnionType
@@ -13,7 +14,7 @@ from typing import Any, NamedTuple, Self
 
 from gi.repository import Gdk, Gio, GObject
 
-from . import DATA_DIR, SETTINGS
+from . import DATA_DIR, SETTINGS, play_history
 
 GAMES_DIR = DATA_DIR / "games"
 
@@ -88,7 +89,10 @@ class Game(Gio.SimpleActionGroup):
         return game
 
     def play(self):
-        """Run the executable command in a shell."""
+        """Record the launch time and run the executable command in a shell."""
+        self.last_played = int(time.time())
+        play_history.record(self.game_id, self.last_played)
+
         subprocess.Popen(  # noqa: S602
             format_executable(self.executable),
             cwd=Path.home(),

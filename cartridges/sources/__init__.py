@@ -15,6 +15,7 @@ from typing import Final, Protocol, cast
 
 from gi.repository import Gio, GLib, GObject
 
+from cartridges import play_history
 from cartridges.games import Game
 
 if Path("/.flatpak-info").exists():
@@ -114,6 +115,9 @@ class Source(GObject.Object, Gio.ListModel[Game]):
     def _get_games(self, added: int) -> Generator[Game]:
         for game in self._module.get_games():
             game.added = game.added or added
+            game.last_played = max(
+                game.last_played, play_history.load().get(game.game_id, 0)
+            )
             yield game
 
 
