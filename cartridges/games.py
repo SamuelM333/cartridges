@@ -89,7 +89,10 @@ class Game(Gio.SimpleActionGroup):
         return game
 
     def play(self):
-        """Record the launch time and run the executable command in a shell."""
+        """Record the launch time and run the executable command in a shell.
+
+        Recording is best effort and cannot prevent the launch.
+        """
         self.last_played = int(time.time())
         play_history.record(self.game_id, self.last_played)
 

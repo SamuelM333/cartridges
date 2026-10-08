@@ -131,13 +131,13 @@
 
 ### Implementation for User Story 5
 
-- [ ] T029 [US5] Create `cartridges/play_history.py` with the SPDX header used by other new files (`# SPDX-License-Identifier: GPL-3.0-or-later` and `# SPDX-FileCopyrightText: Copyright 2026 samuelm333`), a module docstring, and only stdlib imports plus `from . import DATA_DIR` (no `gi`/GTK imports, per contracts/ui-contracts.md section 6). Define `_PATH = DATA_DIR / "last-played.json"` and a module-level cache `_history: dict[str, int] | None = None`. Implement `load() -> dict[str, int]`: on first call read `_PATH` as UTF-8 JSON; if the file is missing, unreadable (`OSError`), invalid JSON (`json.JSONDecodeError`, `UnicodeDecodeError`), or not a JSON object, use `{}`; otherwise keep only entries where the key is a `str` and the value is an `int` (not `bool`) and `>= 0` ("Values must be non-negative integers; any other entry is ignored on load"). Cache and return the dict. `load()` MUST NEVER raise.
-- [ ] T030 [US5] In `cartridges/play_history.py`, implement `record(game_id: str, timestamp: int) -> None`: call `load()`, set `history[game_id] = timestamp`, create `DATA_DIR` with `mkdir(parents=True, exist_ok=True)`, write the whole mapping with `json.dump(..., indent=4, sort_keys=True)` to a temporary file in the same directory (e.g. `_PATH.with_suffix(".json.tmp")`), then `os.replace(tmp, _PATH)` so the write is atomic. The write is synchronous by design (it must land before `exit-after-launch` quits). Keep full Pyright-strict type annotations and Ruff `ALL` compliance (depends on T029)
-- [ ] T031 [US5] In `Game.play()` in `cartridges/games.py`, add `import time` and `from . import play_history` (keep the existing `from . import DATA_DIR, SETTINGS` import style and Ruff import order). At the very start of `play()`, before `subprocess.Popen`, set `self.last_played = int(time.time())` and call `play_history.record(self.game_id, self.last_played)`. Leave the `subprocess.Popen` call and the `exit-after-launch` block unchanged and after the recording, so the time is saved even if the launch fails and before the application quits (FR-014, FR-015). Update the docstring to mention that the launch time is recorded (depends on T030)
-- [ ] T032 [US5] In `Source._get_games` in `cartridges/sources/__init__.py`, add `from cartridges import play_history` and, after the existing `game.added = game.added or added` line, add `game.last_played = max(game.last_played, play_history.load().get(game.game_id, 0))` so every source keeps the newer of the launcher-reported and Cartridges-recorded times (FR-019). Do not modify any individual source module under `cartridges/sources/` (depends on T029)
-- [ ] T033 [US5] In `play(game: Game)` in `cartridges/ui/games.py`, after `game.play()` and the existing toast call, add `sorter.changed(Gtk.SorterChange.DIFFERENT)` (same pattern as `GameEditable.apply`). Call it unconditionally: under "Last Played" the launched game moves to position 0 of the full list and any active search/collection/hidden filter (FR-018); under other sort modes the comparator ignores `last_played`, so the order is unchanged (FR-021). Do not touch the translatable toast string (depends on T031)
-- [ ] T034 [US5] Add `'play_history.py',` to the explicit Python sources list at the top of `cartridges/meson.build`, keeping the list in alphabetical order (after `'gamepads.py'`/`'games.py'` and before the next entry). Without this, the module is not installed and the built app fails with `ImportError` (depends on T029)
-- [ ] T035 [P] [US5] Create `tests/test_play_history.py` following the style of `tests/test_settings.py` (SPDX header, module docstring, `check_*` functions returning `None` that raise on failure, and an `if __name__ == "__main__":` block calling each check). Because importing the real `cartridges` package needs the meson-generated `config.py` and compiled GSettings, the test MUST stub the package before importing: create a `types.ModuleType("cartridges")` with `__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]` and `DATA_DIR` set to a `tempfile.mkdtemp()` path, insert it into `sys.modules["cartridges"]`, then `importlib.import_module("cartridges.play_history")`. Reset `play_history._history = None` between checks. Checks: (a) missing file -> `load() == {}`; (b) `record("steam_620", 1791489600)` then reset cache and `load()` returns `{"steam_620": 1791489600}` and no `.tmp` file remains; (c) file containing `not json` -> `load() == {}` without raising; (d) file `{"a": 5, "b": "x", "c": -1, "d": true}` -> `load() == {"a": 5}`. Run with `python tests/test_play_history.py` (depends on T030)
+- [X] T029 [US5] Create `cartridges/play_history.py` with the SPDX header used by other new files (`# SPDX-License-Identifier: GPL-3.0-or-later` and `# SPDX-FileCopyrightText: Copyright 2026 samuelm333`), a module docstring, and only stdlib imports plus `from . import DATA_DIR` (no `gi`/GTK imports, per contracts/ui-contracts.md section 6). Define `_PATH = DATA_DIR / "last-played.json"` and a module-level cache `_history: dict[str, int] | None = None`. Implement `load() -> dict[str, int]`: on first call read `_PATH` as UTF-8 JSON; if the file is missing, unreadable (`OSError`), invalid JSON (`json.JSONDecodeError`, `UnicodeDecodeError`), or not a JSON object, use `{}`; otherwise keep only entries where the key is a `str` and the value is an `int` (not `bool`) and `>= 0` ("Values must be non-negative integers; any other entry is ignored on load"). Cache and return the dict. `load()` MUST NEVER raise.
+- [X] T030 [US5] In `cartridges/play_history.py`, implement `record(game_id: str, timestamp: int) -> None`: call `load()`, set `history[game_id] = timestamp`, create `DATA_DIR` with `mkdir(parents=True, exist_ok=True)`, write the whole mapping with `json.dump(..., indent=4, sort_keys=True)` to a temporary file in the same directory (e.g. `_PATH.with_suffix(".json.tmp")`), then `os.replace(tmp, _PATH)` so the write is atomic. The write is synchronous by design (it must land before `exit-after-launch` quits). Keep full Pyright-strict type annotations and Ruff `ALL` compliance (depends on T029)
+- [X] T031 [US5] In `Game.play()` in `cartridges/games.py`, add `import time` and `from . import play_history` (keep the existing `from . import DATA_DIR, SETTINGS` import style and Ruff import order). At the very start of `play()`, before `subprocess.Popen`, set `self.last_played = int(time.time())` and call `play_history.record(self.game_id, self.last_played)`. Leave the `subprocess.Popen` call and the `exit-after-launch` block unchanged and after the recording, so the time is saved even if the launch fails and before the application quits (FR-014, FR-015). Update the docstring to mention that the launch time is recorded (depends on T030)
+- [X] T032 [US5] In `Source._get_games` in `cartridges/sources/__init__.py`, add `from cartridges import play_history` and, after the existing `game.added = game.added or added` line, add `game.last_played = max(game.last_played, play_history.load().get(game.game_id, 0))` so every source keeps the newer of the launcher-reported and Cartridges-recorded times (FR-019). Do not modify any individual source module under `cartridges/sources/` (depends on T029)
+- [X] T033 [US5] In `play(game: Game)` in `cartridges/ui/games.py`, after `game.play()` and the existing toast call, add `sorter.changed(Gtk.SorterChange.DIFFERENT)` (same pattern as `GameEditable.apply`). Call it unconditionally: under "Last Played" the launched game moves to position 0 of the full list and any active search/collection/hidden filter (FR-018); under other sort modes the comparator ignores `last_played`, so the order is unchanged (FR-021). Do not touch the translatable toast string (depends on T031)
+- [X] T034 [US5] Add `'play_history.py',` to the explicit Python sources list at the top of `cartridges/meson.build`, keeping the list in alphabetical order (after `'gamepads.py'`/`'games.py'` and before the next entry). Without this, the module is not installed and the built app fails with `ImportError` (depends on T029)
+- [X] T035 [P] [US5] Create `tests/test_play_history.py` following the style of `tests/test_settings.py` (SPDX header, module docstring, `check_*` functions returning `None` that raise on failure, and an `if __name__ == "__main__":` block calling each check). Because importing the real `cartridges` package needs the meson-generated `config.py` and compiled GSettings, the test MUST stub the package before importing: create a `types.ModuleType("cartridges")` with `__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]` and `DATA_DIR` set to a `tempfile.mkdtemp()` path, insert it into `sys.modules["cartridges"]`, then `importlib.import_module("cartridges.play_history")`. Reset `play_history._history = None` between checks. Checks: (a) missing file -> `load() == {}`; (b) `record("steam_620", 1791489600)` then reset cache and `load()` returns `{"steam_620": 1791489600}` and no `.tmp` file remains; (c) file containing `not json` -> `load() == {}` without raising; (d) file `{"a": 5, "b": "x", "c": -1, "d": true}` -> `load() == {"a": 5}`. Run with `python tests/test_play_history.py` (depends on T030)
 
 **Checkpoint**: User Story 5 complete. A launched game moves to the first position under "Last Played", order survives restart, and other sort modes are unaffected.
 
@@ -147,11 +147,39 @@
 
 **Purpose**: Quality gates and manual validation for User Story 5.
 
-- [ ] T036 [P] Run `pyright` (strict) and `ruff check` / `ruff format --check` on `cartridges/play_history.py`, `cartridges/games.py`, `cartridges/sources/__init__.py`, `cartridges/ui/games.py`, and `tests/test_play_history.py`; fix all findings
+- [X] T036 [P] Run `pyright` (strict) and `ruff check` / `ruff format --check` on `cartridges/play_history.py`, `cartridges/games.py`, `cartridges/sources/__init__.py`, `cartridges/ui/games.py`, and `tests/test_play_history.py`; fix all findings
 - [ ] T037 [P] Run `pre-commit run --all-files` and `meson setup _build --reconfigure && ninja -C _build && ninja -C _build test` inside the `gtk-dev` Distrobox container; confirm `play_history.py` is installed alongside `games.py` in the build/install output (verifies T034)
-- [ ] T038 Run `python tests/test_play_history.py` and confirm all checks pass
+- [X] T038 Run `python tests/test_play_history.py` and confirm all checks pass
 - [ ] T039 Execute quickstart Scenarios 8, 9, and 10 from `specs/005-game-list-view/quickstart.md` against `_build/cartridges/cartridges`; for Scenario 10 record the observed scroll and focus behavior, and if keyboard focus is lost after the re-sort, implement the fallback from research.md section 9 (restore focus to the launched game's new position) in `cartridges/ui/games.py` or `cartridges/ui/window.py`
 - [ ] T040 Verify Constitution Principle VI (no emoji) across `cartridges/play_history.py`, `tests/test_play_history.py`, and all files in `specs/005-game-list-view/`
+
+---
+
+## Phase 11: User Story 5 Follow-up - Launch Survives a Failed Save (amendment 2026-10-08)
+
+**Goal**: Make `play_history.record()` non-fatal so a storage failure never blocks, delays, or interrupts a game launch, while keeping the in-session sort and label correct, logging one warning, and leaving no temporary file (FR-022 to FR-025, SC-010).
+
+**Independent Test**: With the data directory unwritable, launching a game starts it, shows the "Launched" toast, moves it first under "Last Played", logs one warning, and leaves no `last-played.json.tmp`; an earlier valid history file is unchanged (quickstart Scenario 11 and `python tests/test_play_history.py`).
+
+**Background for the implementer** (from research.md section 10 and contracts/ui-contracts.md section 6): the existing `record()` in `cartridges/play_history.py` calls `mkdir`, writes `_PATH.with_suffix(".json.tmp")`, and calls `tmp.replace(_PATH)` with no error handling, and `Game.play()` calls it before `subprocess.Popen`, so any `OSError` stops the launch. DO NOT change the order in `Game.play()` and DO NOT catch errors there. DO NOT show a toast or dialog and DO NOT add translatable strings: reporting is log-only. Catch `OSError` only (not `Exception`) so Ruff `BLE001` and `S110` stay satisfied. The project logs with `logging.getLogger(__name__)` (see `cartridges/ui/preferences.py`, which defines `_logger = logging.getLogger(__name__)`). `load()` and its cache must not change.
+
+### Implementation for Follow-up
+
+- [X] T041 [US5] In `cartridges/play_history.py`, add `import logging` and a module-level `_logger = logging.getLogger(__name__)`, then rewrite the body of `record(game_id: str, timestamp: int)` so that: (1) `history = load()` and `history[game_id] = timestamp` still run first and outside any `try`, so the in-memory mapping is updated even when saving fails (FR-023); (2) `DATA_DIR.mkdir(parents=True, exist_ok=True)`, the temp-file write (`json.dump(history, f, indent=4, sort_keys=True)` to `_PATH.with_suffix(".json.tmp")`), and `tmp.replace(_PATH)` are inside one `try` that catches only `OSError`; (3) the `except OSError` branch logs exactly one warning with `_logger.warning("Could not save play history to %s: %s", _PATH, e)` (lazy `%s` formatting, no f-string, per Ruff `G004`), then removes the temporary file with `tmp.unlink(missing_ok=True)` inside its own nested `try`/`except OSError` that logs nothing further, so a failed cleanup neither raises nor adds a second warning (FR-024, FR-025); (4) the function returns `None` normally in every case and never raises `OSError` (FR-022). Keep the temp path in a local variable defined before the `try` so the handler can reference it. Update the docstring to say that failures are logged and not raised. Keep full Pyright-strict annotations and Ruff `ALL` compliance (depends on T030)
+- [X] T042 [US5] In `cartridges/games.py`, update the `Game.play()` docstring to state that recording the launch time is best effort and cannot prevent the launch; make no code change to `Game.play()`, and confirm by reading it that `self.last_played = int(time.time())` still comes before `play_history.record(...)` and both come before `subprocess.Popen` and the `exit-after-launch` block (FR-022, FR-023) (depends on T041)
+
+### Tests for Follow-up
+
+- [X] T043 [US5] Add failure-case checks to `tests/test_play_history.py`, following its existing `check_*` style, and call each from the `if __name__ == "__main__":` block. The tests must not rely on `chmod`, because they may run as root; force failures by path shape instead, restoring the data directory between checks via the existing `_reset` helper (extend it to remove any directory or file left at `_PATH` or the `.json.tmp` path). Checks: (a) `check_record_survives_replace_failure`: make `_PATH` an existing empty directory so `tmp.replace(_PATH)` raises, call `play_history.record("steam_620", 1791489600)`, assert it returns without raising, `play_history.load()` still contains `{"steam_620": 1791489600}` (in-memory kept, FR-023), and no `*.tmp` file remains in the data directory (FR-025); (b) `check_record_survives_mkdir_failure`: temporarily point `play_history`'s `DATA_DIR` at a path that is an existing regular file (set `vars(play_history)["DATA_DIR"]` and `vars(play_history)["_PATH"]` to paths under it, restoring both in a `finally`), call `record(...)`, assert no exception and the in-memory mapping updated; (c) `check_previous_history_kept_on_failure`: write a valid history file with one entry, load it, make the temp path an existing directory so the temp-file open raises, call `record(...)` for another game, assert no exception and that re-reading `_PATH` as JSON still equals the original single entry (FR-025); (d) `check_failed_save_logs_one_warning`: attach a `logging.Handler` collecting records to the `cartridges.play_history` logger, repeat the replace-failure case from (a), and assert exactly one `WARNING` record whose message contains the file name `last-played.json`, and that a successful `record(...)` afterwards logs nothing; (e) `check_later_save_includes_earlier_failed_time`: after the failure in (a), remove the blocking directory, call `record("steam_730", 1791489700)`, reset the cache, and assert `load()` equals `{"steam_620": 1791489600, "steam_730": 1791489700}` (FR-023, spec edge case) (depends on T041)
+
+### Verification for Follow-up
+
+- [X] T044 [P] [US5] Run `pyright` (strict), `ruff check`, and `ruff format --check` on `cartridges/play_history.py`, `cartridges/games.py`, and `tests/test_play_history.py`; fix all findings without adding broad `noqa` or `# type: ignore` comments beyond what the existing code already uses (depends on T041, T042, T043)
+- [X] T045 [US5] Run `python tests/test_play_history.py` and confirm every check, old and new, passes and that the run leaves no `.tmp` files in the temporary data directory (depends on T043)
+- [ ] T046 [US5] Execute quickstart Scenario 11 from `specs/005-game-list-view/quickstart.md` against `_build/cartridges/cartridges` inside the `gtk-dev` Distrobox container: launch a game with an unwritable data directory and confirm it starts, the toast appears, the game moves first, exactly one warning is logged, no temp file remains, and "Exit After Launching Games" still exits (SC-010) (depends on T041)
+- [ ] T047 [P] Verify Constitution Principle VI (no emoji) across `cartridges/play_history.py`, `tests/test_play_history.py`, and all files in `specs/005-game-list-view/`, and run `pre-commit run --all-files` (depends on T044)
+
+**Checkpoint**: Follow-up complete. A failed history save never prevents a launch, the session sort and label stay correct, one warning is logged, and no temporary files or lost history result.
 
 ---
 
@@ -169,6 +197,7 @@
 - **Launch Toast (Phase 8)**: Depends on Phase 3 and Phase 4 - delivers launch toast feedback.
 - **User Story 5 (Phase 9)**: Depends on Phase 8 (`play()` in `cartridges/ui/games.py` must exist). Independent of US2, US3, and US4.
 - **Amendment Polish (Phase 10)**: Depends on Phase 9.
+- **Save-Failure Follow-up (Phase 11)**: Depends on Phase 9 (`play_history.record()` and `Game.play()` must exist). Independent of Phase 10, whose T036 to T040 can run before or after it; re-run T036 and T040 if Phase 11 lands first.
 
 ### Within User Story 5
 
@@ -177,6 +206,15 @@ T029 (load) -> T030 (record) -> T031 (Game.play records) -> T033 (re-sort after 
                     |       \-> T032 (merge on load)   [needs only T029, can follow T029 directly]
                     \-> T035 (unit test)               [parallel with T031-T033]
 T029 -> T034 (add play_history.py to cartridges/meson.build) [required before running the built app]
+```
+
+### Within the Save-Failure Follow-up
+
+```text
+T041 (harden record) -> T042 (Game.play docstring)
+          |           \-> T046 (quickstart Scenario 11)
+          \-> T043 (failure tests) -> T045 (run tests)
+T041 + T042 + T043 -> T044 (pyright/ruff) -> T047 (emoji check, pre-commit)
 ```
 
 ### Parallel Opportunities
@@ -188,6 +226,7 @@ T029 -> T034 (add play_history.py to cartridges/meson.build) [required before ru
 - T032 (`cartridges/sources/__init__.py`) can be done in parallel with T030/T031 once T029 exists.
 - T035 (`tests/test_play_history.py`) can be written in parallel with T031-T033 once T030 exists.
 - T036 and T037 can run in parallel during Phase 10.
+- T042 (`cartridges/games.py` docstring) and T043 (`tests/test_play_history.py`) can be done in parallel once T041 is in place; T044 and T047 can run in parallel at the end of Phase 11.
 
 ### Parallel Example: User Story 5
 
@@ -220,7 +259,8 @@ After T030 completes:
 7. Launch Toast -> Game launch toast notification with full gettext translation
 8. User Story 5 -> Time-precise "Last Played" sorting; launched game moves to the first position (amendment 2026-10-08)
 9. Amendment Polish -> Type checks, tests, and quickstart Scenarios 8-10
+10. Save-Failure Follow-up -> Non-fatal history recording, failure tests, and quickstart Scenario 11 (FR-022 to FR-025, SC-010)
 
 ### Amendment Delivery (current work)
 
-Phases 1-8 are complete. The remaining work is Phase 9 and Phase 10 only. The smallest shippable slice is T029, T030, T031, T033, and T034 (launch recorded, persisted, and the game moves first); T032 adds the launcher-time merge and should ship in the same change so Steam-reported times are not ignored after restart.
+Phases 1-9 are implemented (commit `3be3332`). Remaining work is Phase 10 verification (T036 to T040) and the Phase 11 follow-up. The smallest shippable slice for the follow-up is T041 (the fix) plus T043 (its tests); T042 is a docstring-only change and T044 to T047 are the verification gates. Because T041 removes a path where a launch can fail outright, it should ship before the next release.

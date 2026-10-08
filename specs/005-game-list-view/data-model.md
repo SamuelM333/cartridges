@@ -176,3 +176,24 @@ Other modes:        position unchanged
 | `last_played` | `last_played` (seconds) | Descending; `0` (never played) last | Name, ascending, ignoring case and a leading "The " |
 | `a-z` / `z-a` | `name` | Ascending / descending | None needed |
 | `newest` / `oldest` | `added` | Descending / ascending | Name, ascending |
+
+### Save Failure Handling (Follow-up 2026-10-08)
+
+The persisted file is a best-effort copy of the in-memory mapping. A failed save changes only the file, never the in-memory mapping or the launch.
+
+```text
+record(game_id, timestamp)
+  1. cache[game_id] = timestamp          # always, so sort/label and later saves include it
+  2. try: mkdir -> write temp -> replace
+     except OSError:
+        log one warning (file path + reason)
+        remove temp file (best effort)
+  3. return                              # never raises OSError
+```
+
+| State | Memory | Disk |
+|-------|--------|------|
+| Before launch | `{A: t1}` | `{A: t1}` |
+| Launch B, save fails | `{A: t1, B: t2}` | `{A: t1}` (unchanged, no temp file) |
+| Launch C, save succeeds | `{A: t1, B: t2, C: t3}` | `{A: t1, B: t2, C: t3}` |
+| Restart after the failed save only | Loaded from disk: `{A: t1}` | `{A: t1}` (B's launch is not remembered) |

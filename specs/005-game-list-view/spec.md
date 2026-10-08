@@ -8,7 +8,7 @@
 
 **Input**: User description: "main game list view spec. copy the existing design to the spec. recover previous buttons showing on hover design from cartridges-main, where three dots opens settings, play launches the game and I icon opens the info, with a toggle for these last two in settings 'Cover image launches game' (as already implemented)"
 
-**Amendment (2026-10-08)**: "last used sorting must include the time so the sorting is more specific" (adds User Story 5, FR-014 to FR-020, SC-007 to SC-009). Follow-up: "sort last played with more specific time. If I open a game the item must move first in the list" (tightens FR-018, adds FR-021, acceptance scenarios 7 and 8, related edge cases).
+**Amendment (2026-10-08)**: "last used sorting must include the time so the sorting is more specific" (adds User Story 5, FR-014 to FR-020, SC-007 to SC-009). Follow-up: "sort last played with more specific time. If I open a game the item must move first in the list" (tightens FR-018, adds FR-021, acceptance scenarios 7 and 8, related edge cases). Follow-up: "launching a game must not fail when recording its last-played time fails" (adds FR-022 to FR-025, acceptance scenarios 9 to 11, SC-010, related edge cases).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -99,6 +99,9 @@ As a player who launches several games in the same day, I want the "Last Played"
 6. **Given** a game was launched from Cartridges at 14:00, **When** its launcher reports an older last-played time on re-import, **Then** the game keeps the more recent 14:00 time; if the launcher reports a newer time, the newer time is used.
 7. **Given** the sort mode is "Last Played", **When** the user launches a game from its details view, **Then** on returning to the library that game is in the first position.
 8. **Given** the sort mode is "A-Z", **When** the user launches a game, **Then** the game's position in the list does not change.
+9. **Given** the last-played time cannot be saved (storage full, read-only, or access denied), **When** the user launches a game, **Then** the game starts, the "Launched <game name>" toast appears, and no error dialog interrupts the launch.
+10. **Given** the sort mode is "Last Played" and the last-played time cannot be saved, **When** the user launches a game, **Then** the game still moves to the first position for the rest of the session.
+11. **Given** a last-played history was saved earlier and a later save fails, **When** the application is restarted, **Then** the earlier history is intact and the unsaved launch is not remembered.
 
 ---
 
@@ -119,6 +122,9 @@ As a player who launches several games in the same day, I want the "Last Played"
 - Launching the game that is already first: The order stays the same and the list does not visibly flicker or reshuffle.
 - Launching while a search, collection, or hidden-games filter is active: The launched game moves to the first position within the currently displayed results; the filter itself is not cleared.
 - Launching a game while scrolled far down the library: The game moves to the first position; the grid does not force-scroll to the top, and the keyboard/gamepad focus is not lost or moved to an unrelated card.
+- Last-played time cannot be saved (storage full, read-only or permission-denied data location, data folder cannot be created, or replacing the saved file fails): the game still launches, a warning is logged, and no temporary or partial file is left behind.
+- Save fails with "exit after launch" enabled: the game still starts and the application exits as usual; the launch is not remembered.
+- Save fails on one launch but succeeds on a later launch in the same session: the later save includes the time recorded by the failed one.
 
 ## Requirements *(mandatory)*
 
@@ -151,6 +157,10 @@ As a player who launches several games in the same day, I want the "Last Played"
 - **FR-019**: When a game's launcher reports a last-played time during import or refresh, the system MUST keep whichever of the launcher-reported time and the Cartridges-recorded time is more recent.
 - **FR-020**: The relative "Last played" label in the game details view (e.g., "Today", "Yesterday") MUST continue to work with the more precise value.
 - **FR-021**: When any sort mode other than "Last Played" is active, launching a game MUST still record its last-played time but MUST NOT change the game's position in the list.
+- **FR-022**: Failing to save the last-played time MUST NOT prevent, delay, or interrupt the game launch; no error dialog is shown, and when "exit after launch" is enabled the application still exits after starting the game. FR-015 applies only when saving is possible.
+- **FR-023**: When saving fails, the game's last-played time MUST still be updated for the current session, so FR-018 and FR-020 continue to hold until the application is closed, and the next successful save MUST include it.
+- **FR-024**: When saving fails, the system MUST write one warning to the application log identifying the failure and its underlying reason.
+- **FR-025**: A failed save MUST leave any previously saved last-played history unchanged and readable, and MUST NOT leave temporary or partially written files in the data location.
 
 ### Key Entities
 
@@ -175,6 +185,7 @@ As a player who launches several games in the same day, I want the "Last Played"
 - **SC-007**: In 100% of tests where two or more games are launched at least one second apart, the "Last Played" sort lists them in reverse launch order with no ties.
 - **SC-008**: A game launched from Cartridges appears in the first position of the "Last Played" library within 1 second of launch, without restarting the application.
 - **SC-009**: After restarting the application, the "Last Played" order matches the order observed before the restart in 100% of cases, and no existing library fails to load.
+- **SC-010**: 100% of game launches succeed when the data location is full, read-only, or access-denied, and each such launch produces exactly one log warning and no leftover temporary files.
 
 ## Assumptions
 
@@ -189,3 +200,4 @@ As a player who launches several games in the same day, I want the "Last Played"
 - Showing an exact clock time in the details view is out of scope; the existing relative wording is kept.
 - Launcher-reported times that already include time of day (such as Steam's) are used as-is; launchers that do not report play times rely solely on Cartridges-recorded launches.
 - "Open a game" in the follow-up request means launching it (Play button, cover click when configured, keyboard/gamepad activation, or the details view Play button); merely viewing a game's details does not count as playing and does not reorder the list.
+- Failures to save the last-played time are reported only in the application log, not with an in-app notification, since they do not affect the launch the user asked for. A failed save is not retried on its own; it is persisted by the next successful save in the session.
