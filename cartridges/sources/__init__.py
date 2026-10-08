@@ -10,13 +10,14 @@ import sqlite3
 import sys
 import time
 from collections.abc import Generator
+from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import Final, Protocol, cast
 
 from gi.repository import Gio, GLib, GObject
 
-from cartridges import play_history
+from cartridges import SETTINGS, play_history
 from cartridges.games import Game
 
 if Path("/.flatpak-info").exists():
@@ -87,10 +88,10 @@ class Source(GObject.Object, Gio.ListModel[Game]):
             lambda _, ident: f"{ident}-symbolic",
         )
 
-        try:
-            self._games = list(self.scan(added))
-        except (OSError, sqlite3.Error):
-            self._games = []
+        self._games: list[Game] = []
+        if self.id == "imported" or SETTINGS.get_boolean("import-on-startup"):
+            with suppress(OSError, sqlite3.Error):
+                self._games = list(self.scan(added))
 
     def do_get_item(self, position: int) -> Game | None:
         """Get the item at `position`."""

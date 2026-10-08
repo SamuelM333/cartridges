@@ -120,14 +120,14 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] In `tests/test_settings.py`, remove `"remove-missing"` from `expected_keys` and add `"import-on-startup": "b"`. Add a check that the schema has no `auto-import` key and that `import-on-startup` defaults to `true` (`schema.get_key("import-on-startup").get_default_value().get_boolean()`).
+- [X] T014 [P] [US2] In `tests/test_settings.py`, remove `"remove-missing"` from `expected_keys` and add `"import-on-startup": "b"`. Add a check that the schema has no `auto-import` key and that `import-on-startup` defaults to `true` (`schema.get_key("import-on-startup").get_default_value().get_boolean()`).
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] In `data/page.samuelm333.Cartridges.gschema.xml.in`, replace the `auto-import` key with `<key name="import-on-startup" type="b"><default>true</default></key>` at the same position (FR-017, FR-018; research section 10 explains why a new key name is used)
-- [ ] T016 [US2] In `cartridges/sources/__init__.py`, gate the initial scan in `Source.__init__`. Scan only when `module.ID == "imported"` or `SETTINGS.get_boolean("import-on-startup")`; otherwise start with `self._games = []` (data-model.md section 1, "Initial load" table). Import `SETTINGS` from `cartridges`.
-- [ ] T017 [US2] In `cartridges/ui/preferences.blp`, rename `Adw.SwitchRow auto_import_switch` to `import_on_startup_switch` with title `_("Import Games on Startup")`. In `cartridges/ui/preferences.py`, rename the template child to `import_on_startup_switch` and replace `"auto-import"` with `"import-on-startup"` in the `_bind_switches` key set.
-- [ ] T018 [US2] Verify US2 with quickstart Scenario 5 (default on; off -> only "Added" games and launcher sources absent from the sidebar; Import Now restores them; back on -> startup import returns) and Scenario 9 (same games, counts and launcher-reported last-played values as `main`), and run `ninja -C _build test` plus `python tests/test_settings.py`.
+- [X] T015 [US2] In `data/page.samuelm333.Cartridges.gschema.xml.in`, replace the `auto-import` key with `<key name="import-on-startup" type="b"><default>true</default></key>` at the same position (FR-017, FR-018; research section 10 explains why a new key name is used)
+- [X] T016 [US2] In `cartridges/sources/__init__.py`, gate the initial scan in `Source.__init__`. Scan only when `module.ID == "imported"` or `SETTINGS.get_boolean("import-on-startup")`; otherwise start with `self._games = []` (data-model.md section 1, "Initial load" table). Import `SETTINGS` from `cartridges`.
+- [X] T017 [US2] In `cartridges/ui/preferences.blp`, rename `Adw.SwitchRow auto_import_switch` to `import_on_startup_switch` with title `_("Import Games on Startup")`. In `cartridges/ui/preferences.py`, rename the template child to `import_on_startup_switch` and replace `"auto-import"` with `"import-on-startup"` in the `_bind_switches` key set.
+- [X] T018 [US2] Verify US2 with quickstart Scenario 5 (default on; off -> only "Added" games and launcher sources absent from the sidebar; Import Now restores them; back on -> startup import returns) and Scenario 9 (same games, counts and launcher-reported last-played values as `main`), and run `ninja -C _build test` plus `python tests/test_settings.py`.
 
 **Checkpoint**: US1 and US2 both work. Defaults match `main`.
 

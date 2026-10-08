@@ -95,7 +95,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     import_spinner: Adw.Spinner = Gtk.Template.Child()
 
     # Import Behavior
-    auto_import_switch: Adw.SwitchRow = Gtk.Template.Child()
+    import_on_startup_switch: Adw.SwitchRow = Gtk.Template.Child()
     remove_missing_switch: Adw.SwitchRow = Gtk.Template.Child()
 
     # Steam
@@ -190,7 +190,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
             "cover-launches-game",
             "show-game-titles",
             "high-quality-images",
-            "auto-import",
+            "import-on-startup",
             "remove-missing",
             "steam",
             "lutris",
