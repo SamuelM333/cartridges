@@ -5,6 +5,8 @@ compatibility: "Requires spec-kit project structure with .specify/ directory"
 metadata:
   author: "github-spec-kit"
   source: "templates/commands/converge.md"
+user-invocable: true
+disable-model-invocation: false
 ---
 
 
@@ -27,7 +29,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
   - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- When constructing slash commands from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
 
@@ -147,6 +149,12 @@ Create an internal model (do not echo raw artifacts):
 
 ### 4. Assess the Codebase and Classify Findings
 
+Include every existing task in the intent inventory, regardless of checkbox state or
+Convergence phase: completion claims are not evidence. Verify current behavior against
+the spec, plan, tasks, and constitution; for corrective task chains, assess the resulting
+behavior, not superseded implementation details. Check both unmet obligations and
+implementation that contradicts, exceeds, or falls outside the stated intent.
+
 For each item in the intent inventory, inspect the current code in scope and produce a
 `Finding` only where there is a gap. Classify every finding by **gap type**:
 
@@ -248,7 +256,7 @@ After producing the result, check if `.specify/extensions.yml` exists in the pro
   - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
 - Report the convergence outcome (`converged` or `tasks_appended`) in-session before listing
   any hooks, so users can decide whether to run optional follow-up commands.
-- When constructing slash commands from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
+- When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
 
