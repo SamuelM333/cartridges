@@ -54,6 +54,8 @@ The change is applied to each source with one `items_changed` emission that cove
 
 **Risk**: Steam parses `appinfo.vdf` in one call before the first `yield`. On very large Steam libraries this single step may block the loop for longer than the SC-002 budget of 250 ms. Quickstart Scenario 7 measures it. If it exceeds the budget, the follow-up is to move only the `appinfo.vdf` parse into `asyncio.to_thread`, since it touches no GTK objects. This is noted, not pre-built.
 
+**Measured (2026-10-08, quickstart Scenario 7)**: Import Now with the real Flatpak Steam data (2.3 MB `appinfo.vdf`) plus 500 synthetic desktop-entry games, three runs: total 314 to 509 ms; worst main-loop gap 55 to 68 ms, next worst 19 to 31 ms. Both are inside SC-002 (10 s, 250 ms), so the follow-up was not applied.
+
 **Alternatives considered**:
 - Whole scan in `asyncio.to_thread`: rejected for the thread-safety reasons above.
 - Keep the scan synchronous, like startup: freezes the Preferences dialog, violating FR-009.

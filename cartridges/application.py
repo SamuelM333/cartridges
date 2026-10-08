@@ -92,9 +92,11 @@ class Application(Adw.Application):
 
         if isinstance(window := self.props.active_window, Window):
             if count := len(new_games):
-                # Translators: {} is the number of games that were imported
                 title = ngettext(
-                    "{} new game imported", "{} new games imported", count
+                    # Translators: {} is the number of games that were imported
+                    "{} new game imported",
+                    "{} new games imported",
+                    count,
                 ).format(count)
             else:
                 title = _("No new games found")

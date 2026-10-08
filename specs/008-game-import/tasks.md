@@ -185,10 +185,10 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T030 Measure responsiveness with quickstart Scenario 7 on the largest available Steam library. If any main-loop stall exceeds 250 ms, move only the `_parse_appinfo_vdf` call in `cartridges/sources/steam.py` behind `asyncio.to_thread` as described in research.md section 4, and record the measured durations in that section.
-- [ ] T031 [P] Run `ninja -C _build cartridges-pot`. Confirm `po/cartridges.pot` contains "Import Now", "Scan your sources for new and uninstalled games", "Import", "Import Games on Startup", the plural pair "{} new game imported"/"{} new games imported" with its translator comment, and "No new games found", and no longer contains "Remove Uninstalled Games" or "Import Games Automatically".
-- [ ] T032 Run the full quality gate from the constitution: `pre-commit run --all-files`, `pyright`, `ruff check`, `blueprint-compiler` compile of `cartridges/ui/preferences.blp`, `meson setup _build` and `ninja -C _build test`, and `python3 .specify/scripts/bash/check-emojis.py` on all changed files. Fix any findings.
-- [ ] T033 Run the whole of `specs/008-game-import/quickstart.md` once more end to end on a fresh settings profile (`gsettings reset-recursively`) and tick the spec checklist.
+- [X] T030 Measure responsiveness with quickstart Scenario 7 on the largest available Steam library. If any main-loop stall exceeds 250 ms, move only the `_parse_appinfo_vdf` call in `cartridges/sources/steam.py` behind `asyncio.to_thread` as described in research.md section 4, and record the measured durations in that section.
+- [X] T031 [P] Run `ninja -C _build cartridges-pot`. Confirm `po/cartridges.pot` contains "Import Now", "Scan your sources for new and uninstalled games", "Import", "Import Games on Startup", the plural pair "{} new game imported"/"{} new games imported" with its translator comment, and "No new games found", and no longer contains "Remove Uninstalled Games" or "Import Games Automatically".
+- [X] T032 Run the full quality gate from the constitution: `pre-commit run --all-files`, `pyright`, `ruff check`, `blueprint-compiler` compile of `cartridges/ui/preferences.blp`, `meson setup _build` and `ninja -C _build test`, and `python3 .specify/scripts/bash/check-emojis.py` on all changed files. Fix any findings.
+- [X] T033 Run the whole of `specs/008-game-import/quickstart.md` once more end to end on a fresh settings profile (`gsettings reset-recursively`) and tick the spec checklist.
 
 ---
 
