@@ -202,3 +202,39 @@ How `Gtk.GridView` handles scroll position and keyboard focus when the focused i
 
 ### Open Verification (not a blocker)
 How `Gtk.GridView` re-measures row heights when every card's label toggles at once is toolkit behavior. Verified manually in quickstart Scenario 12 with a large library; if rows do not reflow, call `queue_resize()` on the grid after the setting changes.
+
+## 12. Full Titles Without Truncation (Amendment 2026-10-08)
+
+### Findings
+- `title_label` in `cartridges/ui/game-item.blp` is `Label { label: bind template.game as <$Game>.name; ellipsize: middle; }`. With `ellipsize` set and no `wrap`, the label reports a tiny minimum width and draws one line, cutting the middle of any name wider than its allocation. This is the reported defect.
+- The card is a vertical `Gtk.Box` (`#game-item`, 12px CSS padding, 12px spacing): the cover `Overlay` first, then the label. `Cover` has a fixed 200x300 size enforced by `CoverLayoutManager`, so the cover's size cannot be influenced by its siblings.
+- `Gtk.GridView` chooses the number of columns from the largest *minimum* item width and then shares the available width evenly between columns; each row is as tall as the tallest item measured at the column width (height-for-width). Text in a row with one long title therefore makes only that row taller.
+- The keyboard and gamepad focus indicator is an outline on `#cover` (`style.css`), not on the whole card, so the label does not affect it.
+- Names are displayed exactly as the source reports them; no source strips whitespace (only the details editor strips on save, `game_details.py`).
+
+### Decision
+1. In `game-item.blp`, replace `ellipsize: middle;` on `title_label` with:
+   - `wrap: true;` so the label flows onto as many lines as needed, with no `lines` limit (FR-031, FR-032).
+   - `wrap-mode: word_char;` so breaks happen between words, falling back to breaking inside a word only when the word alone is wider than the line (FR-032, acceptance scenario 4). Pango applies its own rules for scripts without spaces (CJK) and for right-to-left text.
+   - `justify: center;` so every line is centered under the cover (FR-033). `xalign` stays at its default 0.5.
+2. Do not set `max-width-chars`, `width-chars`, or a width request. The label then wraps at the width the grid already allocates to it, so a title that fit on one line before still fits on exactly one line (acceptance scenario 2), and columns are unchanged (FR-034).
+3. With `word_char`, the label's minimum width is about one character, smaller than the 200px cover, so a long title cannot raise the grid's minimum column width or reduce the column count (FR-034, SC-014).
+4. Bind the label through a display callback: `label: bind $_display_title(template.game as <$Game>.name) as <string>;`, with `GameItem._display_title(_this, name: str) -> str` returning `name.strip()`, following the `Cover._content_fit` static template-callback pattern. This removes leading and trailing blank lines and spaces (spec edge case) while keeping any line breaks inside the name. The accessible label from section 11 is left as the raw name, which screen readers already handle well.
+5. No change to the visibility rule, the hover overlay, CSS, or the details view (FR-035, spec assumption).
+
+### Rationale
+- Purely declarative and local to one label; it relies on standard `Gtk.Label` wrapping (Principles III and IV) and needs no custom layout code.
+- Wrapping at the existing allocation is the only option that keeps single-line titles identical to today and keeps column widths unchanged, as the spec's assumptions require.
+
+### Alternatives Considered
+- *Cap at two or three lines with an ellipsis*: Rejected. The request is "force all to show"; FR-031 forbids any truncation.
+- *`wrap-mode: word`*: Rejected. A single word longer than the cell (concatenated names, URL-like titles) would raise the label's minimum width, widen every column, and could drop a column (violates FR-034).
+- *`wrap-mode: char`*: Rejected. Breaks ordinary words mid-word even when a space is available, which reads poorly.
+- *Constrain the label to the 200px cover width (width request or a custom layout manager)*: Rejected. It would make titles wrap earlier than today, so titles that fit on one line now would start wrapping, contradicting acceptance scenario 2, and it adds layout code for no user benefit.
+- *Shrink the font for long titles*: Rejected in the spec assumptions; inconsistent typography and still fails for very long names.
+- *Show the full title in a tooltip and keep the ellipsis*: Rejected. Not visible without hovering, unusable with keyboard or gamepad, and not what was asked.
+- *Strip whitespace at the source or in `Game`*: Rejected for this amendment. It would change stored names and source modules (Principle II) for a purely presentational concern.
+
+### Open Verification (not a blocker)
+- The row-height behavior in Findings is how `Gtk.GridView` works in GTK 4.x, but the exact behavior is toolkit-internal. It is checked manually in quickstart Scenario 13 (mixed long and short titles in one row, window resizing). If a long title were to widen columns in practice, the fallback is `max-width-chars: 1` on the label, which caps its natural width while it still fills the allocated width.
+- `Gtk.GridView` estimates the heights of rows it has not built yet, so in a very long library with many multi-line titles the scrollbar may shift slightly while scrolling. This is standard GridView behavior and is acceptable; the scenario records it if seen.

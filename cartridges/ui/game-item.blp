@@ -112,7 +112,9 @@ template $GameItem: Box {
   }
 
   Label title_label {
-    label: bind template.game as <$Game>.name;
-    ellipsize: middle;
+    label: bind $_display_title(template.game as <$Game>.name) as <string>;
+    wrap: true;
+    wrap-mode: word_char;
+    justify: center;
   }
 }
