@@ -70,6 +70,25 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
     title: _("Import");
     icon-name: "document-save-symbolic";
 
+    Adw.PreferencesGroup {
+      Adw.ActionRow import_now_row {
+        title: _("Import Now");
+        subtitle: _("Scan your sources for new and uninstalled games");
+
+        Stack import_stack {
+          Button import_button {
+            label: _("Import");
+            valign: center;
+            action-name: "app.import";
+          }
+
+          Adw.Spinner import_spinner {
+            valign: center;
+          }
+        }
+      }
+    }
+
     Adw.PreferencesGroup import_behavior_group {
       title: _("Behavior");
 

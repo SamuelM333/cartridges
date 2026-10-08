@@ -6,6 +6,7 @@
 import importlib
 import os
 import pkgutil
+import sqlite3
 import sys
 import time
 from collections.abc import Generator
@@ -87,8 +88,8 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         )
 
         try:
-            self._games = list(self._get_games(added))
-        except OSError:
+            self._games = list(self.scan(added))
+        except (OSError, sqlite3.Error):
             self._games = []
 
     def do_get_item(self, position: int) -> Game | None:
@@ -112,7 +113,24 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         self._games.append(game)
         self.items_changed(pos, 0, 1)
 
-    def _get_games(self, added: int) -> Generator[Game]:
+    def replace_games(self, games: list[Game]) -> list[Game]:
+        """Merge a fresh scan of `games` into `self`.
+
+        Return the games that were not in `self` before.
+        """
+        from cartridges.importer import reconcile
+
+        kept, added, removed = reconcile(self._games, games)
+        if not (added or removed):
+            return []
+
+        old_len = len(self._games)
+        self._games = kept + added
+        self.items_changed(0, old_len, len(self._games))
+        return added
+
+    def scan(self, added: int) -> Generator[Game]:
+        """Read the source's installed games from its launcher."""
         for game in self._module.get_games():
             game.added = game.added or added
             game.last_played = max(

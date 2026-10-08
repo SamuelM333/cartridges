@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from .window import Window
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk
 
-from cartridges import SETTINGS, STATE_SETTINGS
+from cartridges import SETTINGS, STATE_SETTINGS, importer
 from cartridges.config import PREFIX, PROFILE
 
 _logger = logging.getLogger(__name__)
@@ -89,6 +89,11 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     show_game_titles_switch: Adw.SwitchRow = Gtk.Template.Child()
     high_quality_images_switch: Adw.SwitchRow = Gtk.Template.Child()
 
+    # Import Now
+    import_stack: Gtk.Stack = Gtk.Template.Child()
+    import_button: Gtk.Button = Gtk.Template.Child()
+    import_spinner: Adw.Spinner = Gtk.Template.Child()
+
     # Import Behavior
     auto_import_switch: Adw.SwitchRow = Gtk.Template.Child()
     remove_missing_switch: Adw.SwitchRow = Gtk.Template.Child()
@@ -158,6 +163,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         self._removed_games: list[Any] = []
 
         self._bind_switches()
+        self._bind_import_state()
         self._setup_sgdb_key()
         self._init_source_rows()
 
@@ -166,6 +172,16 @@ class CartridgesPreferences(Adw.PreferencesDialog):
 
         if not sys.platform.startswith("linux"):
             self.desktop_switch.set_visible(False)
+
+    def _bind_import_state(self) -> None:
+        """Show a spinner instead of the import button while an import runs."""
+        importer.state.bind_property(
+            "running",
+            self.import_stack,
+            "visible-child",
+            GObject.BindingFlags.SYNC_CREATE,
+            lambda _, running: self.import_spinner if running else self.import_button,
+        )
 
     def _bind_switches(self) -> None:
         """Bind GSettings keys to corresponding switch widgets."""

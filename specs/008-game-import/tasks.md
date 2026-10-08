@@ -25,8 +25,8 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 **Purpose**: Branch and new-module scaffolding
 
-- [ ] T001 Create branch `feat/008-game-import` from `main` (Constitution: Development & Branching Workflow) and commit the spec documents in `specs/008-game-import/` as the first commit
-- [ ] T002 Create `cartridges/importer.py` with the SPDX header (`GPL-3.0-or-later`, `Copyright 2026 samuelm333`) and a module docstring only, and add `'importer.py'` to the `python.install_sources(files(...))` list in `cartridges/meson.build` (alphabetical, after `'gamepads.py'`, before `'play_history.py'`, matching the existing order)
+- [X] T001 Create branch `feat/008-game-import` from `main` (Constitution: Development & Branching Workflow) and commit the spec documents in `specs/008-game-import/` as the first commit
+- [X] T002 Create `cartridges/importer.py` with the SPDX header (`GPL-3.0-or-later`, `Copyright 2026 samuelm333`) and a module docstring only, and add `'importer.py'` to the `python.install_sources(files(...))` list in `cartridges/meson.build` (alphabetical, after `'games.py'`, before `'play_history.py'`, matching the existing order)
 
 ---
 
@@ -36,8 +36,8 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 **CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 In `cartridges/sources/__init__.py`, rename `Source._get_games(self, added)` to a public `Source.scan(self, added: int) -> Generator[Game]` with the same body (play-history `max()` merge and `game.added = game.added or added`), and update the call in `Source.__init__`
-- [ ] T004 In `cartridges/sources/__init__.py`, widen the `except OSError:` around the initial scan in `Source.__init__` to `except (OSError, sqlite3.Error):` (add `import sqlite3`), so a locked or corrupt Lutris/itch database yields zero games instead of crashing startup (FR-005, research section 6)
+- [X] T003 In `cartridges/sources/__init__.py`, rename `Source._get_games(self, added)` to a public `Source.scan(self, added: int) -> Generator[Game]` with the same body (play-history `max()` merge and `game.added = game.added or added`), and update the call in `Source.__init__`
+- [X] T004 In `cartridges/sources/__init__.py`, widen the `except OSError:` around the initial scan in `Source.__init__` to `except (OSError, sqlite3.Error):` (add `import sqlite3`), so a locked or corrupt Lutris/itch database yields zero games instead of crashing startup (FR-005, research section 6)
 
 **Checkpoint**: The app starts and shows the same library as on `main`. `pyright` and `ruff check` pass.
 
@@ -53,7 +53,7 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 > Write these first. They must fail (import error or assertion) before T007 to T009 are done.
 
-- [ ] T005 [P] [US1] Create `tests/test_importer.py`:
+- [X] T005 [P] [US1] Create `tests/test_importer.py`:
   - Stub the `cartridges` package the way `tests/test_play_history.py` does, providing `DATA_DIR` (temp dir) and a `SETTINGS` stand-in object with `get_boolean`. Then import `cartridges.games` and `cartridges.importer`.
   - Add these `reconcile()` checks against data-model.md section 4:
     - `check_reconcile_adds_new`: scanned ids not in existing go to `added`, in scan order.
@@ -68,20 +68,20 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] In `cartridges/importer.py`, implement `class Reconciliation(NamedTuple)` with fields `kept: list[Game]`, `added: list[Game]` and `removed: list[Game]`, and `reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliation`, following data-model.md sections 2 and 4:
+- [X] T006 [US1] In `cartridges/importer.py`, implement `class Reconciliation(NamedTuple)` with fields `kept: list[Game]`, `added: list[Game]` and `removed: list[Game]`, and `reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliation`, following data-model.md sections 2 and 4:
   - Key games by `game_id`.
   - Keep the existing objects; set `last_played = max(existing.last_played, scanned.last_played)`; copy `cover` only when the existing `cover is None`; leave every other field untouched.
   - The first occurrence of a duplicate scanned `game_id` wins.
 
   Fully typed, no `Any`.
-- [ ] T007 [US1] In `cartridges/sources/__init__.py`, add `Source.replace_games(self, games: list[Game]) -> list[Game]`:
+- [X] T007 [US1] In `cartridges/sources/__init__.py`, add `Source.replace_games(self, games: list[Game]) -> list[Game]`:
   - Call `importer.reconcile(self._games, games)`.
   - Set `self._games = kept + added`.
   - Emit exactly one `self.items_changed(0, old_len, new_len)` if anything was added or removed, and none otherwise.
   - Return `added`.
 
   To avoid an import cycle, import `reconcile` inside the method or have `importer.py` import `sources` lazily; `importer.py` must import `Game` from `cartridges.games` only.
-- [ ] T008 [US1] In `cartridges/importer.py`, implement the import run (data-model.md section 3, contracts section 3, research section 4):
+- [X] T008 [US1] In `cartridges/importer.py`, implement the import run (data-model.md section 3, contracts section 3, research section 4):
   - `class ImportState(GObject.Object)` with `__gtype_name__ = __qualname__` and `running = GObject.Property(type=bool, default=False)`, plus a module-level `state = ImportState()`.
   - `async def import_games() -> list[Game]`:
     - Set `state.running = True`; take `added = int(time.time())`.
@@ -91,8 +91,8 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
     - Call `await asyncio.sleep(0)` between sources.
     - Reset `state.running = False` in a `finally` block.
     - Return the newly added games.
-- [ ] T009 [US1] In `cartridges/application.py`, refactor `_auto_fetch_sgdb_covers(self)` to `_auto_fetch_sgdb_covers(self, games: Iterable[Game])` so it only processes the given games, and have `_check_auto_fetch_sgdb_covers` take and forward that list. The startup call passes every game from every source, exactly as it iterates today, so startup behavior is unchanged.
-- [ ] T010 [US1] In `cartridges/application.py`, register the `app.import` action (contracts section 2):
+- [X] T009 [US1] In `cartridges/application.py`, refactor `_auto_fetch_sgdb_covers(self)` to `_auto_fetch_sgdb_covers(self, games: Iterable[Game])` so it only processes the given games, and have `_check_auto_fetch_sgdb_covers` take and forward that list. The startup call passes every game from every source, exactly as it iterates today, so startup behavior is unchanged.
+- [X] T010 [US1] In `cartridges/application.py`, register the `app.import` action (contracts section 2):
   - Create a `Gio.SimpleAction(name="import")` in `do_startup` and bind `importer.state` `running` to the action's `enabled` property with an inverting transform (`SYNC_CREATE`).
   - On activate, call `self.create_asyncio_task(self._import())`.
   - `async def _import(self) -> None` awaits `importer.import_games()`, then sends a toast to `self.props.active_window` if it is a `Window`, via `window.send_toast(...)`:
@@ -100,13 +100,13 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
     - `n == 0`: `_("No new games found")`.
   - Then it calls `_check_auto_fetch_sgdb_covers(new_games)`.
   - Do not add a keyboard accelerator.
-- [ ] T011 [US1] In `cartridges/ui/preferences.blp`, add a new untitled `Adw.PreferencesGroup` as the first child of `import_page`, above `import_behavior_group`, containing:
+- [X] T011 [US1] In `cartridges/ui/preferences.blp`, add a new untitled `Adw.PreferencesGroup` as the first child of `import_page`, above `import_behavior_group`, containing:
   - `Adw.ActionRow import_now_row` with title `_("Import Now")` and subtitle `_("Scan your sources for new and uninstalled games")`.
   - A suffix `Stack import_stack` holding `Button import_button` (`label: _("Import")`, `valign: center`, `action-name: "app.import"`) and `Adw.Spinner import_spinner` (`valign: center`).
 
   Mirror the structure of the existing "Update Covers" row (`sgdb_stack`) in the same file.
-- [ ] T012 [US1] In `cartridges/ui/preferences.py`, add the template children `import_stack: Gtk.Stack`, `import_button: Gtk.Button` and `import_spinner: Adw.Spinner`. In `__init__`, bind `importer.state` `running` to `import_stack` `visible-child` with a transform (`True` -> `import_spinner`, `False` -> `import_button`) and `GObject.BindingFlags.SYNC_CREATE`, so reopening Preferences mid-import shows the spinner.
-- [ ] T013 [US1] Verify US1 with quickstart Scenarios 1, 2 and 3 (new game appears; button disabled and spinner while running; toast still shows after closing Preferences; 10 repeated imports give no duplicates and keep hidden/edited state; "Added" games untouched) and `python tests/test_importer.py`.
+- [X] T012 [US1] In `cartridges/ui/preferences.py`, add the template children `import_stack: Gtk.Stack`, `import_button: Gtk.Button` and `import_spinner: Adw.Spinner`. In `__init__`, bind `importer.state` `running` to `import_stack` `visible-child` with a transform (`True` -> `import_spinner`, `False` -> `import_button`) and `GObject.BindingFlags.SYNC_CREATE`, so reopening Preferences mid-import shows the spinner.
+- [X] T013 [US1] Verify US1 with quickstart Scenarios 1, 2 and 3 (new game appears; button disabled and spinner while running; toast still shows after closing Preferences; 10 repeated imports give no duplicates and keep hidden/edited state; "Added" games untouched) and `python tests/test_importer.py`.
 
 **Checkpoint**: Import Now works end to end. The main window "+" button still runs `game.add` only (FR-012; no change needed in `cartridges/ui/window.blp`).
 
