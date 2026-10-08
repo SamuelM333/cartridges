@@ -15,7 +15,7 @@ from gi.repository import Gio
 from cartridges import cover
 from cartridges.games import Game
 
-from . import CONFIG
+from . import CONFIG, location
 
 ID, NAME = "legendary", _("Legendary")
 
@@ -69,10 +69,7 @@ def get_games() -> Generator[Game]:
 
 
 def _config_dir() -> Path:
-    if _CONFIG_PATH.is_dir():
-        return _CONFIG_PATH
-
-    raise FileNotFoundError
+    return location("legendary-location", (_CONFIG_PATH,))
 
 
 async def _update_cover(game: Game, url: str):

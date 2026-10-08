@@ -12,10 +12,10 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, override
 
-from cartridges import cover
+from cartridges import SETTINGS, cover
 from cartridges.games import Game
 
-from . import APPDATA, APPLICATION_SUPPORT, CONFIG, FLATPAK, OPEN
+from . import APPDATA, APPLICATION_SUPPORT, CONFIG, FLATPAK, OPEN, location
 
 ID, NAME = "heroic", _("Heroic")
 
@@ -110,16 +110,18 @@ class _NileSource(_StoreSource):
 
 def get_games() -> Generator[Game]:
     """Installed Heroic games."""
-    for source in _LegendarySource, _GOGSource, _NileSource, _SideloadSource:
-        yield from _games_from(source)
+    for source, key in (
+        (_LegendarySource, "heroic-import-epic"),
+        (_GOGSource, "heroic-import-gog"),
+        (_NileSource, "heroic-import-amazon"),
+        (_SideloadSource, "heroic-import-sideload"),
+    ):
+        if SETTINGS.get_boolean(key):
+            yield from _games_from(source)
 
 
 def _config_dir() -> Path:
-    for path in _CONFIG_PATHS:
-        if path.is_dir():
-            return path
-
-    raise FileNotFoundError
+    return location("heroic-location", _CONFIG_PATHS)
 
 
 def _hidden_app_names() -> Generator[str]:

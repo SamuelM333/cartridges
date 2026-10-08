@@ -33,7 +33,7 @@ def check_schema_integrity() -> None:
         "exit-after-launch": "b",
         "cover-launches-game": "b",
         "high-quality-images": "b",
-        "remove-missing": "b",
+        "import-on-startup": "b",
     }
     for key_name, expected_type in expected_keys.items():
         if not schema.has_key(key_name):
@@ -46,6 +46,18 @@ def check_schema_integrity() -> None:
                 f"Key '{key_name}' has type '{actual_type}', expected '{expected_type}'"
             )
             raise TypeError(msg)
+
+    # Startup import stays on by default so the library is not empty
+    default = schema.get_key("import-on-startup").get_default_value()
+    if not default.get_boolean():
+        msg = "Key 'import-on-startup' must default to true"
+        raise ValueError(msg)
+
+    # Verify that keys replaced by other settings are gone
+    for key_name in ("auto-import", "remove-missing"):
+        if schema.has_key(key_name):
+            msg = f"Removed key '{key_name}' is still in the schema"
+            raise ValueError(msg)
 
     # Verify that color-scheme is not present (no manual preference override)
     if schema.has_key("color-scheme"):

@@ -7,10 +7,10 @@ from collections.abc import Generator
 from gettext import gettext as _
 from pathlib import Path
 
-from cartridges import cover
+from cartridges import SETTINGS, cover
 from cartridges.games import Game
 
-from . import DATA, FLATPAK, OPEN
+from . import DATA, FLATPAK, OPEN, location
 
 ID, NAME = "lutris", _("Lutris")
 
@@ -33,16 +33,28 @@ _QUERY = """
         games.name IS NOT NULL
         AND games.slug IS NOT NULL
         AND games.configPath IS NOT NULL
-        AND games.installed
-        AND games.runner IS NOT "steam"
-        AND games.runner IS NOT "flatpak";"""
+        AND games.installed;"""
+
+# Runners whose games other sources usually import, and the keys to opt in
+_OPTIONAL_RUNNERS = {
+    "steam": "lutris-import-steam",
+    "flatpak": "lutris-import-flatpak",
+}
 
 
 def get_games() -> Generator[Game]:
     """Installed Lutris games."""
     coverart = _data_dir() / "coverart"
+    skipped = {
+        runner
+        for runner, key in _OPTIONAL_RUNNERS.items()
+        if not SETTINGS.get_boolean(key)
+    }
     with sqlite3.connect(_data_dir() / "pga.db") as conn:
         for row in conn.execute(_QUERY):
+            if row[3] in skipped:
+                continue
+
             yield Game(
                 executable=f"{OPEN} lutris:rungameid/{row[0]}",
                 game_id=f"{ID}_{row[3]}_{row[0]}",
@@ -54,8 +66,4 @@ def get_games() -> Generator[Game]:
 
 
 def _data_dir() -> Path:
-    for path in _DATA_PATHS:
-        if path.is_dir():
-            return path
-
-    raise FileNotFoundError
+    return location("lutris-location", _DATA_PATHS)

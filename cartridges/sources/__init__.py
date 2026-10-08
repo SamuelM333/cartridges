@@ -6,16 +6,18 @@
 import importlib
 import os
 import pkgutil
+import sqlite3
 import sys
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
+from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import Final, Protocol, cast
 
 from gi.repository import Gio, GLib, GObject
 
-from cartridges import play_history
+from cartridges import SETTINGS, play_history
 from cartridges.games import Game
 
 if Path("/.flatpak-info").exists():
@@ -53,6 +55,22 @@ OPEN = (
 )
 
 
+def location(key: str, candidates: Iterable[Path]) -> Path:
+    """Get the directory a source reads its games from.
+
+    A location the user picked in Preferences under `key` is always used.
+    Otherwise, the first existing directory in `candidates` is used.
+    """
+    if SETTINGS.get_user_value(key) is not None:
+        return Path(SETTINGS.get_string(key)).expanduser()
+
+    for path in candidates:
+        if path.is_dir():
+            return path
+
+    raise FileNotFoundError
+
+
 class _SourceModule(Protocol):
     ID: Final[str]
     NAME: Final[str]
@@ -86,10 +104,10 @@ class Source(GObject.Object, Gio.ListModel[Game]):
             lambda _, ident: f"{ident}-symbolic",
         )
 
-        try:
-            self._games = list(self._get_games(added))
-        except OSError:
-            self._games = []
+        self._games: list[Game] = []
+        if self.id == "imported" or SETTINGS.get_boolean("import-on-startup"):
+            with suppress(OSError, sqlite3.Error):
+                self._games = list(self.scan(added))
 
     def do_get_item(self, position: int) -> Game | None:
         """Get the item at `position`."""
@@ -112,7 +130,30 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         self._games.append(game)
         self.items_changed(pos, 0, 1)
 
-    def _get_games(self, added: int) -> Generator[Game]:
+    def replace_games(self, games: list[Game]) -> list[Game]:
+        """Merge a fresh scan of `games` into `self`.
+
+        Return the games that were not in `self` before.
+        """
+        from cartridges.importer import reconcile
+
+        kept, added, removed = reconcile(self._games, games)
+        if not (added or removed):
+            return []
+
+        old_len = len(self._games)
+        self._games = kept + added
+        self.items_changed(0, old_len, len(self._games))
+        return added
+
+    def scan(self, added: int) -> Generator[Game]:
+        """Read the source's installed games from its launcher.
+
+        Yield nothing if the user turned the source off.
+        """
+        if self.id != "imported" and not SETTINGS.get_boolean(self.id):
+            return
+
         for game in self._module.get_games():
             game.added = game.added or added
             game.last_played = max(

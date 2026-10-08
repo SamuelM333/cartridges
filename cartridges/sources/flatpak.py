@@ -18,9 +18,6 @@ _ICON_FALLBACK = "application-x-executable"
 
 def get_games() -> Generator[Game]:
     """Installed Flatpak games."""
-    if not SETTINGS.get_boolean("flatpak"):
-        return
-
     system_loc = SETTINGS.get_string("flatpak-system-location")
     user_loc = SETTINGS.get_string("flatpak-user-location")
 

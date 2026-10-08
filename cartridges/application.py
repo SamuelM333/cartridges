@@ -2,13 +2,16 @@
 # SPDX-FileCopyrightText: Copyright 2025 Zoey Ahmed
 # SPDX-FileCopyrightText: Copyright 2025-2026 kramo
 
+from collections.abc import Iterable
 from gettext import gettext as _
+from gettext import ngettext
 from typing import override
 
-from gi.repository import Adw
+from gi.repository import Adw, Gio, GObject
 
-from . import collections, sources
+from . import collections, importer, sources
 from .config import APP_ID, PREFIX
+from .games import Game
 from .ui import PRIMARY_KEY
 from .ui.window import Window
 
@@ -31,9 +34,21 @@ class Application(Adw.Application):
         self.set_accels_for_action("app.preferences", (f"{PRIMARY_KEY}comma",))
         self.set_accels_for_action("app.quit", (f"{PRIMARY_KEY}q",))
 
+        import_action = Gio.SimpleAction(name="import")
+        import_action.connect("activate", lambda *_: self._start_import())
+        importer.state.bind_property(
+            "running",
+            import_action,
+            "enabled",
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN,
+        )
+        self.add_action(import_action)
+
         sources.load()
         collections.load()
-        self._check_auto_fetch_sgdb_covers()
+        self._check_auto_fetch_sgdb_covers([
+            game for source in sources.model for game in source
+        ])
         self._prune_preview_cache()
 
     @override
@@ -68,7 +83,28 @@ class Application(Adw.Application):
 
         CartridgesPreferences().present(self.props.active_window)
 
-    def _check_auto_fetch_sgdb_covers(self) -> None:
+    def _start_import(self) -> None:
+        if not importer.state.running:
+            self.create_asyncio_task(self._import())
+
+    async def _import(self) -> None:
+        new_games = await importer.import_games()
+
+        if isinstance(window := self.props.active_window, Window):
+            if count := len(new_games):
+                title = ngettext(
+                    # Translators: {} is the number of games that were imported
+                    "{} new game imported",
+                    "{} new games imported",
+                    count,
+                ).format(count)
+            else:
+                title = _("No new games found")
+            window.send_toast(title)
+
+        self._check_auto_fetch_sgdb_covers(new_games)
+
+    def _check_auto_fetch_sgdb_covers(self, games: Iterable[Game]) -> None:
         from . import SETTINGS
 
         if not SETTINGS.get_boolean("sgdb"):
@@ -77,9 +113,9 @@ class Application(Adw.Application):
         if not key:
             return
 
-        self.create_asyncio_task(self._auto_fetch_sgdb_covers())
+        self.create_asyncio_task(self._auto_fetch_sgdb_covers(tuple(games)))
 
-    async def _auto_fetch_sgdb_covers(self) -> None:
+    async def _auto_fetch_sgdb_covers(self, games: Iterable[Game]) -> None:
         import asyncio
 
         from gi.repository import GLib
@@ -90,32 +126,26 @@ class Application(Adw.Application):
         prefer_sgdb = SETTINGS.get_boolean("sgdb-prefer")
         animated = SETTINGS.get_boolean("sgdb-animated")
 
-        for source in sources.model:
-            for i in range(source.get_n_items()):
-                game = source.get_item(i)
-                if game is None:
-                    continue
-                if not prefer_sgdb and game.cover is not None:
-                    continue
+        for game in games:
+            if not prefer_sgdb and game.cover is not None:
+                continue
 
-                try:
-                    sgdb_id = await asyncio.to_thread(
-                        steamgriddb.get_game_id, game.name
+            try:
+                sgdb_id = await asyncio.to_thread(steamgriddb.get_game_id, game.name)
+                url = await asyncio.to_thread(
+                    steamgriddb.get_image_url, sgdb_id, animated
+                )
+                success = await asyncio.to_thread(
+                    steamgriddb.save_cover_from_url, game.game_id, url
+                )
+                if success:
+                    base = cover.COVERS_DIR / game.game_id
+                    new_cover = cover.at_path(f"{base}.gif") or cover.at_path(
+                        f"{base}.tiff"
                     )
-                    url = await asyncio.to_thread(
-                        steamgriddb.get_image_url, sgdb_id, animated
-                    )
-                    success = await asyncio.to_thread(
-                        steamgriddb.save_cover_from_url, game.game_id, url
-                    )
-                    if success:
-                        base = cover.COVERS_DIR / game.game_id
-                        new_cover = cover.at_path(f"{base}.gif") or cover.at_path(
-                            f"{base}.tiff"
-                        )
-                        if new_cover:
-                            GLib.idle_add(setattr, game, "cover", new_cover)
-                except steamgriddb.SgdbAuthError:
-                    return
-                except (steamgriddb.SgdbError, OSError, TimeoutError):
-                    continue
+                    if new_cover:
+                        GLib.idle_add(setattr, game, "cover", new_cover)
+            except steamgriddb.SgdbAuthError:
+                return
+            except (steamgriddb.SgdbError, OSError, TimeoutError):
+                continue

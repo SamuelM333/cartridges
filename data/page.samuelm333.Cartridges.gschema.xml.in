@@ -4,8 +4,8 @@
     <key name="collections" type="aa{sv}">
       <default>[]</default>
     </key>
-    <key name="auto-import" type="b">
-      <default>false</default>
+    <key name="import-on-startup" type="b">
+      <default>true</default>
     </key>
     <key name="exit-after-launch" type="b">
       <default>false</default>
@@ -18,9 +18,6 @@
     </key>
     <key name="high-quality-images" type="b">
       <default>false</default>
-    </key>
-    <key name="remove-missing" type="b">
-      <default>true</default>
     </key>
     <key name="steam" type="b">
       <default>true</default>
