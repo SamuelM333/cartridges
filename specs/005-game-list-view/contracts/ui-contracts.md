@@ -86,9 +86,11 @@ template $GameItem: Box {
     }
   }
 
-  Label {
-    label: bind template.game as <$Game>.name;
-    ellipsize: middle;
+  Label title_label {
+    label: bind $_display_title(template.game as <$Game>.name) as <string>;
+    wrap: true;
+    wrap-mode: word_char;
+    justify: center;
   }
 }
 ```
@@ -203,9 +205,39 @@ Module `cartridges.play_history` is a domain-layer module with no GTK widget imp
 | Element | Contract |
 |---------|----------|
 | `GameItem._update_accessible_label` | MUST set the card's accessible label to the game name (`Gtk.AccessibleProperty.LABEL`) at setup, when `game` changes, and on the game's `notify::name`, so the name is exposed regardless of label visibility. Blueprint's `accessibility { }` block cannot bind and MUST NOT be used for this. |
-| Title `Label` (id `title_label`) | Visible if and only if `show-game-titles` is true or `game.cover` is `None`. Keeps `ellipsize: middle`. |
+| Title `Label` (id `title_label`) | Visible if and only if `show-game-titles` is true or `game.cover` is `None`. Wraps in full as specified in section 8 (supersedes the earlier `ellipsize: middle`). |
 | `GameItem._update_title` | Recomputes the visibility rule. MUST run at setup, on `changed::show-game-titles`, on `notify::cover` of the current game, and when `game` changes. Handlers on the previous game MUST be disconnected when `game` changes. |
 
 ### Non-regression
 
 Hover buttons (sections 1 to 4), the launch toast (section 5), sorting and filtering MUST NOT read or depend on the title label or the new key.
+
+## 8. Full Title Contract (Amendment 2026-10-08)
+
+### Title label (`cartridges/ui/game-item.blp`)
+
+| Property | Value | Requirement |
+|----------|-------|-------------|
+| `label` | `bind $_display_title(template.game as <$Game>.name) as <string>` | Displayed title, see data-model.md section 7 |
+| `wrap` | `true` | FR-031, FR-032 |
+| `wrap-mode` | `word_char` | FR-032 (word breaks first, inside a word only when it is wider than the line) |
+| `justify` | `center` | FR-033 |
+| `ellipsize` | not set (`none`) | FR-031 |
+| `lines`, `max-width-chars`, `width-chars`, `width-request` | not set | FR-032 (no line cap), FR-034 (width comes from the grid) |
+
+### Display callback (`cartridges/ui/game_item.py`)
+
+```python
+@Gtk.Template.Callback()
+@staticmethod
+def _display_title(_this: object, name: str) -> str: ...
+```
+
+- MUST return `name.strip()`; MUST NOT otherwise alter the name (inner line breaks and characters are kept).
+- MUST be pure (no side effects), since it runs on every rebind and rename.
+
+### Non-regression
+
+- `Cover` size, the overlay buttons and their positions, the `#cover` focus outline, and CSS are unchanged.
+- `GameItem._update_title` and `_update_accessible_label` (section 7) are unchanged; the accessible label stays the raw name.
+- The game details view keeps its own wrapping title and is untouched.

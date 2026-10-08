@@ -137,6 +137,25 @@ Covers User Story 6, FR-026 to FR-030, SC-011, SC-012.
 6. Close and reopen Cartridges. **Verify**: titles are still hidden. Turn the switch on and **verify** titles return immediately.
 7. With a library large enough to scroll, toggle the switch. **Verify**: the grid reflows evenly with no flicker or lost scroll position (see research.md section 11 for the fallback).
 
+### Scenario 13: Full Titles Without Truncation (Amendment)
+Covers User Story 7, FR-031 to FR-035, SC-013, SC-014. Contract: contracts/ui-contracts.md section 8.
+1. With titles shown, use Add Game (or rename existing games in the details view) to create test games named:
+   - `The Legend of Heroes: Trails of Cold Steel III - Definitive Ultimate Edition` (long, many words)
+   - `Supercalifragilisticexpialidociousadventureremasteredcollection` (one long word)
+   - A 150-character name
+   - `ゼルダの伝説 ブレス オブ ザ ワイルド 特別版` (CJK) and `لعبة طويلة جدا مع عنوان طويل للاختبار` (right-to-left)
+   - `Celeste` (short, as a control)
+2. **Verify**: every title is shown in full with no "..." anywhere, every line is centered, and no text overlaps a neighboring card or row (SC-013).
+3. Arrange the window so a long-title game and `Celeste` share a row. **Verify**: both covers are the same size and top-aligned, the hover buttons sit in the same corners, and only the space below `Celeste`'s title is larger (SC-014).
+4. **Verify**: `Celeste` looks identical to before the change (one centered line).
+5. Resize the window from its narrowest to full screen. **Verify**: the column count changes exactly as before the change for the same widths, and all titles stay complete at every step.
+6. Rename a game to a longer name and return to the library. **Verify**: the new full title appears and the row height adjusts.
+7. Navigate the grid with the keyboard (and a gamepad if available) onto a long-title card near the bottom edge. **Verify**: the focus outline on the cover looks the same as on other cards and the whole card, including the last title line, scrolls into view.
+8. Turn Show Game Titles off, then on. **Verify**: titles hide and return in full; a cover-less game's title stays visible and complete while titles are off.
+9. With the GTK Inspector, enable a large text scale (or the system Large Text setting). **Verify**: titles take more lines but are still complete.
+10. Create a game whose name ends with a newline (for example by editing an `imported_*.json` file with `"name": "Trailing\n"` and restarting). **Verify**: no blank line appears under the title.
+11. In a library large enough to scroll with many multi-line titles, scroll from top to bottom. **Verify**: no overlapping rows; minor scrollbar adjustment while scrolling is acceptable (research.md section 12).
+
 ## 5. Automated Quality Gate Checks
 
 ```bash

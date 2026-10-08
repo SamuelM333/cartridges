@@ -12,6 +12,8 @@
 
 **Amendment (2026-10-09)**: "Add setting under general to toggle hide / show game titles in main view" (adds User Story 6, FR-026 to FR-030, SC-011 and SC-012, related edge cases). Numbering continues after the save-failure follow-up (FR-022 to FR-025, SC-010).
 
+**Amendment (2026-10-08)**: "games with long titles cutting. Force all to show" (adds User Story 7, FR-031 to FR-035, SC-013 and SC-014; replaces the earlier "Long game titles" and "Very long titles" edge cases, which required titles to be shortened with an ellipsis).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Browse and Launch Games from Grid (Priority: P1)
@@ -127,6 +129,26 @@ As a player who recognizes games by their cover art, I want to turn off the titl
 
 ---
 
+### User Story 7 - Show Full Game Titles Without Truncation (Priority: P2)
+
+As a player whose library includes games with long names (subtitles, editions, numbered sequels), I want the full title under each cover to be readable in the main game list, so that I can tell similar games apart (for example "Edition" vs "Definitive Edition", or "Part I" vs "Part II") without opening each game's details.
+
+**Why this priority**: Truncated titles hide exactly the part of the name that tells related games apart, which directly hurts the core browsing task (User Story 1). It ranks below browsing and launching because the library still works, only less clearly.
+
+**Independent Test**: Add or rename a game to a very long title (for example "The Legend of Heroes: Trails of Cold Steel III – Definitive Ultimate Edition"), open the library with titles shown, and confirm every word of the title is visible under the cover, with no ellipsis, at any window width.
+
+**Acceptance Scenarios**:
+
+1. **Given** titles are shown and a game's title is longer than the cover is wide, **When** the user views the library, **Then** the full title is displayed under the cover, continuing onto additional lines, and no part of it is replaced by an ellipsis ("…").
+2. **Given** a title that fits on one line, **When** displayed, **Then** it looks the same as before this change (one centered line).
+3. **Given** a row of covers where one game has a long multi-line title and the others have short titles, **When** displayed, **Then** all covers in the row stay top-aligned at the same height and their hover buttons stay in the same positions; only the space beneath the covers differs.
+4. **Given** a title containing a single very long word with no spaces (for example a long URL-like or concatenated name), **When** displayed, **Then** the word is broken across lines so the whole title is visible and nothing extends past the card's width.
+5. **Given** the user resizes the window so the number of columns changes, **When** the grid reflows, **Then** every title is still shown in full.
+6. **Given** a game is renamed in its details view, **When** the user returns to the library, **Then** the card shows the new full title, re-wrapped as needed.
+7. **Given** titles are hidden (User Story 6), **When** the user views the library, **Then** no titles are shown, as before; a cover-less game's title, which stays visible (FR-029), is also shown in full.
+
+---
+
 ### Edge Cases
 
 - Pointer hovering near card boundaries: Action buttons must not flicker when the cursor transitions over button borders or child overlays.
@@ -134,7 +156,7 @@ As a player who recognizes games by their cover art, I want to turn off the titl
 - Keyboard navigation: Focusing a card via Tab/Arrow keys must reveal accessible visual focus indicators and allow triggering primary activation (Enter/Space) and secondary actions.
 - Gamepad navigation: When a gamepad is connected, directional navigation highlights the focused game card, and button mapping (e.g. A button to activate, X/Y for secondary actions) operates according to user settings.
 - Missing cover artwork: When a game has no custom cover image, a standard fallback placeholder cover is displayed with the title visible, and hover controls remain fully functional.
-- Long game titles: Title labels under the cover must be ellipsized cleanly to preserve the grid alignment across columns.
+- Long game titles: Title labels under the cover are shown in full, wrapping onto as many lines as needed; covers in the same row stay aligned and the grid columns keep a uniform width (see User Story 7).
 - Never-played games under "Last Played" sort: Games with no recorded play time appear after all played games, ordered alphabetically among themselves.
 - Identical last-played times: Games with exactly the same recorded time are ordered alphabetically by name.
 - Launch with "exit after launch" enabled: The play time must be recorded and saved before the application closes.
@@ -151,8 +173,15 @@ As a player who recognizes games by their cover art, I want to turn off the titl
 - Titles hidden: the game's name remains available to assistive technologies and to keyboard and gamepad focus, so screen reader users can still identify each card.
 - Titles hidden or shown while a search, collection, or hidden-games filter is active: the displayed games and their order do not change, and no scroll position is lost.
 - Toggling the option with a large library: all cards update together without a visible delay or flicker, and the grid keeps a consistent layout, with the freed vertical space reflowing evenly.
-- Very long titles: when titles are shown, long names are still ellipsized cleanly (existing behavior); hiding titles needs no special handling for them.
+- Very long titles: when titles are shown, long names are shown in full (FR-031); hiding titles needs no special handling for them.
 - Existing users upgrading: with no stored preference, titles remain shown so the library looks exactly as before.
+- Extremely long titles (well over 100 characters): still shown in full; the card simply becomes taller, and the rows above and below are pushed apart rather than overlapped.
+- Titles in scripts without spaces between words (for example Chinese or Japanese): broken between characters so the full title fits within the card width.
+- Titles with explicit line breaks or leading/trailing spaces from a launcher: shown as the readable text of the name; surrounding blank space does not add empty lines.
+- Right-to-left titles (for example Arabic or Hebrew): wrap and align following the reading direction of the text, as other labels in the application do.
+- Large text accessibility setting: titles take more lines but remain fully visible.
+- Keyboard and gamepad focus on a card with a multi-line title: the focus indicator looks the same as on cards with one-line titles, and moving focus to the card brings the whole card, including every line of the title, into view.
+- Search matching words near the end of a long title: the matching words are visible on the card, so users can see why the game matched.
 
 ## Requirements *(mandatory)*
 
@@ -194,10 +223,15 @@ As a player who recognizes games by their cover art, I want to turn off the titl
 - **FR-028**: Changing the option MUST update all game cards in the main view immediately, without restarting the application, and the choice MUST persist across restarts.
 - **FR-029**: When titles are hidden, the system MUST still expose each game's name to assistive technologies, and MUST keep the title visible for games that have no cover artwork, because their placeholder cover shows only a generic icon.
 - **FR-030**: The option MUST affect only the title under each cover in the main view; hover controls (FR-002 to FR-006), the launch toast (FR-012), sorting, search, filtering, collections, and the game details view MUST behave identically whether titles are shown or hidden.
+- **FR-031**: When titles are shown, the main game list view MUST display every game's complete title under its cover; no title may be shortened, cut off, faded out, or replaced in part by an ellipsis.
+- **FR-032**: A title that does not fit on one line within the card's width MUST continue onto as many additional lines as needed, with no maximum line count, breaking between words where possible and inside a word only when a single word is wider than the card.
+- **FR-033**: Titles MUST stay within the width of their card and MUST NOT overlap neighboring cards, covers, or rows; multi-line titles remain horizontally centered under the cover as single-line titles are today.
+- **FR-034**: Longer titles MUST NOT change cover size, column width, or the number of columns; covers in the same row MUST remain top-aligned, and the hover buttons (FR-002, FR-003) MUST keep their positions on the cover.
+- **FR-035**: Titles MUST remain fully shown after window resizing, column count changes, renaming a game, and toggling the show-titles option (FR-026), and the full title MUST continue to be exposed to assistive technologies (FR-029).
 
 ### Key Entities
 
-- **Game Card**: The visual representation of a game in the library grid, consisting of a cover image, overlay controls (top-left action button, top-right menu button), and a title label.
+- **Game Card**: The visual representation of a game in the library grid, consisting of a cover image, overlay controls (top-left action button, top-right menu button), and a title label that shows the full game name across one or more lines.
 - **Cover Overlay**: A transparent overlay layer positioned over the cover picture that hosts the revealer buttons triggered on pointer motion.
 - **Hover Action Button**: A circular button in the top-left corner whose icon and action (Play vs. Info) correspond to the inverse of the cover click behavior.
 - **Contextual Menu Button**: A circular button in the top-right corner displaying three dots (`view-more-symbolic`) that opens the game management popover.
@@ -222,6 +256,8 @@ As a player who recognizes games by their cover art, I want to turn off the titl
 - **SC-010**: 100% of game launches succeed when the data location is full, read-only, or access-denied, and each such launch produces exactly one log warning and no leftover temporary files.
 - **SC-011**: Toggling the game titles option updates every visible game card in under 100 milliseconds, and the choice is still applied after restarting the application in 100% of cases.
 - **SC-012**: With titles hidden, 100% of game cards remain identifiable by assistive technologies, and no existing interaction (hover buttons, launch toast, sorting, search, filtering) changes behavior.
+- **SC-013**: In a library containing titles of 1 to 150 characters, 100% of titles are fully readable in the main view at every supported window width, with zero ellipses and zero overlapping text.
+- **SC-014**: With long titles present, 100% of covers in each row stay aligned at the same height and size as in a library with only short titles.
 
 ## Assumptions
 
@@ -241,3 +277,7 @@ As a player who recognizes games by their cover art, I want to turn off the titl
 - The option is a single global preference applied to all games and all collections; per-game or per-collection control is out of scope.
 - The option hides the title only; it does not change cover sizes or the number of grid columns, so the freed space simply reflows the grid.
 - Hidden titles are not replaced by a hover tooltip; accessibility needs are met through the accessible name (FR-029). A tooltip can be added later if requested.
+- "Force all to show" in the amendment request means every title in the main view is shown in full, for all games, with no line limit and no per-user option to restore truncation; the request does not ask for a toggle.
+- Wrapping titles is preferred over shrinking the text or widening the cards, because it keeps the grid's column widths and cover sizes unchanged.
+- Uneven title heights within a row are accepted; the row is as tall as its tallest card, and the extra space appears under shorter titles.
+- The game details view already shows full, wrapped names and is unaffected by this amendment.

@@ -213,6 +213,32 @@
 
 ---
 
+## Phase 13: User Story 7 - Show Full Game Titles Without Truncation (Priority: P2, amendment 2026-10-08)
+
+**Note**: Task IDs continue after T057 (Phase 12).
+
+**Goal**: Show every game's full title under its cover, wrapping onto as many centered lines as needed, with no ellipsis and no change to cover size or column count (FR-031 to FR-035).
+
+**Independent Test**: Give a game a very long title and confirm the whole title is visible under the cover at every window width, with `Celeste`-length titles unchanged (quickstart Scenario 13).
+
+**Background for the implementer** (from research.md section 12, data-model.md section 7, contracts/ui-contracts.md section 8): only the `title_label` in `cartridges/ui/game-item.blp` and one template callback in `cartridges/ui/game_item.py` change. DO NOT set `lines`, `max-width-chars`, `width-chars`, or a width request on the label, and DO NOT touch `_update_title`, `_update_accessible_label`, the cover, CSS, or the details view.
+
+### Implementation for User Story 7
+
+- [X] T058 [US7] In `cartridges/ui/game-item.blp`, on `Label title_label`, replace `ellipsize: middle;` with `wrap: true;`, `wrap-mode: word_char;`, and `justify: center;`, and change the binding to `label: bind $_display_title(template.game as <$Game>.name) as <string>;` (FR-031 to FR-033)
+- [X] T059 [US7] In `cartridges/ui/game_item.py`, add a static template callback `_display_title(_this: object, name: str) -> str` that returns `name.strip()`, following the `Cover._content_fit` pattern in `cartridges/ui/cover.py` (depends on T058)
+
+### Verification for User Story 7
+
+- [X] T060 [P] [US7] Run `blueprint-compiler format --fix --no-diff` on `cartridges/ui/game-item.blp`, then `pyright` (strict) and `ruff check` / `ruff format --check` on `cartridges/ui/game_item.py`; fix all findings (depends on T058, T059)
+- [ ] T061 [US7] Run `meson setup _build --reconfigure && ninja -C _build && ninja -C _build test` inside the `gtk-dev` Distrobox container and confirm the template compiles and the app starts (depends on T058, T059)
+- [ ] T062 [US7] Execute quickstart Scenario 13 against `_build/cartridges/cartridges`; if a long title changes the column count, apply the `max-width-chars: 1` fallback from research.md section 12 (depends on T061)
+- [X] T063 [P] [US7] Verify Constitution Principle VI (no emoji) across the changed files and `specs/005-game-list-view/`, and run `pre-commit run --all-files` (depends on T060)
+
+**Checkpoint**: User Story 7 complete. Every title in the library is fully readable, and the grid layout is otherwise unchanged.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -229,6 +255,7 @@
 - **Amendment Polish (Phase 10)**: Depends on Phase 9.
 - **Save-Failure Follow-up (Phase 11)**: Depends on Phase 9 (`play_history.record()` and `Game.play()` must exist). Independent of Phase 10, whose T036 to T040 can run before or after it; re-run T036 and T040 if Phase 11 lands first.
 - **Show/Hide Titles (Phase 12)**: Depends only on the existing grid card (Phase 2 and Phase 3). Independent of Phases 8 to 10.
+- **Full Titles (Phase 13)**: Depends on T051 (`title_label` id). Independent of Phases 8 to 11; T058 to T059 run in order, then T060 to T063.
 
 ### Within User Story 5
 
@@ -311,6 +338,7 @@ After T030 completes:
 9. Amendment Polish -> Type checks, tests, and quickstart Scenarios 8-10
 10. Save-Failure Follow-up -> Non-fatal history recording, failure tests, and quickstart Scenario 11 (FR-022 to FR-025, SC-010)
 11. User Story 6 -> Show/hide game titles preference (amendment 2026-10-09)
+12. User Story 7 -> Full game titles without truncation (amendment 2026-10-08, full titles)
 
 ### Amendment Delivery (current work)
 

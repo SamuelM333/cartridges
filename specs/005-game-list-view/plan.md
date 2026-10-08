@@ -14,6 +14,8 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Amendment (2026-10-09) - Show/hide game titles (User Story 6, FR-026 to FR-030, SC-011, SC-012)**: Each grid card ends with a `Label` bound to the game name (`cartridges/ui/game-item.blp`). The change adds a boolean GSettings key `show-game-titles` (default `true`), a switch for it on the General page of Preferences bound through the existing `_bind_switches` mechanism, and makes the card label's visibility follow the key. Three details matter: (a) a game with no cover keeps its title visible, because the placeholder cover shows only the application icon (FR-029); (b) a hidden label drops out of the accessibility tree, so `GameItem` sets an explicit accessible label to the game name from Python, because Blueprint's `accessibility { }` block cannot bind values (FR-029); (c) all cards must react live, so `GameItem` listens to `changed::show-game-titles` the same way it already does for `cover-launches-game`. No new Python module and no change to sorting or actions.
 
+**Amendment (2026-10-08) - Full titles without truncation (User Story 7, FR-031 to FR-035, SC-013, SC-014)**: The card's `title_label` is single-line with `ellipsize: middle`, so any name wider than its grid cell is cut in the middle. The fix is declarative and local to `cartridges/ui/game-item.blp`: drop `ellipsize`, set `wrap: true`, `wrap-mode: word_char` (break between words, and inside a word only when it is wider than the card), and `justify: center` (multi-line labels default to left alignment). The label keeps its default `xalign: 0.5`. Wrapping happens at the width the grid already gives the label today, so any title that used to fit on one line still renders as the same single centered line. The cover keeps its fixed 200x300 size through `CoverLayoutManager`, and `Gtk.GridView` sizes each row to its tallest card, so covers stay top-aligned and column count is unchanged. A small template closure strips leading and trailing whitespace from the name before display, so a launcher-supplied trailing newline does not add a blank line. No settings, strings, or Python modules are added, and the show-titles logic from the previous amendment is untouched.
+
 ## Technical Context
 
 **Language/Version**: Python 3.12+ (PyGObject / GTK 4)
@@ -32,7 +34,7 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 
 **Constraints**: Flatpak sandbox isolation; zero emoji characters anywhere in code or documentation; proper gettext placeholder formatting for translators; play-history write must complete synchronously before `exit-after-launch` quits the application; corrupt or missing history file must never prevent the library from loading (SC-009); a failure to save the history must never prevent a game from launching (SC-010)
 
-**Scale/Scope**: Refactor `cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`, `cartridges/ui/style.css`, `cartridges/ui/games.py`, and `cartridges/ui/window.py`. Title amendment touches `data/page.samuelm333.Cartridges.gschema.xml.in`, `cartridges/ui/preferences.blp`, `cartridges/ui/preferences.py`, `cartridges/ui/game-item.blp`, and `cartridges/ui/game_item.py`. Play-history amendment adds `cartridges/play_history.py` (follow-up hardens `record()` against `OSError`) and touches `cartridges/games.py` (`Game.play`), `cartridges/sources/__init__.py` (`Source._get_games` merge), and `cartridges/ui/games.py` (`play` re-sort).
+**Scale/Scope**: Refactor `cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`, `cartridges/ui/style.css`, `cartridges/ui/games.py`, and `cartridges/ui/window.py`. Title amendment touches `data/page.samuelm333.Cartridges.gschema.xml.in`, `cartridges/ui/preferences.blp`, `cartridges/ui/preferences.py`, `cartridges/ui/game-item.blp`, and `cartridges/ui/game_item.py`. Full-titles amendment touches only `cartridges/ui/game-item.blp` (label properties and closure call) and `cartridges/ui/game_item.py` (one display-title template callback). Play-history amendment adds `cartridges/play_history.py` (follow-up hardens `record()` against `OSError`) and touches `cartridges/games.py` (`Game.play`), `cartridges/sources/__init__.py` (`Source._get_games` merge), and `cartridges/ui/games.py` (`play` re-sort).
 
 ## Constitution Check
 
@@ -47,6 +49,8 @@ Restore the classic `cartridges-main` hover button design onto the main game lis
 - **Branching Workflow**: Branch `feat/005-game-list-view` branched directly from `main`. -> PASS
 
 **Post-design re-check (2026-10-09, title toggle)**: Principle III: the label and switch are declared in Blueprint, the visibility rule lives in the controller. Principle IV: uses a standard `Adw.SwitchRow` in an `Adw.PreferencesGroup` on the existing General page, and keeps names available to assistive technology. Principle I: fully typed handlers, no `Any` beyond the existing `*_args: Any` signal-handler convention. Principle VI: no emoji. No violations. The new user-visible strings (switch title and subtitle, group title) use gettext; `po/POTFILES.in` does not list the preferences files yet, so task T053 adds them before `ninja -C _build cartridges-pot` can extract the strings.
+
+**Post-design re-check (2026-10-08, full titles)**: Principle III: the wrapping behavior is declared in Blueprint label properties; the only Python is a typed, pure display callback following the existing `Cover._content_fit` template-callback pattern. Principle IV: a standard `Gtk.Label` with wrapping and centered justification, no custom measuring or drawing; the grid keeps the stock `Gtk.GridView` layout and the existing focus indicator. Principle I: the callback is fully annotated (`str -> str`). Principle VI: no emoji. No new translatable strings. No violations.
 
 **Post-design re-check (2026-10-08)**: Re-evaluated after writing research.md sections 6-9, data-model.md section 5, and contracts section 6. No new violations.
 
@@ -79,8 +83,8 @@ cartridges/
 ├── sources/
 │   └── __init__.py      # Source._get_games merges play history with launcher time via max() (amendment)
 ├── ui/
-│   ├── game-item.blp    # Blueprint layout: overlay buttons (top-left action, top-right menu)
-│   ├── game_item.py     # Controller: action binding, dynamic icon swapping, hover tracking
+│   ├── game-item.blp    # Blueprint layout: overlay buttons (top-left action, top-right menu), wrapping title label
+│   ├── game_item.py     # Controller: action binding, dynamic icon swapping, hover tracking, display title
 │   ├── style.css        # CSS styles: hover transitions and button transforms
 │   ├── games.py         # UI actions: centralized play(game) helper with toast and re-sort
 │   ├── window.blp       # GridView container, toast overlay, and empty view stacks
@@ -115,6 +119,8 @@ To ensure first-class localization across all supported languages, the implement
 
 4. **Catalog Verification Gate**:
    - The implementation phase MUST run `ninja -C _build cartridges-pot` to verify that `po/cartridges.pot` extracts the new msgid and its associated translator comment cleanly without syntax warnings or errors.
+
+The full-titles amendment introduces no new strings; Pango already handles line breaking for scripts without spaces (CJK) and right-to-left text, and `justify: center` is direction-neutral.
 
 The amendment and its follow-up introduce no new user-visible strings; the save-failure warning goes to the developer log only and is not translated.
 

@@ -227,3 +227,41 @@ title visible = show-game-titles OR game has no cover
 | Cover added to a cover-less game | `notify::cover` on the game; the card recomputes the rule (title hides if the setting is off) |
 | Cover removed from a game | Same recompute (title appears) |
 | Application restart | GSettings supplies the stored value; absent value yields `true` |
+
+## 7. Title Presentation Model (Amendment 2026-10-08, full titles)
+
+No stored data changes. `Game.name` is unchanged; only how the card renders it changes.
+
+### Displayed Title
+
+```text
+displayed title = game.name with leading and trailing whitespace removed
+```
+
+| Input name | Displayed title |
+|------------|-----------------|
+| `"Celeste"` | `Celeste` (one line, unchanged from today) |
+| `"Name\n"` (launcher trailing newline) | `Name` (no blank second line) |
+| `"Part One\nPart Two"` | Two lines, the inner break is kept |
+| Name wider than the cell | Wrapped onto as many lines as needed, never ellipsized |
+| One word wider than the cell | Broken inside the word only where needed |
+
+The accessible label of the card (section 6) remains the raw `game.name`.
+
+### Card Layout Invariants
+
+| Property | Rule |
+|----------|------|
+| Cover size | Always 200x300, independent of the title |
+| Column count and width | Determined by the window width and cover width only; never by title length |
+| Row height | Height of the tallest card in that row (cover + spacing + title lines) |
+| Cover vertical position | Top of the card, so covers in a row are aligned |
+| Title line alignment | Each line centered |
+
+### State Transitions
+
+| Event | Effect |
+|-------|--------|
+| Game renamed | `notify::name` re-evaluates the label binding; the label re-wraps and the row height is re-measured |
+| Window resized / column count changes | Labels re-wrap at the new allocated width |
+| `show-game-titles` toggled | Visibility rule from section 6 applies; a shown title is always shown in full |

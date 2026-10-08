@@ -93,6 +93,12 @@ class GameItem(Gtk.Box):
             self.action_button.set_action_name("game.play")
 
     @Gtk.Template.Callback()
+    @staticmethod
+    def _display_title(_this, name: str) -> str:
+        # Launcher names can carry stray whitespace that would add blank lines
+        return name.strip()
+
+    @Gtk.Template.Callback()
     def _reveal_buttons(self, *_args: Any) -> None:
         contains_pointer = self.motion.props.contains_pointer
         for widget, reveal in (
