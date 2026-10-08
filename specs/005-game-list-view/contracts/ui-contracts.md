@@ -189,3 +189,23 @@ Module `cartridges.play_history` is a domain-layer module with no GTK widget imp
 | Temp-file write fails (disk full, permission denied, read-only) | Updated | One warning | Existing file unchanged, temp file removed | Proceeds |
 | Replace fails | Updated | One warning | Existing file unchanged, temp file removed | Proceeds |
 | Temp-file cleanup also fails | Updated | One warning (the original error) | Existing file unchanged | Proceeds |
+
+## 7. Show Game Titles Contract (Amendment 2026-10-09)
+
+### Preferences (`cartridges/ui/preferences.blp`)
+
+- Page: `general_page` ("General"). New `Adw.PreferencesGroup` titled "Appearance" placed between "Behavior" and "Images".
+- Row: `Adw.SwitchRow show_game_titles_switch`, title `_("Show Game Titles")`, subtitle `_("Display the name under each cover in the library")`.
+- Binding: key `show-game-titles` is added to the `switches` set in `Preferences._bind_switches`, bound to `active` with `Gio.SettingsBindFlags.DEFAULT`.
+
+### Game card (`cartridges/ui/game-item.blp`, `cartridges/ui/game_item.py`)
+
+| Element | Contract |
+|---------|----------|
+| `GameItem._update_accessible_label` | MUST set the card's accessible label to the game name (`Gtk.AccessibleProperty.LABEL`) at setup, when `game` changes, and on the game's `notify::name`, so the name is exposed regardless of label visibility. Blueprint's `accessibility { }` block cannot bind and MUST NOT be used for this. |
+| Title `Label` (id `title_label`) | Visible if and only if `show-game-titles` is true or `game.cover` is `None`. Keeps `ellipsize: middle`. |
+| `GameItem._update_title` | Recomputes the visibility rule. MUST run at setup, on `changed::show-game-titles`, on `notify::cover` of the current game, and when `game` changes. Handlers on the previous game MUST be disconnected when `game` changes. |
+
+### Non-regression
+
+Hover buttons (sections 1 to 4), the launch toast (section 5), sorting and filtering MUST NOT read or depend on the title label or the new key.

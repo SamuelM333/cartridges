@@ -22,6 +22,15 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
       }
     }
 
+    Adw.PreferencesGroup appearance_group {
+      title: _("Appearance");
+
+      Adw.SwitchRow show_game_titles_switch {
+        title: _("Show Game Titles");
+        subtitle: _("Display the name under each cover in the library");
+      }
+    }
+
     Adw.PreferencesGroup images_group {
       title: _("Images");
 

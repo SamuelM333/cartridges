@@ -10,6 +10,8 @@
 
 **Amendment (2026-10-08)**: "last used sorting must include the time so the sorting is more specific" (adds User Story 5, FR-014 to FR-020, SC-007 to SC-009). Follow-up: "sort last played with more specific time. If I open a game the item must move first in the list" (tightens FR-018, adds FR-021, acceptance scenarios 7 and 8, related edge cases). Follow-up: "launching a game must not fail when recording its last-played time fails" (adds FR-022 to FR-025, acceptance scenarios 9 to 11, SC-010, related edge cases).
 
+**Amendment (2026-10-09)**: "Add setting under general to toggle hide / show game titles in main view" (adds User Story 6, FR-026 to FR-030, SC-011 and SC-012, related edge cases). Numbering continues after the save-failure follow-up (FR-022 to FR-025, SC-010).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Browse and Launch Games from Grid (Priority: P1)
@@ -105,6 +107,26 @@ As a player who launches several games in the same day, I want the "Last Played"
 
 ---
 
+### User Story 6 - Show or Hide Game Titles in the Library (Priority: P3)
+
+As a player who recognizes games by their cover art, I want to turn off the title shown under each cover in the main game list, so that the library looks cleaner and fits more games on screen, and turn the titles back on whenever I want them.
+
+**Why this priority**: A display preference that makes the library more compact. The library works fully without it, but it lets users tailor the main view to their taste, so it ranks below the core browsing and sorting work.
+
+**Independent Test**: Open Preferences, General, switch off the game titles option, return to the library, and confirm no title appears under any cover; switch it on again and confirm titles return, without restarting the application.
+
+**Acceptance Scenarios**:
+
+1. **Given** a fresh installation, **When** the user opens the library, **Then** a title is shown under every game cover (titles are shown by default).
+2. **Given** the user opens Preferences, **When** they view the General page, **Then** a switch for showing game titles is present, labeled and described in plain language, and reflects the current state.
+3. **Given** titles are shown, **When** the user turns the option off in Preferences, **Then** the titles under all covers in the main view disappear immediately without restarting the application.
+4. **Given** titles are hidden, **When** the user turns the option on again, **Then** the titles reappear under all covers immediately.
+5. **Given** titles are hidden, **When** the user closes and reopens the application, **Then** titles are still hidden.
+6. **Given** titles are hidden, **When** the user hovers over a game card, uses search, sorts, or opens a collection, **Then** hover buttons, the launch toast, sorting, and filtering behave exactly as when titles are shown.
+7. **Given** titles are hidden, **When** the user opens a game's details view, **Then** the game's name is still shown there.
+
+---
+
 ### Edge Cases
 
 - Pointer hovering near card boundaries: Action buttons must not flicker when the cursor transitions over button borders or child overlays.
@@ -125,6 +147,12 @@ As a player who launches several games in the same day, I want the "Last Played"
 - Last-played time cannot be saved (storage full, read-only or permission-denied data location, data folder cannot be created, or replacing the saved file fails): the game still launches, a warning is logged, and no temporary or partial file is left behind.
 - Save fails with "exit after launch" enabled: the game still starts and the application exits as usual; the launch is not remembered.
 - Save fails on one launch but succeeds on a later launch in the same session: the later save includes the time recorded by the failed one.
+- Titles hidden and a game has no cover artwork: that game's title stays visible, because its placeholder cover shows only a generic icon and the title is then the only way to tell the game apart. The title hides again once a cover is added.
+- Titles hidden: the game's name remains available to assistive technologies and to keyboard and gamepad focus, so screen reader users can still identify each card.
+- Titles hidden or shown while a search, collection, or hidden-games filter is active: the displayed games and their order do not change, and no scroll position is lost.
+- Toggling the option with a large library: all cards update together without a visible delay or flicker, and the grid keeps a consistent layout, with the freed vertical space reflowing evenly.
+- Very long titles: when titles are shown, long names are still ellipsized cleanly (existing behavior); hiding titles needs no special handling for them.
+- Existing users upgrading: with no stored preference, titles remain shown so the library looks exactly as before.
 
 ## Requirements *(mandatory)*
 
@@ -161,6 +189,11 @@ As a player who launches several games in the same day, I want the "Last Played"
 - **FR-023**: When saving fails, the game's last-played time MUST still be updated for the current session, so FR-018 and FR-020 continue to hold until the application is closed, and the next successful save MUST include it.
 - **FR-024**: When saving fails, the system MUST write one warning to the application log identifying the failure and its underlying reason.
 - **FR-025**: A failed save MUST leave any previously saved last-played history unchanged and readable, and MUST NOT leave temporary or partially written files in the data location.
+- **FR-026**: The Preferences dialog MUST provide a switch on the General page that shows or hides the title of each game in the main game list view, with a label and short description that explain what it does.
+- **FR-027**: Game titles MUST be shown by default, including for existing users who have no stored preference.
+- **FR-028**: Changing the option MUST update all game cards in the main view immediately, without restarting the application, and the choice MUST persist across restarts.
+- **FR-029**: When titles are hidden, the system MUST still expose each game's name to assistive technologies, and MUST keep the title visible for games that have no cover artwork, because their placeholder cover shows only a generic icon.
+- **FR-030**: The option MUST affect only the title under each cover in the main view; hover controls (FR-002 to FR-006), the launch toast (FR-012), sorting, search, filtering, collections, and the game details view MUST behave identically whether titles are shown or hidden.
 
 ### Key Entities
 
@@ -170,6 +203,7 @@ As a player who launches several games in the same day, I want the "Last Played"
 - **Contextual Menu Button**: A circular button in the top-right corner displaying three dots (`view-more-symbolic`) that opens the game management popover.
 - **Launch Toast Notification**: A transient, dismissable visual feedback toast that informs the user that the requested game launch command has been executed.
 - **Preferences Configuration**: Persistent user settings including the boolean preference key `cover-launches-game`.
+- **Show Titles Preference**: A persistent on/off user setting, on by default, that controls whether the title is displayed under each game cover in the main view.
 - **Last-Played Time**: The moment (date and time of day, one-second precision) a game was last launched, either recorded by Cartridges at launch or reported by the game's launcher; absent if never played. Drives the "Last Played" sort mode.
 
 ## Success Criteria *(mandatory)*
@@ -186,6 +220,8 @@ As a player who launches several games in the same day, I want the "Last Played"
 - **SC-008**: A game launched from Cartridges appears in the first position of the "Last Played" library within 1 second of launch, without restarting the application.
 - **SC-009**: After restarting the application, the "Last Played" order matches the order observed before the restart in 100% of cases, and no existing library fails to load.
 - **SC-010**: 100% of game launches succeed when the data location is full, read-only, or access-denied, and each such launch produces exactly one log warning and no leftover temporary files.
+- **SC-011**: Toggling the game titles option updates every visible game card in under 100 milliseconds, and the choice is still applied after restarting the application in 100% of cases.
+- **SC-012**: With titles hidden, 100% of game cards remain identifiable by assistive technologies, and no existing interaction (hover buttons, launch toast, sorting, search, filtering) changes behavior.
 
 ## Assumptions
 
@@ -201,3 +237,7 @@ As a player who launches several games in the same day, I want the "Last Played"
 - Launcher-reported times that already include time of day (such as Steam's) are used as-is; launchers that do not report play times rely solely on Cartridges-recorded launches.
 - "Open a game" in the follow-up request means launching it (Play button, cover click when configured, keyboard/gamepad activation, or the details view Play button); merely viewing a game's details does not count as playing and does not reorder the list.
 - Failures to save the last-played time are reported only in the application log, not with an in-app notification, since they do not affect the launch the user asked for. A failed save is not retried on its own; it is persisted by the next successful save in the session.
+- "Under general" in the amendment request refers to the General page of the Preferences dialog, and "main view" refers to the library grid; the game details view is out of scope and always shows the name.
+- The option is a single global preference applied to all games and all collections; per-game or per-collection control is out of scope.
+- The option hides the title only; it does not change cover sizes or the number of grid columns, so the freed space simply reflows the grid.
+- Hidden titles are not replaced by a hover tooltip; accessibility needs are met through the accessible name (FR-029). A tooltip can be added later if requested.

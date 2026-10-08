@@ -25,6 +25,7 @@ class GameItem(Gtk.Box):
     options: Gtk.MenuButton = Gtk.Template.Child()
     collections_box: CollectionsBox = Gtk.Template.Child()
     action_button: Gtk.Button = Gtk.Template.Child()
+    title_label: Gtk.Label = Gtk.Template.Child()
 
     game_actions: GameActions = Gtk.Template.Child()
     collection_actions: CollectionActions = Gtk.Template.Child()
@@ -41,6 +42,45 @@ class GameItem(Gtk.Box):
 
         SETTINGS.connect("changed::cover-launches-game", self._update_action_button)
         self._update_action_button()
+
+        self._game_handlers: tuple[Game, list[int]] | None = None
+        SETTINGS.connect("changed::show-game-titles", self._update_title)
+        self.connect("notify::game", self._watch_game)
+        self._watch_game()
+
+    def _watch_game(self, *_args: Any) -> None:
+        if self._game_handlers:
+            old_game, handlers = self._game_handlers
+            for handler in handlers:
+                old_game.disconnect(handler)
+            self._game_handlers = None
+
+        if self.game:
+            self._game_handlers = (
+                self.game,
+                [
+                    # Games without a cover keep their title, so follow cover changes
+                    self.game.connect("notify::cover", self._update_title),
+                    self.game.connect("notify::name", self._update_accessible_label),
+                ],
+            )
+
+        self._update_title()
+        self._update_accessible_label()
+
+    def _update_accessible_label(self, *_args: Any) -> None:
+        # The title label is not exposed when hidden, so name the card itself
+        self.update_property(
+            [Gtk.AccessibleProperty.LABEL],
+            [self.game.name if self.game else ""],
+        )
+
+    def _update_title(self, *_args: Any) -> None:
+        self.title_label.set_visible(
+            SETTINGS.get_boolean("show-game-titles")
+            or self.game is None
+            or self.game.cover is None
+        )
 
     def _update_action_button(self, *_args: Any) -> None:
         if SETTINGS.get_boolean("cover-launches-game"):

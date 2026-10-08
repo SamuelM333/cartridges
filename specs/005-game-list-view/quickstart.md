@@ -127,6 +127,16 @@ Covers User Story 5 scenarios 9-11, FR-022 to FR-025, SC-010.
 6. Restore write permission, launch another game, and reopen Cartridges. **Verify**: both the earlier and the new game appear in the saved file and the order matches.
 7. With a valid `last-played.json` present, repeat step 2 with the directory unwritable and restart. **Verify**: the earlier history is unchanged.
 
+### Scenario 12: Show or Hide Game Titles (Amendment)
+Covers User Story 6, FR-026 to FR-030, SC-011, SC-012.
+1. Start with a fresh settings state (`gsettings reset page.samuelm333.Cartridges show-game-titles`, adjusting the schema path for a local build). **Verify**: titles are shown under every cover.
+2. Open Preferences, General. **Verify**: a "Show Game Titles" switch with its subtitle is present in an "Appearance" group and is on.
+3. Turn the switch off while the library is visible behind the dialog. **Verify**: titles disappear from all covers immediately, except for any game without a cover (its title stays).
+4. Hover a card, launch a game, search, change the sort mode, and open a collection. **Verify**: everything behaves exactly as with titles shown; open a game's details and **verify** its name is still shown.
+5. With Orca or the GTK inspector accessibility view, focus a card. **Verify**: the card reports the game name.
+6. Close and reopen Cartridges. **Verify**: titles are still hidden. Turn the switch on and **verify** titles return immediately.
+7. With a library large enough to scroll, toggle the switch. **Verify**: the grid reflows evenly with no flicker or lost scroll position (see research.md section 11 for the fallback).
+
 ## 5. Automated Quality Gate Checks
 
 ```bash

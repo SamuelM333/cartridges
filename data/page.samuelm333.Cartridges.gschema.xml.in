@@ -13,6 +13,9 @@
     <key name="cover-launches-game" type="b">
       <default>false</default>
     </key>
+    <key name="show-game-titles" type="b">
+      <default>true</default>
+    </key>
     <key name="high-quality-images" type="b">
       <default>false</default>
     </key>

@@ -172,3 +172,33 @@ How `Gtk.GridView` handles scroll position and keyboard focus when the focused i
 - *Show an `Adw.Toast` or dialog on failure*: Rejected. The spec limits reporting to the log (assumption in spec); it would add a translated string and noise for a problem unrelated to what the user asked for.
 - *Retry or queue the write in the background*: Rejected. Added complexity for a rare failure; the next launch's save already includes the missed time.
 - *Catch `Exception`*: Rejected. Would hide programming errors such as `TypeError` from `json.dump`.
+
+## 11. Show/Hide Game Titles (Amendment 2026-10-09)
+
+### Findings
+- The card title is the last child of `$GameItem` in `cartridges/ui/game-item.blp`: `Label { label: bind template.game as <$Game>.name; ellipsize: middle; }`.
+- The placeholder shown for games without a cover (`cartridges/ui/cover.blp`, "icon" page) is only the application icon. It carries no text, so hiding every title would leave cover-less games unidentifiable. (Earlier spec wording that the placeholder "displays the title" is satisfied only by this label.)
+- A `Gtk.Label` with `visible: false` is removed from the accessibility tree, so the card would lose its name for screen readers.
+- Live-updating settings already have a pattern: `GameItem` connects `changed::cover-launches-game` in `__init__` and recomputes (`_update_action_button`). Switches in Preferences are bound declaratively by key name through `_bind_switches`, which resolves a template child named `<key with underscores>_switch`.
+
+### Decision
+1. Schema: add `<key name="show-game-titles" type="b"><default>true</default></key>` next to `cover-launches-game` in `data/page.samuelm333.Cartridges.gschema.xml.in`. Absent stored value means default `true`, so upgrading users see no change (FR-027).
+2. Preferences: add `Adw.SwitchRow show_game_titles_switch` ("Show Game Titles", subtitle "Display the name under each cover in the library") in a new `Adw.PreferencesGroup` titled "Appearance" on `general_page`, between Behavior and Images. Add `"show-game-titles"` to the `switches` set in `_bind_switches` and the `Gtk.Template.Child()` declaration in `preferences.py` (FR-026, FR-028 persistence via GSettings).
+3. Card: give the title label an id (`title_label`) and expose it as a template child. In `GameItem`, add `_update_title` that sets `title_label.set_visible(SETTINGS.get_boolean("show-game-titles") or self.game.cover is None)`; connect it to `changed::show-game-titles` and to the game's `notify::cover` (so adding or removing a cover updates the card), and call it once at setup and when `game` changes (FR-028, FR-029).
+4. Accessibility: set the card's accessible label to the game name from `GameItem` (`update_property([Gtk.AccessibleProperty.LABEL], [name])`), refreshed when `game` changes and on the game's `notify::name`, so the name is exposed whether or not the label is visible (FR-029, SC-012). Blueprint's `accessibility { }` block was tried first, but it only accepts literal values; `label: bind ...` fails to compile (`Expected ;`), so this is done in Python.
+5. No change to hover controls, toast, sorting, or filtering, which do not read the label (FR-030).
+
+### Rationale
+- Mirrors the established settings pattern, so it is the smallest, most consistent change.
+- A GSettings key gives persistence and live updates for free, and an unset key defaults to the current behavior.
+- Keeping titles for cover-less games avoids a real usability trap discovered in the code.
+
+### Alternatives Considered
+- *Hide the label with a CSS class*: Rejected. A visible-but-transparent label still takes layout space and stays in the accessibility tree inconsistently; toggling `visible` reflows the grid and is simpler.
+- *Bind `visible` directly with `SETTINGS.bind`*: Rejected. It cannot express the "unless the game has no cover" rule without a custom mapping.
+- *Show the title as a tooltip when hidden*: Rejected for now (spec assumption). The accessible name covers assistive technology; a tooltip can follow if requested.
+- *Draw the title onto the placeholder cover instead*: Rejected. It changes the Cover widget used elsewhere (details, picker) for a card-only concern.
+- *Per-collection or per-game control*: Out of scope (spec assumption).
+
+### Open Verification (not a blocker)
+How `Gtk.GridView` re-measures row heights when every card's label toggles at once is toolkit behavior. Verified manually in quickstart Scenario 12 with a large library; if rows do not reflow, call `queue_resize()` on the grid after the setting changes.
