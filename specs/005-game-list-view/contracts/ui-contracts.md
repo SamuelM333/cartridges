@@ -202,9 +202,9 @@ Module `cartridges.play_history` is a domain-layer module with no GTK widget imp
 
 | Element | Contract |
 |---------|----------|
-| `$GameItem` template | MUST declare `accessibility { label: bind template.game as <$Game>.name; }` so the name is exposed regardless of label visibility. |
+| `GameItem._update_accessible_label` | MUST set the card's accessible label to the game name (`Gtk.AccessibleProperty.LABEL`) at setup, when `game` changes, and on the game's `notify::name`, so the name is exposed regardless of label visibility. Blueprint's `accessibility { }` block cannot bind and MUST NOT be used for this. |
 | Title `Label` (id `title_label`) | Visible if and only if `show-game-titles` is true or `game.cover` is `None`. Keeps `ellipsize: middle`. |
-| `GameItem._update_title` | Recomputes the visibility rule. MUST run at setup, on `changed::show-game-titles`, on `notify::cover` of the current game, and when `game` changes. |
+| `GameItem._update_title` | Recomputes the visibility rule. MUST run at setup, on `changed::show-game-titles`, on `notify::cover` of the current game, and when `game` changes. Handlers on the previous game MUST be disconnected when `game` changes. |
 
 ### Non-regression
 

@@ -43,25 +43,37 @@ class GameItem(Gtk.Box):
         SETTINGS.connect("changed::cover-launches-game", self._update_action_button)
         self._update_action_button()
 
-        self._cover_handler: tuple[Game, int] | None = None
+        self._game_handlers: tuple[Game, list[int]] | None = None
         SETTINGS.connect("changed::show-game-titles", self._update_title)
-        self.connect("notify::game", self._watch_cover)
-        self._watch_cover()
+        self.connect("notify::game", self._watch_game)
+        self._watch_game()
 
-    def _watch_cover(self, *_args: Any) -> None:
-        # Games without a cover keep their title, so follow cover changes
-        if self._cover_handler:
-            old_game, handler = self._cover_handler
-            old_game.disconnect(handler)
-            self._cover_handler = None
+    def _watch_game(self, *_args: Any) -> None:
+        if self._game_handlers:
+            old_game, handlers = self._game_handlers
+            for handler in handlers:
+                old_game.disconnect(handler)
+            self._game_handlers = None
 
         if self.game:
-            self._cover_handler = (
+            self._game_handlers = (
                 self.game,
-                self.game.connect("notify::cover", self._update_title),
+                [
+                    # Games without a cover keep their title, so follow cover changes
+                    self.game.connect("notify::cover", self._update_title),
+                    self.game.connect("notify::name", self._update_accessible_label),
+                ],
             )
 
         self._update_title()
+        self._update_accessible_label()
+
+    def _update_accessible_label(self, *_args: Any) -> None:
+        # The title label is not exposed when hidden, so name the card itself
+        self.update_property(
+            [Gtk.AccessibleProperty.LABEL],
+            [self.game.name if self.game else ""],
+        )
 
     def _update_title(self, *_args: Any) -> None:
         self.title_label.set_visible(
