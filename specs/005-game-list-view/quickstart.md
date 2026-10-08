@@ -93,6 +93,30 @@ _build/cartridges/cartridges
 3. Clear search and toggle "Show Hidden Games" with no hidden games.
 4. **Verify**: "No Hidden Games" status page is displayed.
 
+### Scenario 8: Launched Game Moves First (Amendment)
+Covers User Story 5 scenarios 1-3 and 7, FR-014, FR-016 to FR-018, SC-007, SC-008.
+1. Select sort mode "Last Played" from the main menu.
+2. Pick two games that are not near the top, e.g. "Zelda" and "Astro". Use harmless executables (for example an imported game with executable `true`) so nothing actually starts.
+3. Launch "Zelda" from its hover Play button. **Verify**: within 1 second "Zelda" is in the first position.
+4. Wait at least one second, then launch "Astro" by opening its details page and pressing Play. Go back. **Verify**: "Astro" is first and "Zelda" second.
+5. Launch "Astro" again. **Verify**: the order does not change and the grid does not flicker.
+6. Type part of "Zelda" into the search bar, then launch "Zelda" from the results. **Verify**: "Zelda" is first in the results and the search text is still there.
+7. Inspect `~/.local/share/cartridges/last-played.json` (or the Flatpak equivalent under `~/.var/app/<app-id>/data/cartridges/`). **Verify**: both `game_id` keys are present with timestamps one or more seconds apart.
+
+### Scenario 9: Persistence, Merge, and Other Sort Modes (Amendment)
+Covers User Story 5 scenarios 4-6 and 8, FR-015, FR-019, FR-021, SC-009.
+1. Note the "Last Played" order, close Cartridges, and reopen it. **Verify**: the order is identical.
+2. Enable "Exit After Launching Games" in Preferences, launch a game, and reopen Cartridges. **Verify**: that game is first.
+3. With a Steam game whose manifest `LastPlayed` is older than a Cartridges launch of the same game, restart. **Verify**: the game keeps the newer Cartridges time. Then play it from Steam directly so Steam writes a newer `LastPlayed`, restart Cartridges, and **verify** the newer Steam time is used.
+4. Switch to sort mode "A-Z" and launch a game in the middle of the list. **Verify**: its position does not change.
+5. Replace `last-played.json` with invalid content (e.g. `not json`) and start Cartridges. **Verify**: the library loads normally with no error; launched games simply start without recorded times.
+
+### Scenario 10: Scroll and Focus Stability (Amendment)
+Covers the spec edge case "Launching a game while scrolled far down the library".
+1. With "Last Played" sort and a library large enough to scroll, scroll far down.
+2. Focus a card with the keyboard (Tab / arrow keys) and press Enter with "Cover Image Launches Game" enabled.
+3. **Verify**: the grid does not jump to the top, and keyboard focus is not moved to an unrelated card. Record the observed behavior; if focus is lost, follow the fallback in research.md section 9.
+
 ## 5. Automated Quality Gate Checks
 
 ```bash
