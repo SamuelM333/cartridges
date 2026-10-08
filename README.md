@@ -46,7 +46,7 @@ Cartridges is an easy-to-use, elegant game launcher written in Python using GTK4
 Nightly [releases](https://github.com/SamuelM333/cartridges/releases) are available.
 
 ```sh
-flatpak install page.samuelm333.Cartridges.Devel.flatpak
+flatpak install page.samuelm333.Cartridges.flatpak
 ```
 
 ## Building manually
