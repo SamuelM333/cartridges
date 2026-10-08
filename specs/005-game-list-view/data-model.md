@@ -16,7 +16,7 @@
   - `cover` (Gdk.Paintable | None): Loaded cover texture or placeholder.
   - `hidden` (bool): Visibility flag in main list.
   - `removed` (bool): Deletion marker.
-  - `last_played` (int): Unix timestamp of last execution.
+  - `last_played` (int): Unix timestamp in seconds of the most recent launch, `0` if never played. After load it holds `max(launcher-reported, Cartridges-recorded)`; see section 5.
   - `added` (int): Unix timestamp when game was imported.
 
 ### GameItem Widget Model
@@ -83,6 +83,7 @@
   - Tooltip: "Details"
   - Action: "game.details"
   - Effect: Opens Game Details
+```
 
 ## 4. Launch Toast Notification Model
 
@@ -114,4 +115,64 @@ cartridges.ui.games.play(game)
                  +---> Dismissable via user swipe or timeout
 ```
 
+## 5. Play History Model (Amendment 2026-10-08)
+
+### Play History Store
+- **Source**: `cartridges.play_history` (new module)
+- **Location**: `$XDG_DATA_HOME/cartridges/last-played.json` (`DATA_DIR / "last-played.json"`)
+- **Format**: A single JSON object mapping `game_id` to a Unix timestamp in seconds.
+
+```json
+{
+    "imported_0": 1791460800,
+    "lutris_celeste_12": 1791475200,
+    "steam_620": 1791489600
+}
 ```
+
+- **Validation rules**:
+  - Keys are `game_id` strings; they are source-prefixed and therefore unique across sources.
+  - Values must be non-negative integers; any other entry is ignored on load.
+  - A missing, unreadable, or invalid file is treated as an empty mapping. Loading never raises and never blocks the library from loading (SC-009).
+  - Entries for games that no longer exist are kept and ignored; they are harmless and let history return if the game is reinstalled.
+- **Writes**: Whole-file atomic replace (temporary file in the same directory, then `os.replace`), synchronous, once per launch.
+
+### Last-Played Value Lifecycle
+
+```text
+Application start
+       |
+       v
+Source._get_games(added)
+  for each game from the launcher:
+    game.added       = game.added or added
+    game.last_played = max(game.last_played,                     # launcher-reported (Steam) or 0
+                           play_history.load().get(game_id, 0))  # Cartridges-recorded or 0
+       |
+       v
+Gtk.SortListModel sorts with _sort (unchanged)
+  "last_played": newest first; ties and 0 values ordered by name
+       |
+       |  User launches a game (any path)
+       v
+cartridges.ui.games.play(game)
+  -> Game.play()
+       1. last_played = int(time.time())
+       2. play_history.record(game_id, last_played)   # saved before spawn and before exit-after-launch quit
+       3. spawn process
+       4. quit if exit-after-launch
+  -> send "Launched {}" toast
+  -> sorter.changed(Gtk.SorterChange.DIFFERENT)
+       |
+       v
+"Last Played" mode: game moves to position 0 (also within active search/collection/hidden filters)
+Other modes:        position unchanged
+```
+
+### Ordering Rules (unchanged comparator, documented for reference)
+
+| Sort mode | Primary key | Direction | Tie-break |
+|-----------|-------------|-----------|-----------|
+| `last_played` | `last_played` (seconds) | Descending; `0` (never played) last | Name, ascending, ignoring case and a leading "The " |
+| `a-z` / `z-a` | `name` | Ascending / descending | None needed |
+| `newest` / `oldest` | `added` | Descending / ascending | Name, ascending |

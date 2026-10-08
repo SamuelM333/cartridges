@@ -8,6 +8,8 @@
 
 **Input**: User description: "main game list view spec. copy the existing design to the spec. recover previous buttons showing on hover design from cartridges-main, where three dots opens settings, play launches the game and I icon opens the info, with a toggle for these last two in settings 'Cover image launches game' (as already implemented)"
 
+**Amendment (2026-10-08)**: "last used sorting must include the time so the sorting is more specific" (adds User Story 5, FR-014 to FR-020, SC-007 to SC-009). Follow-up: "sort last played with more specific time. If I open a game the item must move first in the list" (tightens FR-018, adds FR-021, acceptance scenarios 7 and 8, related edge cases).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Browse and Launch Games from Grid (Priority: P1)
@@ -79,6 +81,27 @@ As a player navigating different views, searching, or filtering, I want clear fe
 
 ---
 
+### User Story 5 - Time-Precise "Last Played" Sorting (Priority: P2)
+
+As a player who launches several games in the same day, I want the "Last Played" sort to order my games by the exact moment I last launched them (date and time of day), so that the game I just played is always at the top of my library instead of being mixed in alphabetically with other games.
+
+**Why this priority**: "Last Played" is the default sort mode. If launches from Cartridges are not recorded with their time, games tie and fall back to alphabetical order, so the default view does not reflect what the user actually played most recently.
+
+**Independent Test**: With the sort mode set to "Last Played", launch game A, then a few seconds later launch game B. Confirm B is first and A is second regardless of their names, and that the order is preserved after restarting the application.
+
+**Acceptance Scenarios**:
+
+1. **Given** the sort mode is "Last Played" and two games have never been played, **When** the user launches "Zelda" and then "Astro", **Then** "Astro" appears first and "Zelda" second.
+2. **Given** the sort mode is "Last Played", **When** the user launches a game that was further down the list, **Then** that game moves to the first position without restarting the application.
+3. **Given** one game was launched at 09:00 and another at 21:00 on the same day, **When** the library is sorted by "Last Played", **Then** the 21:00 game appears before the 09:00 game.
+4. **Given** the user has launched a game from Cartridges, **When** the application is closed and reopened, **Then** the "Last Played" order is preserved.
+5. **Given** a launcher reports that game X was last played today at 10:00, **When** the user launches game Y from Cartridges at 14:00, **Then** Y is ordered before X.
+6. **Given** a game was launched from Cartridges at 14:00, **When** its launcher reports an older last-played time on re-import, **Then** the game keeps the more recent 14:00 time; if the launcher reports a newer time, the newer time is used.
+7. **Given** the sort mode is "Last Played", **When** the user launches a game from its details view, **Then** on returning to the library that game is in the first position.
+8. **Given** the sort mode is "A-Z", **When** the user launches a game, **Then** the game's position in the list does not change.
+
+---
+
 ### Edge Cases
 
 - Pointer hovering near card boundaries: Action buttons must not flicker when the cursor transitions over button borders or child overlays.
@@ -87,6 +110,15 @@ As a player navigating different views, searching, or filtering, I want clear fe
 - Gamepad navigation: When a gamepad is connected, directional navigation highlights the focused game card, and button mapping (e.g. A button to activate, X/Y for secondary actions) operates according to user settings.
 - Missing cover artwork: When a game has no custom cover image, a standard fallback placeholder cover is displayed with the title visible, and hover controls remain fully functional.
 - Long game titles: Title labels under the cover must be ellipsized cleanly to preserve the grid alignment across columns.
+- Never-played games under "Last Played" sort: Games with no recorded play time appear after all played games, ordered alphabetically among themselves.
+- Identical last-played times: Games with exactly the same recorded time are ordered alphabetically by name.
+- Launch with "exit after launch" enabled: The play time must be recorded and saved before the application closes.
+- Failed or instantly exiting games: The play time is recorded at the moment of launch, regardless of whether the game keeps running.
+- System clock set backward: A newly launched game may receive an earlier time than an existing one; this is accepted and not corrected.
+- Existing library data: Games saved before this change with missing or zero last-played values load and sort without errors.
+- Launching the game that is already first: The order stays the same and the list does not visibly flicker or reshuffle.
+- Launching while a search, collection, or hidden-games filter is active: The launched game moves to the first position within the currently displayed results; the filter itself is not cleared.
+- Launching a game while scrolled far down the library: The game moves to the first position; the grid does not force-scroll to the top, and the keyboard/gamepad focus is not lost or moved to an unrelated card.
 
 ## Requirements *(mandatory)*
 
@@ -111,6 +143,14 @@ As a player navigating different views, searching, or filtering, I want clear fe
 - **FR-011**: System MUST support keyboard and gamepad navigation across the game list grid, maintaining clear focus outlines and accessible action triggers.
 - **FR-012**: When a game launch is initiated from any grid control (hover Play button, cover click, or keyboard/gamepad activation), the system MUST display a dismissable in-app toast notification stating "Launched <game name>".
 - **FR-013**: The toast notification message MUST be marked for gettext localization with interpolation placeholders to enable grammatically accurate translations across all supported languages.
+- **FR-014**: System MUST record the exact date and time of day, with at least one-second precision, whenever a game is launched from Cartridges (hover Play button, cover click, keyboard/gamepad activation, or the details view).
+- **FR-015**: System MUST persist the recorded last-played time so that it survives application restarts, and MUST save it before exiting when the "exit after launch" preference is enabled.
+- **FR-016**: When the "Last Played" sort mode is active, the system MUST order games from most recent to least recent last-played time, comparing full date and time of day rather than date alone.
+- **FR-017**: Under "Last Played" sorting, games with no recorded play time MUST appear after all played games, and games with identical times MUST be ordered alphabetically by name.
+- **FR-018**: When the "Last Played" sort mode is active and a game is launched from Cartridges, the library MUST re-sort immediately so the launched game moves to the first position of the list (and of any currently filtered view) while the application remains open.
+- **FR-019**: When a game's launcher reports a last-played time during import or refresh, the system MUST keep whichever of the launcher-reported time and the Cartridges-recorded time is more recent.
+- **FR-020**: The relative "Last played" label in the game details view (e.g., "Today", "Yesterday") MUST continue to work with the more precise value.
+- **FR-021**: When any sort mode other than "Last Played" is active, launching a game MUST still record its last-played time but MUST NOT change the game's position in the list.
 
 ### Key Entities
 
@@ -120,6 +160,7 @@ As a player navigating different views, searching, or filtering, I want clear fe
 - **Contextual Menu Button**: A circular button in the top-right corner displaying three dots (`view-more-symbolic`) that opens the game management popover.
 - **Launch Toast Notification**: A transient, dismissable visual feedback toast that informs the user that the requested game launch command has been executed.
 - **Preferences Configuration**: Persistent user settings including the boolean preference key `cover-launches-game`.
+- **Last-Played Time**: The moment (date and time of day, one-second precision) a game was last launched, either recorded by Cartridges at launch or reported by the game's launcher; absent if never played. Drives the "Last Played" sort mode.
 
 ## Success Criteria *(mandatory)*
 
@@ -131,6 +172,9 @@ As a player navigating different views, searching, or filtering, I want clear fe
 - **SC-004**: 100% of game cards in any filtered view or collection display the correct hover controls and title without layout breakage or button overlap.
 - **SC-005**: All interactions and empty state pages comply with GNOME Human Interface Guidelines and pass accessibility validation with keyboard navigation.
 - **SC-006**: The dismissable "Launched <game name>" toast appears within 100 milliseconds of launch activation and renders the translated string with the exact game title.
+- **SC-007**: In 100% of tests where two or more games are launched at least one second apart, the "Last Played" sort lists them in reverse launch order with no ties.
+- **SC-008**: A game launched from Cartridges appears in the first position of the "Last Played" library within 1 second of launch, without restarting the application.
+- **SC-009**: After restarting the application, the "Last Played" order matches the order observed before the restart in 100% of cases, and no existing library fails to load.
 
 ## Assumptions
 
@@ -139,3 +183,9 @@ As a player navigating different views, searching, or filtering, I want clear fe
 - Circular buttons on the card overlay use standard Libadwaita styling (`circular`, `osd`) with high contrast and backdrop blur for readability against diverse game cover images.
 - Gamepad navigation monitors controller events and maps standard controller button presses to the same logical actions as mouse and keyboard navigation.
 - An in-app toast overlay (`AdwToastOverlay`) is available in the main window hierarchy to present dismissable launch notifications.
+- "Last used" in the amendment request refers to the existing "Last Played" sort mode, which is the default sort mode.
+- One-second precision is sufficient; a user cannot realistically launch two games within the same second.
+- "Last played" means "last launched"; tracking session end or total play time is out of scope.
+- Showing an exact clock time in the details view is out of scope; the existing relative wording is kept.
+- Launcher-reported times that already include time of day (such as Steam's) are used as-is; launchers that do not report play times rely solely on Cartridges-recorded launches.
+- "Open a game" in the follow-up request means launching it (Play button, cover click when configured, keyboard/gamepad activation, or the details view Play button); merely viewing a game's details does not count as playing and does not reorder the list.

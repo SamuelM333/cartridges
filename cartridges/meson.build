@@ -7,6 +7,7 @@ python.install_sources(
         'cover.py',
         'gamepads.py',
         'games.py',
+        'play_history.py',
     ),
     subdir: 'cartridges',
 )

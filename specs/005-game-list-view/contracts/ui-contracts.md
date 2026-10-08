@@ -161,3 +161,21 @@ def play(game: Game) -> None:
 - **Toast Properties**:
   - Message: `_("Launched {}").format(game.name)`
   - Dismissable: Yes (standard Libadwaita `Adw.Toast` behavior).
+- **Re-sort (amendment 2026-10-08)**: After `game.play()` returns, `play` calls `sorter.changed(Gtk.SorterChange.DIFFERENT)` so the launched game moves to the first position under the "Last Played" sort (FR-018). Other sort modes are unaffected (FR-021).
+
+## 6. Play History Contract (Amendment 2026-10-08)
+
+Module `cartridges.play_history` is a domain-layer module with no GTK widget imports.
+
+| Function | Signature | Behavior |
+|----------|-----------|----------|
+| `load` | `load() -> dict[str, int]` | Returns the cached mapping of `game_id` to Unix seconds, reading `DATA_DIR / "last-played.json"` on first call. Missing or invalid file returns `{}`; invalid entries are skipped. Never raises. |
+| `record` | `record(game_id: str, timestamp: int) -> None` | Sets `game_id` to `timestamp` in the cached mapping and atomically rewrites the file. Synchronous. |
+
+### Callers
+
+| Caller | Contract |
+|--------|----------|
+| `Game.play()` (`cartridges/games.py`) | MUST set `self.last_played = int(time.time())` and call `play_history.record(self.game_id, self.last_played)` before spawning the process and before any `exit-after-launch` quit. |
+| `Source._get_games()` (`cartridges/sources/__init__.py`) | MUST set `game.last_played = max(game.last_played, play_history.load().get(game.game_id, 0))` for every yielded game. |
+| Individual source modules (`cartridges/sources/*.py`) | MUST NOT read or write play history; they report only what their launcher knows. |
