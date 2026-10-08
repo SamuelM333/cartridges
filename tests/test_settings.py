@@ -54,7 +54,7 @@ def check_schema_integrity() -> None:
         raise ValueError(msg)
 
     # Verify that keys replaced by other settings are gone
-    for key_name in ("auto-import",):
+    for key_name in ("auto-import", "remove-missing"):
         if schema.has_key(key_name):
             msg = f"Removed key '{key_name}' is still in the schema"
             raise ValueError(msg)

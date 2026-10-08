@@ -19,7 +19,7 @@ from gi.repository import Gdk
 from cartridges import cover
 from cartridges.games import Game
 
-from . import APPLICATION_SUPPORT, DATA, FLATPAK, OPEN, PROGRAM_FILES_X86
+from . import APPLICATION_SUPPORT, DATA, FLATPAK, OPEN, PROGRAM_FILES_X86, location
 
 ID, NAME = "steam", _("Steam")
 
@@ -147,11 +147,7 @@ def get_games() -> Generator[Game]:
 
 
 def _data_dir() -> Path:
-    for path in _DATA_PATHS:
-        if path.is_dir():
-            return path
-
-    raise FileNotFoundError
+    return location("steam-location", _DATA_PATHS)
 
 
 def _library_folders() -> Generator[Path]:

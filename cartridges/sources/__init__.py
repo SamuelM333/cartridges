@@ -9,7 +9,7 @@ import pkgutil
 import sqlite3
 import sys
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from contextlib import suppress
 from functools import cache
 from pathlib import Path
@@ -53,6 +53,22 @@ OPEN = (
     if sys.platform.startswith("win32")
     else "xdg-open"
 )
+
+
+def location(key: str, candidates: Iterable[Path]) -> Path:
+    """Get the directory a source reads its games from.
+
+    A location the user picked in Preferences under `key` is always used.
+    Otherwise, the first existing directory in `candidates` is used.
+    """
+    if SETTINGS.get_user_value(key) is not None:
+        return Path(SETTINGS.get_string(key)).expanduser()
+
+    for path in candidates:
+        if path.is_dir():
+            return path
+
+    raise FileNotFoundError
 
 
 class _SourceModule(Protocol):
@@ -131,7 +147,13 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         return added
 
     def scan(self, added: int) -> Generator[Game]:
-        """Read the source's installed games from its launcher."""
+        """Read the source's installed games from its launcher.
+
+        Yield nothing if the user turned the source off.
+        """
+        if self.id != "imported" and not SETTINGS.get_boolean(self.id):
+            return
+
         for game in self._module.get_games():
             game.added = game.added or added
             game.last_played = max(

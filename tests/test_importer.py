@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2026 samuelm333
 
-"""Test merging a fresh source scan into the games already in the library."""
+"""Test merging a fresh source scan into the library, and finding source data."""
 
 import importlib
 import sys
@@ -13,30 +13,47 @@ from typing import TYPE_CHECKING
 import gi
 
 gi.require_versions({"Gdk": "4.0", "Gtk": "4.0"})
-from gi.repository import Gdk
+from gi.repository import Gdk, GLib
 
 if TYPE_CHECKING:
     from cartridges.games import Game
 
 
 class _Settings:
-    """Stand-in for the application's `Gio.Settings`."""
+    """Stand-in for the application's `Gio.Settings`.
+
+    String keys in `user_values` count as set by the user.
+    """
+
+    def __init__(self) -> None:
+        self.user_values: dict[str, str] = {}
 
     def get_boolean(self, _key: str) -> bool:
         return False
 
+    def get_string(self, key: str) -> str:
+        return self.user_values.get(key, "")
+
+    def get_user_value(self, key: str) -> GLib.Variant | None:
+        value = self.user_values.get(key)
+        return None if value is None else GLib.Variant("s", value)
+
+
+_SETTINGS = _Settings()
+
 
 # Importing the real `cartridges` package needs the meson-generated `config.py`
 # and compiled GSettings schemas, so stub the package with only what
-# `games` and `importer` use.
+# `games`, `importer` and `sources` use.
 _package = types.ModuleType("cartridges")
 _package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
 _package.DATA_DIR = Path(tempfile.mkdtemp())  # pyright: ignore[reportAttributeAccessIssue]
-_package.SETTINGS = _Settings()  # pyright: ignore[reportAttributeAccessIssue]
+_package.SETTINGS = _SETTINGS  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
 
 games = importlib.import_module("cartridges.games")
 importer = importlib.import_module("cartridges.importer")
+sources = importlib.import_module("cartridges.sources")
 
 
 def _game(game_id: str, **props: object) -> "Game":
@@ -152,6 +169,34 @@ def check_reconcile_idempotent() -> None:
     _expect(_ids(second.kept), ["b", "a", "c"], "kept on second run")
 
 
+def check_location_user_set_is_strict() -> None:
+    """Validate that a location the user picked is used even if it is missing."""
+    existing = Path(tempfile.mkdtemp())
+    _SETTINGS.user_values = {"steam-location": "~/missing-steam"}
+    result = sources.location("steam-location", (existing,))
+    _expect(result, Path.home() / "missing-steam", "location")
+
+
+def check_location_default_autodetects() -> None:
+    """Validate that without a user choice the first existing candidate is used."""
+    missing = Path(tempfile.mkdtemp()) / "missing"
+    first, second = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+    _SETTINGS.user_values = {}
+    result = sources.location("steam-location", (missing, first, second))
+    _expect(result, first, "location")
+
+
+def check_location_none_found() -> None:
+    """Validate that a missing location without a user choice raises."""
+    _SETTINGS.user_values = {}
+    try:
+        sources.location("steam-location", (Path(tempfile.mkdtemp()) / "missing",))
+    except FileNotFoundError:
+        return
+    msg = "Expected FileNotFoundError when no candidate exists"
+    raise AssertionError(msg)
+
+
 if __name__ == "__main__":
     check_reconcile_adds_new()
     check_reconcile_removes_missing()
@@ -161,3 +206,6 @@ if __name__ == "__main__":
     check_reconcile_fills_missing_cover_only()
     check_reconcile_dedupes_scan()
     check_reconcile_idempotent()
+    check_location_user_set_is_strict()
+    check_location_default_autodetects()
+    check_location_none_found()

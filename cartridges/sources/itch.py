@@ -14,7 +14,7 @@ from gi.repository import Gio
 from cartridges import cover
 from cartridges.games import Game
 
-from . import APPDATA, APPLICATION_SUPPORT, CONFIG, FLATPAK, OPEN
+from . import APPDATA, APPLICATION_SUPPORT, CONFIG, FLATPAK, OPEN, location
 
 ID, NAME = "itch", _("itch")
 
@@ -53,11 +53,7 @@ def get_games() -> Generator[Game]:
 
 
 def _config_dir() -> Path:
-    for path in _CONFIG_PATHS:
-        if path.is_dir():
-            return path
-
-    raise FileNotFoundError
+    return location("itch-location", _CONFIG_PATHS)
 
 
 async def _update_cover(game: Game, url: str):

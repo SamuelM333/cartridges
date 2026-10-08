@@ -71,6 +71,7 @@ The change is applied to each source with one `items_changed` emission that cove
 **Rationale**:
 - Today `Source.__init__` only catches `OSError`. Lutris and itch read SQLite databases; a locked or corrupt database raises `sqlite3.Error`, which currently would crash startup.
 - During Import Now, a temporary failure (for example, a launcher holding a database lock while it updates) should not make every game from that launcher vanish. Removing games is reserved for a successful scan that no longer lists them.
+- "Fails" means the source raises. Some sources already catch a missing file themselves and report an empty library (for example Legendary without `installed.json`, or a Heroic store without its library file). That counts as a successful scan with no games, so those games are removed, the same as they would be missing after a restart. This is deliberate: a launcher that was uninstalled looks exactly like this.
 
 **Alternatives considered**: Catching `Exception` would hide programming errors and fails Ruff `BLE001` (Principle I).
 

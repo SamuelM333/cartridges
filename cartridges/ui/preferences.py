@@ -96,7 +96,6 @@ class CartridgesPreferences(Adw.PreferencesDialog):
 
     # Import Behavior
     import_on_startup_switch: Adw.SwitchRow = Gtk.Template.Child()
-    remove_missing_switch: Adw.SwitchRow = Gtk.Template.Child()
 
     # Steam
     steam_expander_row: Adw.ExpanderRow = Gtk.Template.Child()
@@ -191,7 +190,6 @@ class CartridgesPreferences(Adw.PreferencesDialog):
             "show-game-titles",
             "high-quality-images",
             "import-on-startup",
-            "remove-missing",
             "steam",
             "lutris",
             "lutris-import-steam",

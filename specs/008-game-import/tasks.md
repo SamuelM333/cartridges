@@ -141,7 +141,7 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 ### Tests for User Story 3
 
-- [ ] T019 [P] [US3] In `tests/test_importer.py`, add `location()` checks against data-model.md section 6 using a `SETTINGS` stand-in whose `get_user_value(key)` returns `None` or a `GLib.Variant("s", path)`, and `get_string`:
+- [X] T019 [P] [US3] In `tests/test_importer.py`, add `location()` checks against data-model.md section 6 using a `SETTINGS` stand-in whose `get_user_value(key)` returns `None` or a `GLib.Variant("s", path)`, and `get_string`:
   - `check_location_user_set_is_strict`: a user-set path is returned expanded, even if it does not exist.
   - `check_location_default_autodetects`: with no user value, the first existing candidate directory is returned.
   - `check_location_none_found`: with no user value and no existing candidate, `FileNotFoundError` is raised.
@@ -150,34 +150,34 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] In `cartridges/sources/__init__.py`, add `location(key: str, candidates: Iterable[Path]) -> Path`:
+- [X] T020 [US3] In `cartridges/sources/__init__.py`, add `location(key: str, candidates: Iterable[Path]) -> Path`:
   - If `SETTINGS.get_user_value(key) is not None`, return `Path(SETTINGS.get_string(key)).expanduser()`.
   - Otherwise return the first `p` in `candidates` with `p.is_dir()`.
   - Otherwise raise `FileNotFoundError`.
 
   (research section 8)
-- [ ] T021 [US3] In `cartridges/sources/__init__.py`, make `Source.scan()` yield nothing when the source is disabled: `self.id != "imported" and not SETTINGS.get_boolean(self.id)` (FR-013, research section 7). In `cartridges/sources/flatpak.py`, remove the now-redundant `if not SETTINGS.get_boolean("flatpak"): return` at the top of `get_games()`.
-- [ ] T022 [US3] In `cartridges/importer.py`, make sure a disabled source is reconciled against an empty list so its games disappear on Import Now. If T021 already makes `scan()` yield nothing, no extra code is needed; confirm with quickstart Scenario 6 "Steam off".
-- [ ] T023 [P] [US3] In `cartridges/sources/steam.py`, change `_data_dir()` to `return location("steam-location", _DATA_PATHS)`; import `location` from `.`.
-- [ ] T024 [P] [US3] In `cartridges/sources/lutris.py`:
+- [X] T021 [US3] In `cartridges/sources/__init__.py`, make `Source.scan()` yield nothing when the source is disabled: `self.id != "imported" and not SETTINGS.get_boolean(self.id)` (FR-013, research section 7). In `cartridges/sources/flatpak.py`, remove the now-redundant `if not SETTINGS.get_boolean("flatpak"): return` at the top of `get_games()`.
+- [X] T022 [US3] In `cartridges/importer.py`, make sure a disabled source is reconciled against an empty list so its games disappear on Import Now. If T021 already makes `scan()` yield nothing, no extra code is needed; confirm with quickstart Scenario 6 "Steam off".
+- [X] T023 [P] [US3] In `cartridges/sources/steam.py`, change `_data_dir()` to `return location("steam-location", _DATA_PATHS)`; import `location` from `.`.
+- [X] T024 [P] [US3] In `cartridges/sources/lutris.py`:
   - Change `_data_dir()` to `return location("lutris-location", _DATA_PATHS)`.
   - Remove the `AND games.runner IS NOT "steam"` and `AND games.runner IS NOT "flatpak"` lines from `_QUERY`.
   - In `get_games()`, skip rows whose runner (`row[3]`) is `"steam"` unless `SETTINGS.get_boolean("lutris-import-steam")`, and rows whose runner is `"flatpak"` unless `SETTINGS.get_boolean("lutris-import-flatpak")`. Both keys default to `false`, so default output is unchanged.
 
   Import `SETTINGS` from `cartridges`.
-- [ ] T025 [P] [US3] In `cartridges/sources/heroic.py`:
+- [X] T025 [P] [US3] In `cartridges/sources/heroic.py`:
   - Change `_config_dir()` to `return location("heroic-location", _CONFIG_PATHS)`.
   - In `get_games()`, iterate `(_LegendarySource, "heroic-import-epic")`, `(_GOGSource, "heroic-import-gog")`, `(_NileSource, "heroic-import-amazon")` and `(_SideloadSource, "heroic-import-sideload")`, and skip a store when `SETTINGS.get_boolean(key)` is false.
 
   Import `SETTINGS` from `cartridges`.
-- [ ] T026 [P] [US3] In `cartridges/sources/itch.py`, change `_config_dir()` to `return location("itch-location", _CONFIG_PATHS)`.
-- [ ] T027 [P] [US3] In `cartridges/sources/legendary.py`, change `_config_dir()` to `return location("legendary-location", (_CONFIG_PATH,))`.
-- [ ] T028 [US3] Remove "Remove Uninstalled Games" (FR-016):
+- [X] T026 [P] [US3] In `cartridges/sources/itch.py`, change `_config_dir()` to `return location("itch-location", _CONFIG_PATHS)`.
+- [X] T027 [P] [US3] In `cartridges/sources/legendary.py`, change `_config_dir()` to `return location("legendary-location", (_CONFIG_PATH,))`.
+- [X] T028 [US3] Remove "Remove Uninstalled Games" (FR-016):
   - Delete the `remove-missing` key from `data/page.samuelm333.Cartridges.gschema.xml.in`.
   - Delete `Adw.SwitchRow remove_missing_switch` from `cartridges/ui/preferences.blp`.
   - Delete the `remove_missing_switch` template child and the `"remove-missing"` entry in `_bind_switches` from `cartridges/ui/preferences.py`.
   - In `tests/test_settings.py`, add a check that the schema has no `remove-missing` key.
-- [ ] T029 [US3] Verify US3 with quickstart Scenario 4 (uninstalled game disappears; no "Remove Uninstalled Games" switch), Scenario 6 (every row of the settings table) and Scenario 8 (an unreadable `pga.db` leaves Lutris games unchanged while other sources import), and run `python tests/test_importer.py`.
+- [X] T029 [US3] Verify US3 with quickstart Scenario 4 (uninstalled game disappears; no "Remove Uninstalled Games" switch), Scenario 6 (every row of the settings table) and Scenario 8 (an unreadable `pga.db` leaves Lutris games unchanged while other sources import), and run `python tests/test_importer.py`.
 
 **Checkpoint**: All Import settings have an observable effect (SC-004).
 
