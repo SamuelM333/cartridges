@@ -24,8 +24,8 @@ A `Gio.ListModel` of `Game`, one per source module.
 |-----------|------------------|
 | `id == "imported"` | Always scanned. |
 | `import-on-startup` is on | Scanned (today's behavior). |
-| `import-on-startup` is off | Empty. |
-| Scan raises `OSError` or `sqlite3.Error` | Empty (FR-005). |
+| `import-on-startup` is off | The source's games from the saved library (section 8); empty if none. |
+| Scan raises `OSError` or `sqlite3.Error` | The source's games from the saved library; empty if none (FR-005, FR-027). |
 
 ## 2. Game (existing, `cartridges/games.py`)
 
@@ -149,3 +149,45 @@ Lifecycle:
 3. `Source.append()` (a new manually added game) connects the same handler.
 
 Removed games for manually added sources use the existing game file: `Source` also connects `notify::removed` for games whose `source == "imported"`, calling `Game.save()` and catching `OSError`.
+
+## 8. Saved library (new, `cartridges/saved_library.py`)
+
+Files under `DATA_DIR`:
+
+| Path | Content |
+|------|---------|
+| `library.json` | `{"version": 1, "games": [entry, ...]}` |
+| `library-covers/<sha256(game_id)>.png` | The cover of one game |
+
+**Entry**: the properties in `games.PROPERTIES` except `removed`, plus an optional `cover` file name:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `game_id`, `source`, `name`, `executable` | `str` | Required by `Game.from_data()`. |
+| `developer` | `str` | Optional. |
+| `added`, `last_played` | `int` | Optional. |
+| `hidden`, `blacklisted` | `bool` | Optional. `hidden` is overridden by `hidden_games` when the user made a choice. |
+| `version` | `float` | Game format version, as `Game.save()` writes it. |
+| `cover` | `str` | File name inside `library-covers/`. Absent when the game has no cover. |
+
+**What goes in**: every game of every source except `imported`, except games with `removed` set (FR-026).
+
+**What does not**: manually added games (stored in `games/`), user edits to a launcher game (out of scope), `removed`.
+
+**Validation on read**:
+- The file is ignored (empty library) if it is missing, is not valid UTF-8 JSON, has a root that is not an object, or has a `version` other than `1`.
+- An entry is skipped if it is not an object, `Game.from_data()` raises `TypeError`, or its `source` is not a known source ID.
+- A `cover` is used only if the file exists and opens as an image; otherwise the game has no cover.
+
+**Lifecycle**:
+
+```text
+startup (import-on-startup on):  scan -> in-memory library -> request_save
+startup (import-on-startup off): library.json -> in-memory library
+import (any):                    scan -> reconcile -> in-memory library -> request_save
+remove / restore launcher game:  notify::removed -> request_save
+cover changes:                   notify::cover -> request_save
+request_save:                    dirty flag -> one task -> write library.json, write missing covers, delete orphan covers
+```
+
+Applying saved games (in `Source`): `hidden` from `hidden_games` if the user has a choice, `last_played = max(saved, play history)`, then the same change handlers as scanned games (`Source._track`).
