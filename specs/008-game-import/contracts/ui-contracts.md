@@ -6,7 +6,7 @@
 
 Order of groups on `import_page` after the change:
 
-0. Preferences wording: `import_on_startup_switch` gets a subtitle, `_("Scan for new games when Cartridges starts. When off, the games from your last import are shown.")` (FR-025).
+0. Preferences wording: `import_on_startup_switch` gets a subtitle, `_("Scan for new games when Cartridges starts")` (FR-025).
 1. **New untitled group** containing one row:
    - `Adw.ActionRow import_now_row`
      - title: `_("Import Now")`
