@@ -8,6 +8,8 @@
 
 **Input**: User description: "Game import. Document the existing game import behavior as a spec, and add a new requirement: an "Import Now" action in Preferences (upstream Cartridges main had "Import" under the + button menu in the main window). Place it on the Import page, at the top, above the Behavior group.
 
+**Amendment 2026-10-10**: Imported launcher games are saved on disk after every import, so a user can import once, turn off "Import Games on Startup", and keep using the imported games on every later start.
+
 **Amendment 2026-10-09**: Hidden games must stay hidden across restarts, and removing a manually added game must be permanent. Removing a launcher game is temporary: the next import brings it back, and Hide is the way to keep an installed game out of the library."
 
 ## Overview
@@ -18,7 +20,7 @@ Cartridges builds its library by scanning the game launchers installed on the us
 
 - **Sources**: Steam, Lutris, Heroic, itch, Legendary, Flatpak, Desktop Entries, and "Added" (games the user created manually). Each source is discovered automatically and appears in the sidebar.
 - **When import happens**: Every source is scanned exactly once, when the application starts. There is no way to re-scan without restarting the application.
-- **Persistence**: Launcher games are not stored by Cartridges; they are read fresh from each launcher on every scan. Only manually added games are stored by Cartridges.
+- **Persistence**: Launcher games are not stored by Cartridges; they are read fresh from each launcher on every scan. Only manually added games are stored by Cartridges. (Changed by FR-002 and FR-024 to FR-029: the result of each import is now saved.)
 - **Last played**: For each scanned game, the last-played time is the more recent of the launcher-reported time and the time Cartridges recorded when it launched the game.
 - **Date added**: If a launcher does not report when a game was added, the game is stamped with the time of the scan.
 - **Failure handling**: If a source cannot be read (missing launcher, unreadable files), that source contributes zero games and the rest of the library still loads.
@@ -29,6 +31,7 @@ Cartridges builds its library by scanning the game launchers installed on the us
 - **G-1**: "Import Games Automatically" is saved but has no effect; the startup scan always runs. (Resolved by FR-017 and FR-018.)
 - **G-2**: "Remove Uninstalled Games" is saved but has no effect. (Resolved by FR-016: the switch is removed.)
 - **G-3**: Only the Flatpak source honors its enable switch, locations, and sub-options. Steam, Lutris, Heroic, itch, Legendary, and Desktop Entries ignore their switches, install locations, and sub-options.
+- **G-5**: With "Import Games on Startup" off, launcher games are gone after a restart, because they are never saved. A user cannot import once and then keep using the imported games without scanning at every start. (Resolved by FR-002 and FR-024 to FR-029.)
 - **G-4**: Hiding a game is remembered only until the application closes. After a restart, hidden games are visible again, so users have no lasting way to keep an imported game out of sight. Removing a manually added game is also forgotten on restart. (Resolved by FR-019 to FR-023.)
 
 ## Clarifications
@@ -42,6 +45,13 @@ Cartridges builds its library by scanning the game launchers installed on the us
 
 - Q: Should a removed launcher game stay removed across restarts? -> A: No. Removing a launcher game takes it out of the library until the next import; the next startup import or Import Now brings it back. Hide is the way to keep an imported game out of sight, and hidden state is remembered across restarts.
 - Q: Should Import Now bring back a removed game? -> A: Yes, for launcher games. Removed manually added games stay removed, because they are not imported from anywhere.
+
+### Session 2026-10-10
+
+- Q: With "Import Games on Startup" off, what should the library show at startup? -> A: The games from the last import, saved on disk. The user imports once (on a first run or with Import Now), turns the switch off, and keeps using the imported games. This refines the 2026-10-08 answer above, under which launcher games appeared only after Import Now.
+- Q: Should a game the user removed be in the saved library after a restart? -> A: No. A removed launcher game stays out of the library after a restart, even with startup import off, and returns on the next import. This is consistent with the earlier answer that removal lasts until the next import.
+- Q: Should the saved library keep covers and last-played times? -> A: Yes, so games look the same as when they were imported without scanning the launchers. Edits to a launcher game's title, developer or launch command remain out of scope.
+- Q: What happens to a source's saved games when the source is turned off? -> A: They leave the saved library at the next import, as they leave the library today.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -64,21 +74,25 @@ A user installs a new game in Steam (or another launcher) while Cartridges is op
 
 ---
 
-### User Story 2 - Library is populated at startup (Priority: P1, existing)
+### User Story 2 - Library is populated at startup and remembered between runs (Priority: P1)
 
-When the user opens Cartridges with "Import Games on Startup" on, every source is scanned and the library shows all installed games from all launchers plus manually added games. With it off, only manually added games are shown until the user runs Import Now.
+When the user opens Cartridges with "Import Games on Startup" on, every source is scanned and the library shows all installed games from all launchers plus manually added games. With it off, no launcher is scanned and the library shows the games saved by the last import, plus manually added games. The user can import once (on a first run, or with Import Now), turn the switch off, and keep using the imported games on every later start.
 
 **Why this priority**: This is the core existing behavior that the library depends on; it must not regress.
 
-**Independent Test**: Install games in two or more launchers, start Cartridges, and verify all of them appear, each under its own source in the sidebar.
+**Independent Test**: Install games in two or more launchers, start Cartridges, and verify all of them appear, each under its own source in the sidebar. Turn "Import Games on Startup" off, restart, and verify the same games still appear.
 
 **Acceptance Scenarios**:
 
 1. **Given** games installed in several launchers and "Import Games on Startup" on, **When** Cartridges starts, **Then** every game appears in the library and under its source.
-2. **Given** a launcher that is not installed or whose files cannot be read, **When** Cartridges starts, **Then** that source shows no games and every other source loads normally.
+2. **Given** a launcher that is not installed or whose files cannot be read, **When** Cartridges starts, **Then** that source shows the games saved for it by the last import (none if there were none) and every other source loads normally.
 3. **Given** a game that Cartridges launched more recently than the launcher reports, **When** the library loads, **Then** the more recent time is shown as last played.
 4. **Given** a launcher that does not report when a game was added, **When** the library loads, **Then** the game's date added is the time of the scan.
-5. **Given** "Import Games on Startup" is off, **When** Cartridges starts, **Then** no launcher is scanned, only manually added games are shown, and launcher games appear after the user presses Import Now.
+5. **Given** the user imported their games and then turned "Import Games on Startup" off, **When** Cartridges starts, **Then** no launcher is scanned and the library shows the same launcher games as after the last import, with the same covers and last-played times, plus manually added games.
+6. **Given** "Import Games on Startup" is off and the user has never imported, **When** Cartridges starts for the first time, **Then** the library shows only manually added games (or the empty state) until the user presses Import Now.
+7. **Given** "Import Games on Startup" is off, **When** the user presses Import Now and restarts, **Then** the library shows the games from that import.
+8. **Given** "Import Games on Startup" is off and a game was uninstalled from its launcher, **When** Cartridges starts, **Then** the game is still shown, until the user presses Import Now.
+9. **Given** "Import Games on Startup" is on, **When** Cartridges starts and scans, **Then** the saved library is updated to match the scan.
 
 ---
 
@@ -135,6 +149,12 @@ A user does not want to see some imported games. They hide them. After closing a
 - **One source fails**: If one source cannot be read during Import Now, the others still import and the notification still reports the result.
 - **Preferences closed during import**: Closing Preferences while an import is running does not cancel or corrupt the import; the library updates when it finishes.
 - **Startup import off, first launch**: The library shows only manually added games (or the empty state if there are none) until the user runs Import Now. Nothing is scanned in the background.
+- **Startup import off, later launches**: The library shows the games from the last import. Nothing is scanned in the background, so games installed or uninstalled since the last import are not reflected until Import Now.
+- **Removed games and the saved library**: A launcher game the user removed is not shown after a restart, even with startup import off, and returns on the next import.
+- **Source turned off**: Its games leave the saved library at the next import. Until then, with startup import off, they are still shown.
+- **Source cannot be read during an import**: Its previously saved games are kept, as they are in the library.
+- **Unreadable saved library**: If the saved library cannot be read or is damaged, the application still starts, the launcher games are treated as not imported yet, and the next import rebuilds it. With startup import on, the startup scan rebuilds it.
+- **Saving the library fails**: The library still updates for the current session and the application keeps working; the games are missing at the next start only if startup import is off.
 - **Previously saved "Remove Uninstalled Games" value**: Ignored after the switch is removed; it has no effect and does not cause an error.
 - **No sources enabled**: Import Now completes immediately and reports that no new games were found.
 - **Cover art**: Games newly found by Import Now get covers by the same rules as games found at startup, including SteamGridDB if it is enabled.
@@ -146,10 +166,10 @@ A user does not want to see some imported games. They hide them. After closing a
 **Existing behavior (must not regress)**
 
 - **FR-001**: When "Import Games on Startup" is on, the system MUST scan every available source when the application starts and show the combined results in the library and in the per-source sidebar. Manually added games MUST always load at startup, whatever this setting is.
-- **FR-002**: The system MUST read launcher games from the launchers on each scan rather than from its own stored copy; only manually added games are stored by Cartridges.
+- **FR-002**: The system MUST read launcher games from the launchers on each scan. Each scan is the source of truth for what is installed; the saved library (FR-024) only records the result of the last scan and is never used in place of one when a scan runs. Manually added games continue to be stored by Cartridges as before.
 - **FR-003**: The system MUST set a game's last-played time to the more recent of the launcher-reported time and the time Cartridges last launched it.
 - **FR-004**: The system MUST set a game's date added to the scan time when the launcher does not provide one.
-- **FR-005**: A source that cannot be read MUST contribute zero games without preventing other sources from loading.
+- **FR-005**: A source that cannot be read MUST NOT prevent other sources from loading. It contributes the games saved for it by the last import (FR-027), which is none if it was never imported.
 
 **New: Import Now**
 
@@ -167,8 +187,17 @@ A user does not want to see some imported games. They hide them. After closing a
 - **FR-014**: Every source with an install location setting MUST read from that location.
 - **FR-015**: Every sub-option (Lutris Steam / Flatpak games; Heroic Epic / GOG / Amazon / Sideloaded; Flatpak launchers and locations) MUST include or exclude the matching games.
 - **FR-016**: The "Remove Uninstalled Games" switch MUST be removed from the Import page. Games no longer installed in their launcher MUST disappear from the library on the next import.
-- **FR-017**: "Import Games Automatically" MUST be renamed "Import Games on Startup". When off, the system MUST NOT scan any launcher at startup; launcher games appear only after Import Now.
+- **FR-017**: "Import Games Automatically" MUST be renamed "Import Games on Startup". When off, the system MUST NOT scan any launcher at startup; the launcher games shown are those saved by the last import (FR-025), and new ones appear after Import Now.
 - **FR-018**: "Import Games on Startup" MUST default to on, so that users who never change it keep today's behavior of seeing their launcher games at startup.
+
+**Imported games persist (closes G-5)**
+
+- **FR-024**: After every import, at startup or from Import Now, the system MUST save the resulting launcher games on disk, with each game's title, launch command, developer, source, date added, last-played time and cover, so that they can be shown again without scanning.
+- **FR-025**: When "Import Games on Startup" is off, the system MUST show the saved launcher games at startup, without reading any launcher, and MUST keep them until the next import replaces them.
+- **FR-026**: The saved library MUST NOT include a launcher game the user removed, and removing a launcher game MUST take it out of the saved library at once, so it stays out after a restart until the next import.
+- **FR-027**: A source that is turned off MUST contribute no games to the saved library from the next import on, and a source that cannot be read during an import MUST keep the games previously saved for it.
+- **FR-028**: Unreadable or damaged saved library MUST NOT prevent the application from starting; launcher games are then treated as not imported yet. A failure to save MUST NOT prevent the import from updating the library for the current session.
+- **FR-029**: Hidden state (FR-019, FR-020) MUST apply to saved games the same way it applies to scanned games, and last-played times recorded by Cartridges (FR-003) MUST apply to them.
 
 **Hidden and removed games (closes G-4)**
 
@@ -182,7 +211,8 @@ A user does not want to see some imported games. They hide them. After closing a
 
 - **Source**: A launcher or origin of games (Steam, Lutris, Heroic, itch, Legendary, Flatpak, Desktop Entries, Added). Has a name, an icon, an enabled state, optional install location(s), and optional sub-options.
 - **Game**: An entry in the library. Belongs to exactly one source. Has a title, launch command, cover, date added, last-played time, and user state (hidden, removed). Hidden state is remembered across restarts for every game, including launcher games that Cartridges otherwise does not store. Removed state is remembered only for manually added games.
-- **Import run**: One scan of all sources, either at startup or from Import Now. Produces the current set of games per source and a count of newly found games.
+- **Import run**: One scan of all sources, either at startup or from Import Now. Produces the current set of games per source and a count of newly found games, and replaces the saved library.
+- **Saved library**: The launcher games from the last import, kept on disk so they can be shown without scanning. Does not include manually added games, which are stored separately, or games the user removed.
 
 ## Success Criteria *(mandatory)*
 
@@ -194,6 +224,7 @@ A user does not want to see some imported games. They hide them. After closing a
 - **SC-004**: For every switch, location, and sub-option on the Import page, changing it and pressing Import Now produces the corresponding visible change in the library (100% of Import settings have an observable effect).
 - **SC-005**: Zero regressions in startup import: with "Import Games on Startup" at its default, all games that appeared before this feature still appear afterward with the same last-played and date-added values.
 - **SC-006**: With "Import Games on Startup" off, starting the application reads no launcher data.
+- **SC-009**: After one import, turning "Import Games on Startup" off and restarting shows 100% of the launcher games from that import, each with the same cover and last-played time, and the library appears without waiting on any launcher.
 - **SC-007**: After hiding any number of games and restarting the application, 100% of the hidden games are still hidden and 100% of the other games are not hidden.
 - **SC-008**: After hiding games and pressing Import Now 10 times in a row, the set of hidden games is unchanged. Every removed launcher game that is still installed is back in the library after the first import.
 
@@ -208,5 +239,7 @@ A user does not want to see some imported games. They hide them. After closing a
 - Only removed and hidden state is in scope. Persisting edits to a launcher game's title, developer or launch command is not part of this feature and can be specified separately.
 - Existing manually added games saved before this change keep working; a manually added game whose saved file already records it as removed or hidden stays that way.
 - "Remove All" and Undo are existing actions. They only gain persistence; their wording and behavior in the session are unchanged.
+- The saved library is separate from the launchers: a game uninstalled from its launcher stays shown with startup import off until the user presses Import Now. That is the cost of not scanning at startup, and the switch's description should make it clear.
+- Hidden state and recorded last-played times stay in their own stores (FR-029); the saved library only needs to record what the launcher reported.
 - "Import Games on Startup" defaults to on (the old "Import Games Automatically" setting defaulted to off). A default of off would hide every launcher game on first launch, which would be a regression. Any value saved under the old setting is not carried over, because the old switch never had any effect.
 - Upstream Cartridges' "Import" entry under the main window "+" menu is not restored; the "+" button stays a direct "Add Game" action.

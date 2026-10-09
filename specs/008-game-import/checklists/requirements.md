@@ -33,4 +33,5 @@
 
 - Clarifications resolved 2026-10-08: "Remove Uninstalled Games" is removed (FR-016); "Import Games Automatically" becomes "Import Games on Startup" and controls the startup scan (FR-017, FR-018).
 - Amended 2026-10-09: added gap G-4, User Story 4, FR-019 to FR-023 and SC-007, SC-008 so hidden games persist across restarts, removed manually added games stay removed, and removed launcher games return on import. All checklist items re-validated and still pass; no [NEEDS CLARIFICATION] markers.
+- Amended 2026-10-10: added gap G-5, FR-024 to FR-029, SC-009, new US2 scenarios and edge cases so imported launcher games are saved on disk and shown at startup when "Import Games on Startup" is off; FR-002, FR-017 and SC-006 reworded. All checklist items re-validated and still pass; no [NEEDS CLARIFICATION] markers.
 - The Assumptions section references the existing "Update Covers" row as a UI precedent; this names a user-visible pattern, not an implementation.
