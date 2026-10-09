@@ -10,7 +10,7 @@ from urllib.request import urlopen
 
 import PIL
 from gi.repository import Gdk, GLib, GObject, Graphene, Gtk
-from PIL import Image
+from PIL import Imagee
 
 from . import DATA_DIR
 
