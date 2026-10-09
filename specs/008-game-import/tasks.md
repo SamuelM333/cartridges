@@ -239,6 +239,66 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 
 - [ ] T042 Run the quality gate again on the changed files: `pre-commit run --all-files`, `pyright`, `ruff check`, `meson setup _build --reconfigure` and `ninja -C _build test`, and `python3 .specify/scripts/bash/check-emojis.py` on all changed files. Confirm `ninja -C _build cartridges-pot` produces no new strings (this amendment adds none) and that `python tests/test_settings.py` still passes.
 
+## Phase 8: User Story 2 amendment - Imported games persist on disk (Priority: P1, amendment 2026-10-10)
+
+**Goal**: The launcher games from the last import are saved on disk, with their covers, and shown at startup when "Import Games on Startup" is off (or when a source cannot be read), so a user can import once, turn the switch off, and keep using the imported games (FR-002, FR-005, FR-017, FR-024 to FR-029, SC-006, SC-009).
+
+**Independent Test**: With the switch off and no saved library, the library shows only manually added games. Press Import, restart: the same launcher games, covers and last-played times appear and no launcher is read. Remove a launcher game, restart: it stays out until Import (quickstart Scenarios 5 and 11).
+
+**Depends on**: Phases 2, 3 and 7 (`Source`, `importer`, `hidden_games`, `Source._track`). Design: [research.md](research.md) sections 16 to 19, [data-model.md](data-model.md) section 8, [contracts/ui-contracts.md](contracts/ui-contracts.md) section 7.
+
+### Tests for the saved library
+
+> Write these first. They must fail (import error or assertion) before T045 to T049 are done.
+
+- [ ] T043 [P] [US2] Create `tests/test_saved_library.py` in the style of `tests/test_importer.py` (stub the `cartridges` package with a temp `DATA_DIR` and a `SETTINGS` stand-in; import `cartridges.games`, `cartridges.cover` and `cartridges.saved_library`; run `asyncio.run()` for the coroutine; call every check from `if __name__ == "__main__":`). Point the module's `_PATH` and `_COVERS_DIR` at the temp directory between checks and clear its cache:
+  - `check_missing_file`: `read()` is `{}`.
+  - `check_round_trip`: write two games from source `"steam"` and one from `"heroic"` (with `name`, `executable`, `developer`, `added`, `last_played`, `hidden=True` on one), clear the cache, and `read()` gives the same values grouped by `source`.
+  - `check_removed_and_added_games_are_not_written`: games with `removed=True` and games whose `source == "imported"` are absent after a round trip (FR-026).
+  - `check_invalid_files`: `not json`, undecodable bytes, a JSON array root, and `{"version": 2, "games": [...]}` all read as `{}` (FR-028).
+  - `check_invalid_entries_are_skipped`: an entry missing `executable`, an entry with a wrong type for `added`, and a non-object entry are skipped while valid entries are kept.
+  - `check_stored_choices_apply_on_read`: with a `hidden_games` choice of `False` for a saved game whose entry says `hidden: true`, `read()` shows it unhidden; `last_played` is the larger of the saved value and a `play_history` record (FR-029). Stub or point `hidden_games` and `play_history` at the temp directory.
+  - `check_cover_round_trip`: a game with a cover loaded by `cover.at_path()` from a small temp PNG gets a file in `library-covers/` named `<sha256(game_id)>.png`, and the game read back has a non-`None` `cover`; a saved entry whose cover file was deleted reads with `cover is None`.
+  - `check_cover_not_rewritten`: writing the same games twice leaves the cover file's modification time unchanged; after `forget_cover(game_id)` it is written again.
+  - `check_orphan_covers_are_pruned`: a cover file whose game is no longer written is deleted.
+  - `check_write_survives_failure`: with the data directory replaced by a regular file, `write()` does not raise.
+- [ ] T044 [P] [US2] In `tests/test_importer.py`, add startup checks for `Source` using the existing `_source()` helper style (give it a way to preload `saved_library` with games for a source ID and to set `import-on-startup`; make `get_games` fail the test if it is called when it must not be):
+  - `check_startup_off_uses_saved_library`: with `import-on-startup` false, a source starts with its saved games and its `get_games()` is never called (SC-006).
+  - `check_startup_off_without_saved_library`: with no saved games the source starts empty.
+  - `check_startup_on_scan_wins`: with `import-on-startup` true and a successful scan, the scan result is used, not the saved games (FR-002).
+  - `check_startup_on_failure_uses_saved_library`: with `import-on-startup` true and `get_games()` raising `OSError` (and again with `sqlite3.Error`), the saved games are shown (FR-005, FR-027).
+  - `check_added_games_ignore_saved_library`: the `"imported"` source always scans and never reads the saved library.
+  - `check_launcher_changes_request_a_save`: replace `saved_library.request_save` with a counter; setting `removed` or `cover` on a launcher game increments it; setting `removed` on a manually added game does not (it saves its game file instead).
+  - `check_import_requests_a_save`: `import_games()` (run with `asyncio.run()` against sources built from fake modules) calls `request_save` exactly once.
+
+### Implementation for the saved library
+
+- [ ] T045 [P] [US2] In `cartridges/cover.py`, add `save(paintable: Gdk.Paintable, path: Path) -> bool` (contracts section 7, research section 18):
+  - For a `_PILPaintable`, write `paintable.im.convert("RGBA")` to `path` as PNG (the current frame for an animated image).
+  - For any other paintable, snapshot it at `WIDTH` x `HEIGHT` with `Gtk.Snapshot`, get the node with `to_node()` (return `False` if it is `None`), draw it with `node.draw(cr)` onto a `cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)`, and `write_to_png(str(path))`. Import `cairo` inside the function.
+  - Create the parent directory. Catch `OSError`, `cairo.Error` and `ValueError`, log a warning, and return `False`; return `True` on success. No `Any`; Pyright strict and Ruff `ALL` clean.
+- [ ] T046 [US2] Create `cartridges/saved_library.py` (SPDX header `GPL-3.0-or-later`, `Copyright 2026 samuelm333`), following data-model.md section 8 and research sections 16 and 17:
+  - `_PATH = DATA_DIR / "library.json"`, `_COVERS_DIR = DATA_DIR / "library-covers"`, a module logger, a module-level cache, `_VERSION = 1`.
+  - `read() -> dict[str, list[Game]]`: load once and cache. Quote the validation verbatim: the file is ignored (`{}`) if it "is missing, is not valid UTF-8 JSON, has a root that is not an object, or has a `version` other than `1`"; an entry is skipped if it "is not an object, `Game.from_data()` raises `TypeError`, or its `source` is not a known source ID" (a non-empty string is enough here; `Source` ignores IDs it does not own); a `cover` "is used only if the file exists and opens as an image" via `cover.at_path()`. Apply the stored hide choice from `hidden_games.load()` (a stored value overrides `hidden`) and `last_played = max(saved, play_history.load().get(game_id, 0))`. Never raise.
+  - `write(games: Iterable[Game]) -> None` (coroutine): skip games with `removed` set and games whose `source == "imported"`. Build entries from `games.PROPERTIES` minus `removed`, plus `cover` (the cover file name when the game has a cover). Write `library.json` through a temporary file and an atomic rename (`{"version": 1, "games": [...]}`, `indent=4`, `sort_keys=True`), then write each missing cover file with `cover.save()` to `<sha256(game_id)>.png` in batches of 25 with `await asyncio.sleep(0)` between batches, then delete files in `library-covers/` that no written game uses. Update the cache to the written games. Catch `OSError`, log a warning, and never raise (FR-028).
+  - `forget_cover(game_id: str) -> None`: delete that game's cover file if present (`OSError` logged, not raised).
+  - `request_save() -> None`: set a module-level dirty flag; if no save task is running and `Gio.Application.get_default()` is not `None`, start one with `app.create_asyncio_task()`. The task clears the flag, collects the games (lazy `from cartridges import sources`; every game of every source except `imported`, using `get_n_items()` / `get_item()`), awaits `write()`, and repeats while the flag is set. Never raises.
+- [ ] T047 [US2] In `cartridges/sources/__init__.py`, use the saved library (research section 19, contracts section 7):
+  - `from cartridges import SETTINGS, hidden_games, play_history, saved_library`.
+  - In `Source.__init__`, for every source except `imported`: when `import-on-startup` is on, try `list(self.scan(added))` and on `(OSError, sqlite3.Error)` fall back to `saved_library.read().get(self.id, [])`; when it is off, use the saved games. Call `self._track(game)` on every saved game. `imported` keeps scanning as today.
+  - In `Source._track`, for launcher games (`self.id != "imported"`) also connect `notify::removed` to `saved_library.request_save()` and `notify::cover` to a handler that calls `saved_library.forget_cover(game.game_id)` then `request_save()`. Manually added games keep their `notify::removed` -> `_save(game)` handler and add no library handlers.
+  - In `load()`, after `model.splice(...)`, call `saved_library.request_save()` once when `SETTINGS.get_boolean("import-on-startup")` is true.
+- [ ] T048 [US2] In `cartridges/importer.py`, call `saved_library.request_save()` once at the end of `import_games()`, after the last source has been processed and before `state.running` is reset (so a run that raises does not save a half-finished state). Import it as `from cartridges import saved_library`.
+- [ ] T049 [P] [US2] In `cartridges/ui/preferences.blp`, add `subtitle: _("Scan for new games when Cartridges starts. When off, the games from your last import are shown.");` to `Adw.SwitchRow import_on_startup_switch` (FR-025). No change to `preferences.py` is needed.
+- [ ] T050 [P] [US2] Add `'saved_library.py'` to the `python.install_sources(files(...))` list in `cartridges/meson.build`, after `'play_history.py'` (alphabetical order).
+- [ ] T051 [US2] Verify with quickstart Scenario 11 (first run empty; Import then restart shows the same games, covers and last-played times without opening any launcher; removed games stay out until Import; Steam turned off keeps showing until Import; unreadable Lutris keeps its saved games; damaged `library.json`; read-only data directory; responsiveness with 500 games), re-run Scenarios 5 and 9, and run `python tests/test_saved_library.py` and `python tests/test_importer.py`. Check in particular that Desktop Entries and Flatpak (icon-based) covers survive a restart; if `cover.save()` cannot render them, apply the fallback in research section 18 and record it there.
+
+**Checkpoint**: Imported games persist on disk. With "Import Games on Startup" off the library comes from the last import (SC-006, SC-009), and removed, hidden and last-played state behave as in Phase 7.
+
+### Polish for the amendment
+
+- [ ] T052 Run the quality gate on the changed files: `uv run --no-project --with ruff==0.14.10 ruff check` and `ruff format --check`, `pyright` (the `gi` stub errors are an environment limitation), `pre-commit run --all-files`, `meson setup _build --reconfigure` and `ninja -C _build test` where available, and `python3 .specify/scripts/bash/check-emojis.py` on all changed files. Run `ninja -C _build cartridges-pot` and confirm `po/cartridges.pot` contains the new startup switch subtitle. Update the PR description to cover the saved library.
+
 ---
 
 ## Dependencies & Execution Order
@@ -252,6 +312,7 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 - **US3 (Phase 5)**: Depends on Foundational. T022 and T029 need US1's `import_games()`. T028 edits the same schema, Blueprint and Python files as T015 and T017, so do it after US2.
 - **Polish (Phase 6)**: Depends on all stories.
 - **US4 (Phase 7)**: Added by the 2026-10-09 amendment. Depends on Foundational and US1 (Phases 2 and 3), which are done. It touches `sources/__init__.py` and `importer.py` again, so start it from a clean tree.
+- **Saved library (Phase 8)**: Added by the 2026-10-10 amendment. Depends on Phases 2, 3 and 7 and builds on `Source._track` from T039. T047 and T048 touch the same files as T039 and T038, so do them after Phase 7.
 
 ### Within Each Story
 
@@ -259,6 +320,7 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 - US1: T006 (reconcile) -> T007 (`replace_games`) -> T008 (`import_games`) -> T009, T010 (application) -> T011, T012 (UI) -> T013.
 - US3: T020 (`location`) before T023 to T027. T021 before T022.
 - US4: T034 and T035 first (they must fail). T036 -> T037 -> T039 -> T040 -> T041. T038 is independent of T036, T037 and T039. T042 last.
+- Saved library: T043 and T044 first (they must fail). T045 -> T046 -> T047 -> T048. T049 and T050 are independent. T051, then T052 last.
 
 ### Parallel Opportunities
 
@@ -267,6 +329,7 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 - T023, T024, T025, T026 and T027 each touch a different source module and can run in parallel once T020 is done.
 - T031 in parallel with T030.
 - T034 and T035 (different test files) in parallel; T036 and T038 (different modules) in parallel.
+- T043 and T044 (different test files) in parallel; T045, T049 and T050 (different files, no shared dependency) in parallel with each other and with the tests.
 
 ---
 
@@ -299,6 +362,7 @@ Task: "T027 legendary.py: _config_dir() uses location('legendary-location', (_CO
 4. US3: all source settings take effect; "Remove Uninstalled Games" removed.
 5. Polish: responsiveness measurement, translations, quality gate.
 6. US4 (amendment): lasting hidden state, removed launcher games return on import, manually added removals saved. Can ship on its own on top of the first five steps.
+7. Saved library (amendment): imported games persist on disk and are shown when startup import is off. Builds on step 6.
 
 Commit after each task or logical group, using the branch `feat/008-game-import`.
 
