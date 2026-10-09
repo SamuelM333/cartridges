@@ -4,6 +4,7 @@
 # SPDX-FileCopyrightText: Copyright 2025 Jamie Gravendeel
 
 import locale
+import logging
 from gettext import gettext as _
 from typing import TYPE_CHECKING, Any, cast
 
@@ -17,6 +18,8 @@ from . import closures
 
 if TYPE_CHECKING:
     from .window import Window
+
+_logger = logging.getLogger(__name__)
 
 _SORT_MODES = {
     "last_played": ("last-played", True),
@@ -102,14 +105,33 @@ class GameEditable(GObject.Object):
             return
 
         if not self.game:
-            self.game = imported.new()
-            sources.get(imported.ID).append(self.game)
+            source = sources.get(imported.ID)
+            taken = {
+                cast(Game, source.get_item(i)).game_id
+                for i in range(source.get_n_items())
+            }
+            self.game = imported.new(taken)
+            source.append(self.game)
 
         self.game.executable = self.executable
         if self.game.name != self.name:
             self.game.name = self.name
             sorter.changed(Gtk.SorterChange.DIFFERENT)
         self.game.developer = self.developer
+
+        if self.game.source == imported.ID:
+            self._save(self.game)
+
+    @staticmethod
+    def _save(game: Game) -> None:
+        """Save a manually added `game`, telling the user if that is not possible."""
+        try:
+            game.save()
+        except OSError as e:
+            _logger.warning("Could not save %s: %s", game.game_id, e)
+            # Translators: {} is the name of the game that could not be saved
+            text = _("{} could not be saved and will be lost when Cartridges closes")
+            _window().send_toast(text.format(game.name))
 
 
 def add():

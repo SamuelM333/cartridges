@@ -4,6 +4,7 @@
 # SPDX-FileCopyrightText: Copyright 2025 Jamie Gravendeel
 
 import json
+import logging
 import os
 import subprocess
 import time
@@ -17,6 +18,8 @@ from gi.repository import Gdk, Gio, GObject
 from . import DATA_DIR, SETTINGS, play_history
 
 GAMES_DIR = DATA_DIR / "games"
+
+_logger = logging.getLogger(__name__)
 
 
 class _GameProp(NamedTuple):
@@ -109,14 +112,30 @@ class Game(Gio.SimpleActionGroup):
             if app:
                 app.quit()
 
-    def save(self):
-        """Save the game's properties to disk."""
+    def save(self) -> None:
+        """Save the game's properties to disk.
+
+        The file is replaced in one step, so a failure never leaves a damaged or
+        partial game file behind.
+
+        Raises `OSError` if the game could not be saved.
+        """
         properties = {prop.name: getattr(self, prop.name) for prop in PROPERTIES}
 
-        GAMES_DIR.mkdir(parents=True, exist_ok=True)
         path = Path(f"{GAMES_DIR / self.game_id}.json")
-        with path.open("w", encoding="utf-8") as f:
-            json.dump(properties, f, indent=4, sort_keys=True)
+        tmp = path.with_suffix(".json.tmp")
+        try:
+            GAMES_DIR.mkdir(parents=True, exist_ok=True)
+            with tmp.open("w", encoding="utf-8") as f:
+                json.dump(properties, f, indent=4, sort_keys=True)
+
+            tmp.replace(path)
+        except OSError:
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                _logger.debug("Could not remove %s", tmp, exc_info=True)
+            raise
 
 
 def format_executable(executable: str) -> str:
