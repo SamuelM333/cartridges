@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2026 kramo
 
+import logging
 from collections import defaultdict
 from io import BytesIO
 from os import PathLike
+from pathlib import Path
 from urllib.request import urlopen
 
 import PIL
@@ -17,6 +19,8 @@ COVERS_DIR = DATA_DIR / "covers"
 WIDTH = 200
 HEIGHT = 300
 ICON_SIZE = 128
+
+_logger = logging.getLogger(__name__)
 
 
 class _PILPaintable(GObject.Object, Gdk.Paintable):
@@ -98,3 +102,37 @@ def from_icon(icon: Gdk.Paintable) -> Gdk.Paintable | None:
     )
     icon.snapshot(snapshot, ICON_SIZE, ICON_SIZE)
     return snapshot.to_paintable(Graphene.Size().init(WIDTH, HEIGHT))
+
+
+def save(paintable: Gdk.Paintable, path: Path) -> bool:
+    """Write `paintable` to `path` as a PNG image.
+
+    An animated cover is saved as its current frame. Return whether it could be
+    written.
+    """
+    try:
+        import cairo
+    except ImportError:
+        _logger.warning("Could not save cover to %s: pycairo is not available", path)
+        return False
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        if isinstance(paintable, _PILPaintable):
+            paintable.im.convert("RGBA").save(path, "PNG")
+            return True
+
+        snapshot = Gtk.Snapshot()
+        paintable.snapshot(snapshot, WIDTH, HEIGHT)
+        if (node := snapshot.to_node()) is None:
+            return False
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
+        node.draw(cairo.Context(surface))
+        surface.write_to_png(str(path))
+    except (OSError, cairo.Error, ValueError) as e:
+        _logger.warning("Could not save cover to %s: %s", path, e)
+        return False
+
+    return True

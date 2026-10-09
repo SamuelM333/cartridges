@@ -11,6 +11,7 @@ from typing import NamedTuple
 
 from gi.repository import GObject
 
+from cartridges import saved_library
 from cartridges.games import Game
 
 # Number of games read from a source before letting the main loop run.
@@ -42,6 +43,9 @@ def reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliati
     Games found in both keep their existing object, so values the user changed
     are not overwritten. Only the last-played time and a missing cover are
     taken from the scan.
+
+    A game the user removed is not kept. The scanned game replaces it, so the
+    game comes back as a new one.
     """
     new: dict[str, Game] = {}
     for game in scanned:
@@ -50,7 +54,8 @@ def reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliati
     kept: list[Game] = []
     removed: list[Game] = []
     for game in existing:
-        if (found := new.pop(game.game_id, None)) is None:
+        found = None if game.removed else new.pop(game.game_id, None)
+        if found is None:
             removed.append(game)
             continue
 
@@ -89,6 +94,8 @@ async def import_games() -> list[Game]:
 
             new_games.extend(source.replace_games(scanned))
             await asyncio.sleep(0)
+
+        saved_library.request_save()
     finally:
         state.running = False
 

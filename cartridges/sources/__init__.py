@@ -4,20 +4,20 @@
 # pyright: reportConstantRedefinition=false
 
 import importlib
+import logging
 import os
 import pkgutil
 import sqlite3
 import sys
 import time
 from collections.abc import Generator, Iterable
-from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import Final, Protocol, cast
 
 from gi.repository import Gio, GLib, GObject
 
-from cartridges import SETTINGS, play_history
+from cartridges import SETTINGS, hidden_games, play_history, saved_library
 from cartridges.games import Game
 
 if Path("/.flatpak-info").exists():
@@ -37,6 +37,8 @@ else:
     CACHE = Path(GLib.get_user_cache_dir())
 
 FLATPAK = Path.home() / ".var" / "app"
+
+_logger = logging.getLogger(__name__)
 
 PROGRAM_FILES_X86 = Path(os.getenv("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
 APPDATA = Path(os.getenv("APPDATA", r"C:\Users\Default\AppData\Roaming"))
@@ -106,8 +108,21 @@ class Source(GObject.Object, Gio.ListModel[Game]):
 
         self._games: list[Game] = []
         if self.id == "imported" or SETTINGS.get_boolean("import-on-startup"):
-            with suppress(OSError, sqlite3.Error):
+            try:
                 self._games = list(self.scan(added))
+            except (OSError, sqlite3.Error):
+                self._load_saved()
+        else:
+            self._load_saved()
+
+    def _load_saved(self) -> None:
+        """Show the games from the last import instead of scanning."""
+        if self.id == "imported":
+            return
+
+        self._games = saved_library.read().get(self.id, [])
+        for game in self._games:
+            self._track(game)
 
     def do_get_item(self, position: int) -> Game | None:
         """Get the item at `position`."""
@@ -126,6 +141,7 @@ class Source(GObject.Object, Gio.ListModel[Game]):
 
     def append(self, game: Game):
         """Append `game` to `self`."""
+        self._track(game)
         pos = len(self._games)
         self._games.append(game)
         self.items_changed(pos, 0, 1)
@@ -159,12 +175,49 @@ class Source(GObject.Object, Gio.ListModel[Game]):
             game.last_played = max(
                 game.last_played, play_history.load().get(game.game_id, 0)
             )
+            if (hidden := hidden_games.load().get(game.game_id)) is not None:
+                game.hidden = hidden
+
+            self._track(game)
             yield game
+
+    def _track(self, game: Game) -> None:
+        """Remember the changes the user makes to `game`.
+
+        Whether a game is hidden is kept for every source. Whether a game was
+        removed is only kept for manually added games, since a game from a
+        launcher comes back on the next import.
+        """
+        game.connect(
+            "notify::hidden",
+            lambda game, _pspec: hidden_games.record(game.game_id, game.hidden),
+        )
+
+        if self.id == "imported":
+            game.connect("notify::removed", lambda game, _pspec: _save(game))
+            return
+
+        game.connect("notify::removed", lambda *_: saved_library.request_save())
+        game.connect("notify::cover", lambda game, _pspec: _cover_changed(game))
+
+
+def _save(game: Game) -> None:
+    try:
+        game.save()
+    except OSError as e:
+        _logger.warning("Could not save %s: %s", game.game_id, e)
+
+
+def _cover_changed(game: Game) -> None:
+    saved_library.forget_cover(game.game_id)
+    saved_library.request_save()
 
 
 def load():
     """Populate `sources.model`."""
     model.splice(0, 0, tuple(_get_sources()))
+    if SETTINGS.get_boolean("import-on-startup"):
+        saved_library.request_save()
 
 
 @cache

@@ -655,8 +655,6 @@ class CartridgesPreferences(Adw.PreferencesDialog):
                 game = source.get_item(i)
                 if game is not None and not game.removed:
                     game.removed = True
-                    if game.source == "imported":
-                        game.save()
                     self._removed_games.append(game)
 
         if self._removed_games:
@@ -671,8 +669,6 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         """Undo removing all games."""
         for game in self._removed_games:
             game.removed = False
-            if game.source == "imported":
-                game.save()
         count = len(self._removed_games)
         self._removed_games.clear()
         self._send_toast(_("Restored {} games").format(count))

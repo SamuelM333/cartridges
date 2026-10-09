@@ -23,10 +23,12 @@ pre-commit run --all-files
 pyright
 ninja -C _build test
 python tests/test_importer.py
+python tests/test_hidden_games.py
+python tests/test_saved_library.py
 python tests/test_settings.py
 ```
 
-Expected: all pass. `test_importer.py` covers the reconciliation invariants in [data-model.md](data-model.md) section 4 and the location rules in section 6.
+Expected: all pass. `test_importer.py` covers the reconciliation invariants in [data-model.md](data-model.md) section 4 (including removed games returning) and the location rules in section 6. `test_hidden_games.py` covers the store in section 7. `test_saved_library.py` covers the library file and cover files in section 8, and `test_importer.py` covers the startup paths (saved library used when the switch is off or a source fails).
 
 ## Scenario 1: Import Now picks up a new game (US1, FR-006, FR-007, SC-001)
 
@@ -63,11 +65,11 @@ Expected: all pass. `test_importer.py` covers the reconciliation invariants in [
 
 1. Reset settings. Open Preferences > Import.
 2. Expected: "Import Games on Startup" is on by default.
-3. Turn it off and restart Cartridges.
-4. Expected: only manually added games are shown (or the empty state). Launcher sources are absent from the sidebar.
+3. Press **Import** once, then turn the switch off and restart Cartridges.
+4. Expected: the same launcher games as after the import are shown, under the same sources, with covers and last-played times. (With no import before turning the switch off, only manually added games or the empty state are shown.)
 5. Optional: run with `strace -f -e trace=openat` and confirm no launcher paths (for example `steamapps`, `pga.db`) are opened at startup.
-6. Press **Import** in Preferences.
-7. Expected: launcher games appear.
+6. Install or uninstall a game in a launcher and restart. Expected: the library is unchanged (no scan). Press **Import** in Preferences.
+7. Expected: the change appears.
 8. Turn the switch back on and restart. Expected: launcher games appear at startup, as before this feature.
 
 ## Scenario 6: Source settings take effect (US3, FR-013, FR-014, FR-015, SC-004)
@@ -100,3 +102,27 @@ For each row below, change the setting, press **Import**, and check the library.
 1. On `main` before this feature, start Cartridges with default settings and note per-source counts and a few games' "last played" and "added" values.
 2. On the feature branch, reset settings and start again.
 3. Expected: same games, same counts, same "last played" values. "Added" values for launcher games that do not report one are the scan time, so they differ between runs on both branches; compare only games whose launcher reports a date.
+
+## Scenario 10: Hidden games persist; removed games return (US4, FR-019 to FR-023, SC-007, SC-008)
+
+1. Hide launcher game A. Restart Cartridges. Expected: A is still hidden and shows with "Show Hidden Games" on.
+2. Unhide A and restart. Expected: A is not hidden. Hide A, then use Undo from the toast and restart. Expected: A is not hidden.
+3. Hide A, press **Import** 10 times. Expected: A is still hidden; toasts say "No new games found".
+4. Remove launcher game B. Expected: B leaves the library at once. Press **Import**. Expected: B is back and the toast says "1 new game imported".
+5. Remove B again and restart. Expected: B is back (startup import).
+6. Hide C, remove C, press **Import**. Expected: C returns still hidden.
+7. Uninstall hidden game D (or delete its desktop entry), press **Import**, then reinstall it and press **Import**. Expected: D returns hidden.
+8. Remove a manually added game E, restart, then press **Import**. Expected: E stays removed. Remove E, then use Undo and restart. Expected: E is present.
+9. Use "Remove All" in Preferences, restart. Expected: launcher games are back; manually added games stay removed. Use Undo before restarting in a second run. Expected: manually added games are present after restart.
+10. Damage `~/.local/share/cartridges/hidden.json` (write `not json`) and start. Expected: the app starts, no game is hidden by it, and no crash. Make the data directory read-only and hide a game. Expected: the game is hidden for the session and the app keeps working.
+
+## Scenario 11: Imported games persist on disk (US2, FR-024 to FR-029, SC-009)
+
+1. Reset settings and delete `~/.local/share/cartridges/library.json` and `library-covers/` (use the development profile's data directory). Turn "Import Games on Startup" off and start Cartridges. Expected: only manually added games (or the empty state).
+2. Press **Import**. Expected: games appear. Quit Cartridges and check that `library.json` and `library-covers/` exist and that `library.json` lists the launcher games and no manually added ones.
+3. Start Cartridges again. Expected: the same games appear under the same sources, with covers (including Desktop Entries and Flatpak icon covers) and last-played times; with `strace -f -e trace=openat` no launcher paths are opened (SC-006). Launch a game, quit, restart: the new last-played time is shown.
+4. Remove a launcher game, restart (switch still off). Expected: it stays out. Press **Import**. Expected: it returns, with a "1 new game imported" toast. Use "Remove All", then Undo, restart: the library is as after Undo.
+5. Hide a game, restart: still hidden. Turn Steam off and restart. Expected: Steam games are still shown (no import yet). Press **Import**. Expected: Steam games are gone, and stay gone after a restart.
+6. Make a source unreadable (for example `chmod 000` on Lutris `pga.db`) and turn the switch on. Expected: at startup Lutris still shows the games saved for it and the others scan normally.
+7. Write `not json` into `library.json` and start with the switch off. Expected: the app starts with no launcher games; **Import** rebuilds the library. With the switch on, the startup scan rebuilds it. Make the data directory read-only and press **Import**: the games appear for the session and the app keeps working.
+8. Responsiveness: with 500 games, pressing **Import** for the first time does not freeze the window (cover writing happens in small batches); check with the GTK Inspector frame rate as in Scenario 7.

@@ -24,8 +24,8 @@ A `Gio.ListModel` of `Game`, one per source module.
 |-----------|------------------|
 | `id == "imported"` | Always scanned. |
 | `import-on-startup` is on | Scanned (today's behavior). |
-| `import-on-startup` is off | Empty. |
-| Scan raises `OSError` or `sqlite3.Error` | Empty (FR-005). |
+| `import-on-startup` is off | The source's games from the saved library (section 8); empty if none. |
+| Scan raises `OSError` or `sqlite3.Error` | The source's games from the saved library; empty if none (FR-005, FR-027). |
 
 ## 2. Game (existing, `cartridges/games.py`)
 
@@ -39,7 +39,9 @@ No schema change. Field ownership during re-import:
 | `last_played` | Both | `max(existing, launcher, play history)`. |
 | `cover` | Both | Kept if set; otherwise taken from the new scan. |
 | `name`, `executable`, `developer` | User (editable) | Kept. |
-| `hidden`, `removed`, `blacklisted` | User | Kept. |
+| `hidden` | User | Kept in memory. On a fresh scan, set from `hidden_games` if the user has ever hidden or unhidden this game (section 7); otherwise the launcher's value. Changes are recorded in `hidden_games` (FR-019, FR-020). |
+| `removed` | User | Launcher games: in memory only; a removed game is replaced by the fresh scan object on the next import (FR-021). Manually added games: saved to the game file on change (FR-022). |
+| `blacklisted` | User | Kept. |
 
 ## 3. Import run (new, `cartridges/importer.py`)
 
@@ -73,14 +75,16 @@ The caller uses `len(result)` for the toast and passes `result` to the SteamGrid
 
 ```text
 reconcile(existing: list[Game], scanned: list[Game]) -> Reconciliation
-  kept:    list[Game]  existing games whose game_id is in scanned, merged per section 2, in existing order
-  added:   list[Game]  scanned games whose game_id is not in existing, in scan order
-  removed: list[Game]  existing games whose game_id is not in scanned
+  kept:    list[Game]  existing, not-removed games whose game_id is in scanned, merged per section 2, in existing order
+  added:   list[Game]  scanned games whose game_id is not in existing, or whose existing game is removed, in scan order
+  removed: list[Game]  existing games whose game_id is not in scanned, or that are marked removed
 ```
 
 Invariants:
 - `kept + added` has no duplicate `game_id` (SC-003). If a scan yields the same `game_id` twice, the first one wins (Steam already de-duplicates; this protects other sources).
 - `kept` contains the original objects, not copies.
+- An existing game with `removed` set is never in `kept`: it goes to `removed`, and the scanned game with its `game_id` goes to `added` (FR-021). Its other state is not carried over.
+- Idempotence holds for games that are not `removed`; once a removed game has been replaced, the replacement is a normal kept game.
 - `reconcile(x, scan)` followed by `reconcile(result, scan)` with the same scan gives `added == []` and `removed == []` (idempotent, SC-003).
 
 The resulting list is `kept + added`.
@@ -118,3 +122,72 @@ location(key: str, candidates: Iterable[Path]) -> Path
 | Heroic | `heroic-location` | `heroic._CONFIG_PATHS` |
 | itch | `itch-location` | `itch._CONFIG_PATHS` |
 | Legendary | `legendary-location` | `(legendary._CONFIG_PATH,)` |
+
+## 7. Hidden-state store (new, `cartridges/hidden_games.py`)
+
+Persisted at `DATA_DIR / "hidden.json"`:
+
+```json
+{
+    "heroic_abc": true,
+    "steam_620": false
+}
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| key | `str` | A `game_id`. Entries stay while the game is uninstalled. |
+| value | `bool` | `True` if the user last hid the game, `False` if the user last unhid it. A missing key means the user never chose, so the launcher's value applies. |
+
+API:
+- `load() -> dict[str, bool]`: cached; tolerant of a missing, undecodable or invalid file; entries that are not `str -> bool` are skipped.
+- `record(game_id: str, hidden: bool) -> None`: updates the cache, then writes atomically. A failed write is logged, never raised.
+
+Lifecycle:
+1. `Source.scan()` builds a game, then applies `load()` to set `hidden` for known IDs.
+2. After that, `Source` connects `notify::hidden` on the game; each change calls `record()`.
+3. `Source.append()` (a new manually added game) connects the same handler.
+
+Removed games for manually added sources use the existing game file: `Source` also connects `notify::removed` for games whose `source == "imported"`, calling `Game.save()` and catching `OSError`.
+
+## 8. Saved library (new, `cartridges/saved_library.py`)
+
+Files under `DATA_DIR`:
+
+| Path | Content |
+|------|---------|
+| `library.json` | `{"version": 1, "games": [entry, ...]}` |
+| `library-covers/<sha256(game_id)>.png` | The cover of one game |
+
+**Entry**: the properties in `games.PROPERTIES` except `removed`, plus an optional `cover` file name:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `game_id`, `source`, `name`, `executable` | `str` | Required by `Game.from_data()`. |
+| `developer` | `str` | Optional. |
+| `added`, `last_played` | `int` | Optional. |
+| `hidden`, `blacklisted` | `bool` | Optional. `hidden` is overridden by `hidden_games` when the user made a choice. |
+| `version` | `float` | Game format version, as `Game.save()` writes it. |
+| `cover` | `str` | File name inside `library-covers/`. Absent when the game has no cover. |
+
+**What goes in**: every game of every source except `imported`, except games with `removed` set (FR-026).
+
+**What does not**: manually added games (stored in `games/`), user edits to a launcher game (out of scope), `removed`.
+
+**Validation on read**:
+- The file is ignored (empty library) if it is missing, is not valid UTF-8 JSON, has a root that is not an object, or has a `version` other than `1`.
+- An entry is skipped if it is not an object, `Game.from_data()` raises `TypeError`, or its `source` is not a known source ID.
+- A `cover` is used only if the file exists and opens as an image; otherwise the game has no cover.
+
+**Lifecycle**:
+
+```text
+startup (import-on-startup on):  scan -> in-memory library -> request_save
+startup (import-on-startup off): library.json -> in-memory library
+import (any):                    scan -> reconcile -> in-memory library -> request_save
+remove / restore launcher game:  notify::removed -> request_save
+cover changes:                   notify::cover -> request_save
+request_save:                    dirty flag -> one task -> write library.json, write missing covers, delete orphan covers
+```
+
+Applying saved games (in `Source`): `hidden` from `hidden_games` if the user has a choice, `last_played = max(saved, play history)`, then the same change handlers as scanned games (`Source._track`).
