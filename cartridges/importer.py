@@ -37,12 +37,18 @@ class Reconciliation(NamedTuple):
 state = ImportState()
 
 
-def reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliation:
+def reconcile(
+    existing: Sequence[Game],
+    scanned: Iterable[Game],
+    *,
+    refresh_covers: bool = False,
+) -> Reconciliation:
     """Merge `scanned` into `existing`, matching games by ID.
 
     Games found in both keep their existing object, so values the user changed
     are not overwritten. Only the last-played time and a missing cover are
-    taken from the scan.
+    taken from the scan. With `refresh_covers`, the scanned cover replaces the
+    existing one, for sources whose covers are cheap to make again.
 
     A game the user removed is not kept. The scanned game replaces it, so the
     game comes back as a new one.
@@ -60,7 +66,7 @@ def reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliati
             continue
 
         game.last_played = max(game.last_played, found.last_played)
-        if game.cover is None and found.cover is not None:
+        if found.cover is not None and (refresh_covers or game.cover is None):
             game.cover = found.cover
         kept.append(game)
 

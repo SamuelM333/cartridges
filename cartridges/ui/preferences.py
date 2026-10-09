@@ -578,10 +578,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
                     )
                     if success:
                         success_count += 1
-                        base = cover.COVERS_DIR / game.game_id
-                        new_cover = cover.at_path(f"{base}.gif") or cover.at_path(
-                            f"{base}.tiff"
-                        )
+                        new_cover = cover.custom(game.game_id)
                         if new_cover:
                             GLib.idle_add(setattr, game, "cover", new_cover)
                 except steamgriddb.SgdbAuthError as e:

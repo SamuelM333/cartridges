@@ -36,4 +36,13 @@
     <file>star-symbolic.svg</file>
     <file>step-over-symbolic.svg</file>
   </gresource>
+  <!--
+    Copy of application-x-executable from the Adwaita icon theme
+    (LGPL-3.0-only OR CC-BY-SA-3.0). Used as the default desktop entry icon
+    when the Adwaita icon theme is not installed. Kept outside the icons/
+    prefix, so it is never picked up as a themed icon.
+  -->
+  <gresource prefix="@PREFIX@/fallback">
+    <file>application-x-executable.svg</file>
+  </gresource>
 </gresources>
