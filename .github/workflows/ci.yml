@@ -41,27 +41,3 @@ jobs:
           ninja -C _build cartridges-update-po
           appstreamcli validate --no-net _build/data/*.metainfo.xml
           desktop-file-validate _build/data/*.desktop
-
-  flatpak:
-    name: Flatpak Build (Devel)
-    runs-on: ubuntu-26.04
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
-      options: --privileged
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Flatpak Builder
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
-        with:
-          bundle: page.samuelm333.Cartridges.Devel.flatpak
-          manifest-path: flatpak/page.samuelm333.Cartridges.Devel.json
-          run-tests: true
-
-      - name: Upload Development Flatpak Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: page.samuelm333.Cartridges.Devel.flatpak
-          path: page.samuelm333.Cartridges.Devel.flatpak
-          if-no-files-found: error
