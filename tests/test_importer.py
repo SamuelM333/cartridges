@@ -17,6 +17,7 @@ from gi.repository import Gdk, GLib
 
 if TYPE_CHECKING:
     from cartridges.games import Game
+    from cartridges.sources import Source
 
 
 class _Settings:
@@ -27,9 +28,10 @@ class _Settings:
 
     def __init__(self) -> None:
         self.user_values: dict[str, str] = {}
+        self.booleans: dict[str, bool] = {}
 
-    def get_boolean(self, _key: str) -> bool:
-        return False
+    def get_boolean(self, key: str) -> bool:
+        return self.booleans.get(key, False)
 
     def get_string(self, key: str) -> str:
         return self.user_values.get(key, "")
@@ -52,6 +54,7 @@ _package.SETTINGS = _SETTINGS  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
 
 games = importlib.import_module("cartridges.games")
+hidden_games = importlib.import_module("cartridges.hidden_games")
 importer = importlib.import_module("cartridges.importer")
 sources = importlib.import_module("cartridges.sources")
 
@@ -104,7 +107,6 @@ def check_reconcile_preserves_user_fields() -> None:
         executable="edited",
         developer="Edited Dev",
         hidden=True,
-        removed=True,
         added=100,
     )
     scanned = _game("a", developer="Launcher Dev", added=200)
@@ -114,7 +116,6 @@ def check_reconcile_preserves_user_fields() -> None:
     _expect(kept.executable, "edited", "executable")
     _expect(kept.developer, "Edited Dev", "developer")
     _expect(kept.hidden, True, "hidden")
-    _expect(kept.removed, True, "removed")
     _expect(kept.added, 100, "added")
 
 
@@ -169,6 +170,102 @@ def check_reconcile_idempotent() -> None:
     _expect(_ids(second.kept), ["b", "a", "c"], "kept on second run")
 
 
+def check_reconcile_removed_returns_as_added() -> None:
+    """Validate that a game the user removed is replaced by the scanned game."""
+    removed = _game("a", removed=True)
+    scanned = _game("a")
+    result = importer.reconcile([removed], [scanned])
+    _expect(_ids(result.kept), [], "kept")
+    _expect(_ids(result.removed), ["a"], "removed")
+    _expect(_ids(result.added), ["a"], "added")
+    if result.added[0] is not scanned or result.removed[0] is not removed:
+        msg = "Expected the scanned game to replace the removed one"
+        raise AssertionError(msg)
+
+
+def check_reconcile_removed_uninstalled() -> None:
+    """Validate that a removed game missing from the scan is only removed."""
+    result = importer.reconcile([_game("a", removed=True)], [])
+    _expect(_ids(result.removed), ["a"], "removed")
+    _expect(_ids(result.added), [], "added")
+
+
+def check_reconcile_removed_idempotent() -> None:
+    """Validate that once a removed game is replaced, the next scan changes nothing."""
+    scan = [_game("a")]
+    first = importer.reconcile([_game("a", removed=True)], scan)
+    second = importer.reconcile(first.kept + first.added, scan)
+    _expect(_ids(second.added), [], "added on second run")
+    _expect(_ids(second.removed), [], "removed on second run")
+
+
+def check_reconcile_other_games_unaffected() -> None:
+    """Validate that games the user did not remove are still kept as they are."""
+    gone, normal = _game("a", removed=True), _game("b")
+    result = importer.reconcile([gone, normal], [_game("a"), _game("b")])
+    _expect(_ids(result.kept), ["b"], "kept")
+    if result.kept[0] is not normal:
+        msg = "Expected the game that was not removed to be kept"
+        raise AssertionError(msg)
+
+
+def _source(ident: str, *scanned: "Game") -> "Source":
+    module = types.SimpleNamespace(
+        ID=ident, NAME=ident, get_games=lambda: (game for game in scanned)
+    )
+    _SETTINGS.booleans = {"import-on-startup": True, ident: True}
+    return sources.Source(module, 0)  # pyright: ignore[reportArgumentType]
+
+
+def _reset_hidden(stored: dict[str, bool]) -> None:
+    vars(hidden_games)["_hidden"] = dict(stored)
+
+
+def check_scan_applies_stored_hidden() -> None:
+    """Validate that a choice the user made overrides what the launcher reports."""
+    _reset_hidden({"a": True, "b": False})
+    source = _source(
+        "fake", _game("a"), _game("b", hidden=True), _game("c", hidden=True)
+    )
+    _expect(
+        [source.do_get_item(i).hidden for i in range(3)],  # pyright: ignore[reportOptionalMemberAccess]
+        [True, False, True],
+        "hidden",
+    )
+
+
+def check_hidden_changes_are_recorded() -> None:
+    """Validate that hiding and unhiding is remembered, and loading is not."""
+    _reset_hidden({})
+    source = _source("fake", _game("a", hidden=True), _game("b"))
+    _expect(hidden_games.load(), {}, "hidden games after loading")
+
+    a, b = source.do_get_item(0), source.do_get_item(1)
+    a.hidden = False  # pyright: ignore[reportOptionalMemberAccess]
+    b.hidden = True  # pyright: ignore[reportOptionalMemberAccess]
+    _expect(hidden_games.load(), {"a": False, "b": True}, "hidden games")
+
+    added = _game("c")
+    source.append(added)
+    added.hidden = True
+    _expect(hidden_games.load().get("c"), True, "hidden game added later")
+
+
+def check_removed_is_saved_for_added_games_only() -> None:
+    """Validate that only manually added games remember being removed."""
+    saved = games.GAMES_DIR / "imported_0.json"
+    saved.unlink(missing_ok=True)
+
+    launcher = _source("fake", _game("fake_1"))
+    launcher.do_get_item(0).removed = True  # pyright: ignore[reportOptionalMemberAccess]
+    _expect(list(games.GAMES_DIR.glob("fake_*.json")), [], "launcher game files")
+
+    manual = _source("imported", _game("imported_0", source="imported"))
+    manual.do_get_item(0).removed = True  # pyright: ignore[reportOptionalMemberAccess]
+    _expect(saved.exists(), True, "manually added game file")
+    _expect('"removed": true' in saved.read_text(encoding="utf-8"), True, "removed")
+
+
 def check_location_user_set_is_strict() -> None:
     """Validate that a location the user picked is used even if it is missing."""
     existing = Path(tempfile.mkdtemp())
@@ -206,6 +303,13 @@ if __name__ == "__main__":
     check_reconcile_fills_missing_cover_only()
     check_reconcile_dedupes_scan()
     check_reconcile_idempotent()
+    check_reconcile_removed_returns_as_added()
+    check_reconcile_removed_uninstalled()
+    check_reconcile_removed_idempotent()
+    check_reconcile_other_games_unaffected()
+    check_scan_applies_stored_hidden()
+    check_hidden_changes_are_recorded()
+    check_removed_is_saved_for_added_games_only()
     check_location_user_set_is_strict()
     check_location_default_autodetects()
     check_location_none_found()

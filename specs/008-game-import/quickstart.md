@@ -23,10 +23,11 @@ pre-commit run --all-files
 pyright
 ninja -C _build test
 python tests/test_importer.py
+python tests/test_hidden_games.py
 python tests/test_settings.py
 ```
 
-Expected: all pass. `test_importer.py` covers the reconciliation invariants in [data-model.md](data-model.md) section 4 and the location rules in section 6.
+Expected: all pass. `test_importer.py` covers the reconciliation invariants in [data-model.md](data-model.md) section 4 (including removed games returning) and the location rules in section 6. `test_hidden_games.py` covers the store in section 7.
 
 ## Scenario 1: Import Now picks up a new game (US1, FR-006, FR-007, SC-001)
 
@@ -100,3 +101,16 @@ For each row below, change the setting, press **Import**, and check the library.
 1. On `main` before this feature, start Cartridges with default settings and note per-source counts and a few games' "last played" and "added" values.
 2. On the feature branch, reset settings and start again.
 3. Expected: same games, same counts, same "last played" values. "Added" values for launcher games that do not report one are the scan time, so they differ between runs on both branches; compare only games whose launcher reports a date.
+
+## Scenario 10: Hidden games persist; removed games return (US4, FR-019 to FR-023, SC-007, SC-008)
+
+1. Hide launcher game A. Restart Cartridges. Expected: A is still hidden and shows with "Show Hidden Games" on.
+2. Unhide A and restart. Expected: A is not hidden. Hide A, then use Undo from the toast and restart. Expected: A is not hidden.
+3. Hide A, press **Import** 10 times. Expected: A is still hidden; toasts say "No new games found".
+4. Remove launcher game B. Expected: B leaves the library at once. Press **Import**. Expected: B is back and the toast says "1 new game imported".
+5. Remove B again and restart. Expected: B is back (startup import).
+6. Hide C, remove C, press **Import**. Expected: C returns still hidden.
+7. Uninstall hidden game D (or delete its desktop entry), press **Import**, then reinstall it and press **Import**. Expected: D returns hidden.
+8. Remove a manually added game E, restart, then press **Import**. Expected: E stays removed. Remove E, then use Undo and restart. Expected: E is present.
+9. Use "Remove All" in Preferences, restart. Expected: launcher games are back; manually added games stay removed. Use Undo before restarting in a second run. Expected: manually added games are present after restart.
+10. Damage `~/.local/share/cartridges/hidden.json` (write `not json`) and start. Expected: the app starts, no game is hidden by it, and no crash. Make the data directory read-only and hide a game. Expected: the game is hidden for the session and the app keeps working.

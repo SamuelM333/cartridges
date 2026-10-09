@@ -1,6 +1,6 @@
 # Research: Game Import
 
-**Feature**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Date**: 2026-10-08
+**Feature**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Date**: 2026-10-08 (amended 2026-10-09: sections 2, 14 and 15)
 
 Each section records one decision, why it was made, and what else was considered. Code references point at the state of `main` at `0e201b5`.
 
@@ -20,15 +20,17 @@ Each section records one decision, why it was made, and what else was considered
 ## 2. How a re-scan updates the library
 
 **Decision**: Reconcile by `game_id`, per source, keeping existing `Game` objects:
-- A `game_id` present before and after: keep the existing object. Update only launcher-derived fields that cannot hold user edits: `last_played` becomes the max of the old value, the new launcher value, and play history; `cover` is taken from the new scan only if the existing game has none.
+- A `game_id` present before and after, and the existing game is not `removed`: keep the existing object. Update only launcher-derived fields that cannot hold user edits: `last_played` becomes the max of the old value, the new launcher value, and play history; `cover` is taken from the new scan only if the existing game has none.
 - A `game_id` that is new: append it. Its `added` defaults to the import time (same rule as startup, FR-004).
 - A `game_id` that is gone: remove it from the source (FR-016, uninstalled games disappear).
+- A `game_id` present before and after, but the existing game has `removed` set: drop the old object and add the scanned one as new (FR-021). Its `hidden` value comes from the persisted store (section 14), so it returns still hidden if it was.
 
 The change is applied to each source with one `items_changed` emission that covers the removed and appended items.
 
 **Rationale**:
 - Keeping objects means an open game details page, a running cover fetch, a collection membership, and in-session `hidden`/`removed`/edited values all survive (spec edge cases "import while editing" and "user state across re-import").
-- Launcher games are not persisted (`Game.save()` is only called for `imported` games), so in-memory objects are the only place user state lives during a session. Replacing objects would silently lose it.
+- Launcher games are not persisted (`Game.save()` is only called for `imported` games), so in-memory objects are the only place `removed` and in-session edits live. Hidden state is the exception once section 14 lands, since it is also stored on disk. Replacing objects would silently lose the in-memory state.
+- Amendment (section 15): an existing launcher game that the user removed is not kept. The scan's fresh object replaces it and counts as new (FR-021).
 - One `items_changed` per source keeps the `Gtk.FlattenListModel` -> `FilterListModel` -> `SortListModel` chain in `ui/games.py` from re-sorting once per game.
 
 **Alternatives considered**:
@@ -152,3 +154,36 @@ Steam, Lutris, Heroic, itch, and Legendary replace their `_data_dir()` / `_confi
 Both get `Translators:` comments. The strings live in `cartridges/application.py`, which formats the toast from the count `import_games()` returns; that file is already in `po/POTFILES.in`. `cartridges/importer.py` has no user-visible strings, so it is not added there.
 
 **Rationale**: FR-010. `ngettext` is required for correct plural forms; f-strings and concatenation are not used (same rules as feature 005).
+
+## 14. Persisting hidden state (amendment 2026-10-09)
+
+**Decision**: Add `cartridges/hidden_games.py`, a sibling of `play_history.py`, storing the user's hide and unhide choices as `{game_id: bool}` in `DATA_DIR / "hidden.json"`.
+- `load() -> dict[str, bool]` reads the file once and caches it. A missing file, invalid JSON, undecodable bytes, a non-object root, or entries that are not `str -> bool` give an empty (or filtered) result and never raise (FR-023).
+- `record(game_id, hidden)` updates the cache, then writes through a temporary file and an atomic rename. A failed write is logged and swallowed, so the hide still works for the session.
+- `Source.scan()` sets `game.hidden = stored[game_id]` for every scanned game that has an entry. A stored choice overrides what the launcher reports, so unhiding a game that Heroic or Lutris marks hidden also lasts.
+- Each game's `hidden` changes are recorded by a `notify::hidden` handler that `Source` connects after the game is built, so the single code path covers the context-menu actions and their Undo callbacks in `ui/games.py`, with no changes there. The handler is connected after the initial value is set, so loading never writes.
+- Entries are kept while a game is uninstalled, so a reinstalled game is still hidden (spec edge case).
+
+**Rationale**:
+- Launcher games have no file of their own, and a game's launcher-reported fields must keep coming from the launcher. A small side file keyed by `game_id` is the least invasive way to remember one user choice.
+- `play_history.py` already solves load, cache, tolerant parsing and atomic best-effort saving for the same kind of file; copying its shape keeps one pattern.
+- A bool value, rather than a set of hidden IDs, records "the user unhid this" so the choice can override a launcher that reports the game hidden.
+
+**Alternatives considered**:
+- Save launcher games to `games/*.json` like manual ones: would turn launcher games into stored copies, contradicting FR-002, and would make launcher-reported fields go stale.
+- Add the hidden flag to `last-played.json`: mixes two unrelated concerns in one file.
+- A GSettings key holding a list of IDs: unbounded growth in dconf and poor fit for per-game data.
+- Calling `store.record()` from `hide()` / `unhide()` in `ui/games.py`: misses Undo callbacks and any other code path that sets the property.
+
+## 15. Removed games (amendment 2026-10-09)
+
+**Decision**:
+- **Launcher games**: removal stays in memory. `reconcile()` treats an existing game with `removed` set as no longer present, so its old object lands in `removed` and the scan's fresh object lands in `added`. The startup scan already creates fresh objects, so a restart brings the game back too. Nothing is written to disk.
+- **Manually added games**: a `notify::removed` handler saves the game through `Game.save()` so its file records `removed: true`, and the existing loader keeps it out of the library. The same handler covers Undo and "Remove All", so the two manual `game.save()` calls in `ui/preferences.py` are dropped. A save failure is logged and swallowed (FR-023).
+
+**Rationale**: Clarified behavior: Hide is the lasting way to keep an installed game out of sight; Remove on a launcher game only lasts until the next import (FR-021). A manually added game has nowhere to come back from, so its removal must be saved (FR-022). Taking the fresh object for a returned game also means its `hidden` value is re-applied from the store, so the hide-then-remove case returns hidden without special code.
+
+**Alternatives considered**:
+- Reset `removed = False` on the kept object: returns the game but would not count it as new, contradicting FR-021 and the toast count.
+- Persist removal for launcher games: contradicted by the clarified spec.
+- Make removal of manually added games temporary: the game could never be recovered, since no import recreates it.

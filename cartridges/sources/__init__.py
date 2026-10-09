@@ -4,6 +4,7 @@
 # pyright: reportConstantRedefinition=false
 
 import importlib
+import logging
 import os
 import pkgutil
 import sqlite3
@@ -17,7 +18,7 @@ from typing import Final, Protocol, cast
 
 from gi.repository import Gio, GLib, GObject
 
-from cartridges import SETTINGS, play_history
+from cartridges import SETTINGS, hidden_games, play_history
 from cartridges.games import Game
 
 if Path("/.flatpak-info").exists():
@@ -37,6 +38,8 @@ else:
     CACHE = Path(GLib.get_user_cache_dir())
 
 FLATPAK = Path.home() / ".var" / "app"
+
+_logger = logging.getLogger(__name__)
 
 PROGRAM_FILES_X86 = Path(os.getenv("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
 APPDATA = Path(os.getenv("APPDATA", r"C:\Users\Default\AppData\Roaming"))
@@ -126,6 +129,7 @@ class Source(GObject.Object, Gio.ListModel[Game]):
 
     def append(self, game: Game):
         """Append `game` to `self`."""
+        self._track(game)
         pos = len(self._games)
         self._games.append(game)
         self.items_changed(pos, 0, 1)
@@ -159,7 +163,33 @@ class Source(GObject.Object, Gio.ListModel[Game]):
             game.last_played = max(
                 game.last_played, play_history.load().get(game.game_id, 0)
             )
+            if (hidden := hidden_games.load().get(game.game_id)) is not None:
+                game.hidden = hidden
+
+            self._track(game)
             yield game
+
+    def _track(self, game: Game) -> None:
+        """Remember the changes the user makes to `game`.
+
+        Whether a game is hidden is kept for every source. Whether a game was
+        removed is only kept for manually added games, since a game from a
+        launcher comes back on the next import.
+        """
+        game.connect(
+            "notify::hidden",
+            lambda game, _pspec: hidden_games.record(game.game_id, game.hidden),
+        )
+
+        if self.id == "imported":
+            game.connect("notify::removed", lambda game, _pspec: _save(game))
+
+
+def _save(game: Game) -> None:
+    try:
+        game.save()
+    except OSError as e:
+        _logger.warning("Could not save %s: %s", game.game_id, e)
 
 
 def load():

@@ -42,6 +42,9 @@ def reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliati
     Games found in both keep their existing object, so values the user changed
     are not overwritten. Only the last-played time and a missing cover are
     taken from the scan.
+
+    A game the user removed is not kept. The scanned game replaces it, so the
+    game comes back as a new one.
     """
     new: dict[str, Game] = {}
     for game in scanned:
@@ -50,7 +53,8 @@ def reconcile(existing: Sequence[Game], scanned: Iterable[Game]) -> Reconciliati
     kept: list[Game] = []
     removed: list[Game] = []
     for game in existing:
-        if (found := new.pop(game.game_id, None)) is None:
+        found = None if game.removed else new.pop(game.game_id, None)
+        if found is None:
             removed.append(game)
             continue
 

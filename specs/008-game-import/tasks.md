@@ -190,6 +190,55 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 - [X] T032 Run the full quality gate from the constitution: `pre-commit run --all-files`, `pyright`, `ruff check`, `blueprint-compiler` compile of `cartridges/ui/preferences.blp`, `meson setup _build` and `ninja -C _build test`, and `python3 .specify/scripts/bash/check-emojis.py` on all changed files. Fix any findings.
 - [X] T033 Run the whole of `specs/008-game-import/quickstart.md` once more end to end on a fresh settings profile (`gsettings reset-recursively`) and tick the spec checklist.
 
+## Phase 7: User Story 4 - Hidden games stay hidden; removed games return on import (Priority: P1, amendment 2026-10-09)
+
+**Goal**: Hide and unhide choices survive restarts and imports for every game. Removing a launcher game lasts only until the next import, which brings it back as a new game. Removing a manually added game is saved and permanent.
+
+**Independent Test**: Hide launcher game A and restart: A is still hidden. Remove launcher game B and press Import: B returns and the toast says "1 new game imported". Remove a manually added game and restart: it stays removed (quickstart Scenario 10).
+
+**Depends on**: Phases 2 and 3 (`Source.scan()`, `importer.reconcile()`). Nothing in Phases 4 to 6 needs to change.
+
+### Tests for User Story 4
+
+> Write these first. They must fail (import error or assertion) before T036 to T040 are done.
+
+- [X] T034 [P] [US4] Create `tests/test_hidden_games.py` in the style of `tests/test_play_history.py` (stub the `cartridges` package with a temp `DATA_DIR`, import `cartridges.hidden_games`, clear its `_hidden` cache between checks, call every check from `if __name__ == "__main__":`):
+  - `check_missing_file`: a missing `hidden.json` loads as `{}`.
+  - `check_record_round_trip`: `record("steam_620", True)` then `record("heroic_a", False)`, clear the cache, and `load()` gives `{"steam_620": True, "heroic_a": False}`; no `*.tmp` file is left behind.
+  - `check_invalid_json`: a file containing `not json` loads as `{}`; so does an undecodable byte file and a JSON array root.
+  - `check_invalid_entries`: entries whose value is not a `bool` (`1`, `"true"`, `null`) are skipped and valid entries are kept.
+  - `check_save_failure_is_swallowed`: with `DATA_DIR` pointing at a path that cannot be created (for example a regular file), `record("a", True)` does not raise, and `load()["a"]` is still `True` in the same process (FR-023).
+- [X] T035 [P] [US4] In `tests/test_importer.py`, update for the changed removed-game rule (data-model.md section 4):
+  - In `check_reconcile_preserves_user_fields`, drop `removed=True` from the existing game and keep the other edited fields, because a removed game is now replaced, not kept.
+  - Add `check_reconcile_removed_returns_as_added`: an existing game with `removed=True` and a scanned game with the same `game_id` give `kept == []`, `removed == [existing]`, and `added == [scanned]` (the scanned object, `is`) (FR-021).
+  - Add `check_reconcile_removed_uninstalled`: an existing removed game whose `game_id` is not scanned goes to `removed` and is not in `added`.
+  - Add `check_reconcile_removed_idempotent`: after the replacement above, `reconcile(kept + added, same_scan)` gives `added == []` and `removed == []`.
+  - Add `check_reconcile_other_games_unaffected`: with one removed and one normal existing game, the normal game stays in `kept` as the same object.
+
+### Implementation for User Story 4
+
+- [X] T036 [US4] Create `cartridges/hidden_games.py` (SPDX header `GPL-3.0-or-later`, `Copyright 2026 samuelm333`), modelled on `cartridges/play_history.py` (research section 14, data-model.md section 7):
+  - `_PATH = DATA_DIR / "hidden.json"` with `from . import DATA_DIR`, a module-level cache `_hidden: dict[str, bool] | None`, and a module logger.
+  - `load() -> dict[str, bool]`: read once and cache. Catch `OSError`, `JSONDecodeError` and `UnicodeDecodeError` and fall back to `{}`. If the root is not a `dict`, use `{}`. Keep only entries with a `str` key and a real `bool` value.
+  - `record(game_id: str, hidden: bool) -> None`: update the cache, create `DATA_DIR`, write to `hidden.json.tmp` with `json.dump(..., indent=4, sort_keys=True)`, then `tmp.replace(_PATH)`. On `OSError`, log a warning (`"Could not save hidden games to %s: %s"`) and remove the temporary file with `contextlib.suppress`. Never raise (FR-023).
+  - Fully typed; Pyright strict and Ruff `ALL` clean (the `pyright: ignore` comment style used in `play_history.py` is acceptable for the untyped JSON values).
+- [X] T037 [US4] Add `'hidden_games.py'` to the `python.install_sources(files(...))` list in `cartridges/meson.build`, in alphabetical position (after `'games.py'`, before `'importer.py'`).
+- [X] T038 [P] [US4] In `cartridges/importer.py`, change `reconcile()` so an existing game with `removed` set is never kept (FR-021): in the loop over `existing`, treat `game.removed` like a missing game (append it to `removed`) and do not pop its `game_id` from the scanned dictionary, so the scanned object stays in `added`. Games that are not removed behave exactly as before. Update the docstring and the `Reconciliation` text accordingly. Run `python tests/test_importer.py`.
+- [X] T039 [US4] In `cartridges/sources/__init__.py`, apply and persist user state (contracts section 4a, data-model.md section 7):
+  - `import hidden_games` from `cartridges`.
+  - Add a private `Source._track(self, game: Game) -> None` that connects `notify::hidden` to `lambda g, _pspec: hidden_games.record(g.game_id, g.hidden)`, and, only when `game.source == "imported"`, connects `notify::removed` to a handler that calls `game.save()` and catches `OSError` (log a warning, do not raise).
+  - In `Source.scan()`, after the existing `added`/`last_played` handling and before `yield`, set `game.hidden = stored` when `hidden_games.load().get(game.game_id)` is not `None`, then call `self._track(game)`. Set the value before connecting, so loading never writes.
+  - In `Source.append()`, call `self._track(game)` before appending.
+  - A stored choice overrides a launcher-reported `hidden` value (research section 14).
+- [X] T040 [US4] In `cartridges/ui/preferences.py`, remove the two `if game.source == "imported": game.save()` blocks in `_remove_all_games` and `_undo_remove_all` (the `notify::removed` handler from T039 now saves manually added games). Check that no other code path sets `removed` or `hidden` without going through the property. `cartridges/ui/games.py` is unchanged.
+- [ ] T041 [US4] Verify US4 with quickstart Scenario 10 (hide survives restart and 10 imports; unhide and Undo persist; removed launcher game returns on Import Now and on restart with a "1 new game imported" toast; hide-then-remove returns hidden; a hidden uninstalled game returns hidden; a removed manually added game stays removed across restart, import and Undo; "Remove All" and Undo; damaged `hidden.json`; read-only data directory), and run `python tests/test_hidden_games.py` and `python tests/test_importer.py`.
+
+**Checkpoint**: Hidden state is lasting, removed launcher games return on import, and manually added removals are permanent (SC-007, SC-008). Scenarios 3 and 4 in the quickstart still hold.
+
+### Polish for the amendment
+
+- [ ] T042 Run the quality gate again on the changed files: `pre-commit run --all-files`, `pyright`, `ruff check`, `meson setup _build --reconfigure` and `ninja -C _build test`, and `python3 .specify/scripts/bash/check-emojis.py` on all changed files. Confirm `ninja -C _build cartridges-pot` produces no new strings (this amendment adds none) and that `python tests/test_settings.py` still passes.
+
 ---
 
 ## Dependencies & Execution Order
@@ -202,12 +251,14 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 - **US2 (Phase 4)**: Depends on Foundational. Its test step (T018) uses Import Now, so finish US1 first if you want to run Scenario 5 fully; T014 to T017 can be done without US1.
 - **US3 (Phase 5)**: Depends on Foundational. T022 and T029 need US1's `import_games()`. T028 edits the same schema, Blueprint and Python files as T015 and T017, so do it after US2.
 - **Polish (Phase 6)**: Depends on all stories.
+- **US4 (Phase 7)**: Added by the 2026-10-09 amendment. Depends on Foundational and US1 (Phases 2 and 3), which are done. It touches `sources/__init__.py` and `importer.py` again, so start it from a clean tree.
 
 ### Within Each Story
 
 - Tests (T005, T014, T019) first; they must fail before implementation.
 - US1: T006 (reconcile) -> T007 (`replace_games`) -> T008 (`import_games`) -> T009, T010 (application) -> T011, T012 (UI) -> T013.
 - US3: T020 (`location`) before T023 to T027. T021 before T022.
+- US4: T034 and T035 first (they must fail). T036 -> T037 -> T039 -> T040 -> T041. T038 is independent of T036, T037 and T039. T042 last.
 
 ### Parallel Opportunities
 
@@ -215,6 +266,7 @@ description: "Task list for Game Import (Import Now, startup import setting, hon
 - T014 (test file) in parallel with T015 (schema).
 - T023, T024, T025, T026 and T027 each touch a different source module and can run in parallel once T020 is done.
 - T031 in parallel with T030.
+- T034 and T035 (different test files) in parallel; T036 and T038 (different modules) in parallel.
 
 ---
 
@@ -246,6 +298,7 @@ Task: "T027 legendary.py: _config_dir() uses location('legendary-location', (_CO
 3. US2: "Import Games on Startup" replaces the dead "Import Games Automatically" switch.
 4. US3: all source settings take effect; "Remove Uninstalled Games" removed.
 5. Polish: responsiveness measurement, translations, quality gate.
+6. US4 (amendment): lasting hidden state, removed launcher games return on import, manually added removals saved. Can ship on its own on top of the first five steps.
 
 Commit after each task or logical group, using the branch `feat/008-game-import`.
 

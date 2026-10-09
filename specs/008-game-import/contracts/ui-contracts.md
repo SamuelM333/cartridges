@@ -63,6 +63,7 @@ Contract:
 - `import_games()` must not be awaited concurrently; callers check `state.running` (the action does this through its enabled state).
 - `state.running` is reset to `False` even if a source raises an unexpected exception.
 - It never touches the `imported` source.
+- `reconcile()` returns a game as `added` (not `kept`) when the existing game with that `game_id` has `removed` set, so a removed launcher game comes back as a new game on the next import (FR-021).
 
 ## 4. `cartridges/sources/__init__.py` (changed)
 
@@ -76,6 +77,8 @@ class Source:
 
 Contract:
 - `scan()` yields nothing for a disabled source.
+- `scan()` sets `game.hidden` from `hidden_games.load()` when the game has an entry, then connects the change handlers (section 4a) before yielding it.
+- `Source.append()` connects the same handlers.
 - `Source.__init__` scans only if the source is `imported` or `import-on-startup` is on; it catches `OSError` and `sqlite3.Error`.
 - `replace_games()` emits exactly one `items_changed` per call, or none if nothing changed.
 
@@ -100,3 +103,24 @@ Contract:
 ```
 
 Remove the `auto-import` and `remove-missing` keys.
+
+## 4a. Hidden and removed state handlers (`cartridges/sources/__init__.py`, `cartridges/hidden_games.py`)
+
+```python
+# cartridges/hidden_games.py (new)
+def load() -> dict[str, bool]: ...
+def record(game_id: str, hidden: bool) -> None: ...
+```
+
+Handlers connected by `Source` on each game it exposes:
+
+| Signal | Applies to | Effect |
+|--------|------------|--------|
+| `notify::hidden` | every game | `hidden_games.record(game.game_id, game.hidden)` |
+| `notify::removed` | games with `source == "imported"` | `game.save()`; `OSError` is logged and swallowed |
+
+Contract:
+- Handlers are connected after the game's initial state is set, so loading never writes.
+- `ui/games.py` is unchanged: `hide`, `unhide`, `remove` and their Undo callbacks set the properties and the handlers do the saving.
+- `ui/preferences.py` stops calling `game.save()` itself in Remove All and its Undo.
+- No user-visible strings are added.

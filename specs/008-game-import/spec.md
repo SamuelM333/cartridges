@@ -6,7 +6,9 @@
 
 **Status**: Draft
 
-**Input**: User description: "Game import. Document the existing game import behavior as a spec, and add a new requirement: an "Import Now" action in Preferences (upstream Cartridges main had "Import" under the + button menu in the main window). Place it on the Import page, at the top, above the Behavior group."
+**Input**: User description: "Game import. Document the existing game import behavior as a spec, and add a new requirement: an "Import Now" action in Preferences (upstream Cartridges main had "Import" under the + button menu in the main window). Place it on the Import page, at the top, above the Behavior group.
+
+**Amendment 2026-10-09**: Hidden games must stay hidden across restarts, and removing a manually added game must be permanent. Removing a launcher game is temporary: the next import brings it back, and Hide is the way to keep an installed game out of the library."
 
 ## Overview
 
@@ -27,6 +29,7 @@ Cartridges builds its library by scanning the game launchers installed on the us
 - **G-1**: "Import Games Automatically" is saved but has no effect; the startup scan always runs. (Resolved by FR-017 and FR-018.)
 - **G-2**: "Remove Uninstalled Games" is saved but has no effect. (Resolved by FR-016: the switch is removed.)
 - **G-3**: Only the Flatpak source honors its enable switch, locations, and sub-options. Steam, Lutris, Heroic, itch, Legendary, and Desktop Entries ignore their switches, install locations, and sub-options.
+- **G-4**: Hiding a game is remembered only until the application closes. After a restart, hidden games are visible again, so users have no lasting way to keep an imported game out of sight. Removing a manually added game is also forgotten on restart. (Resolved by FR-019 to FR-023.)
 
 ## Clarifications
 
@@ -34,6 +37,11 @@ Cartridges builds its library by scanning the game launchers installed on the us
 
 - Q: What should happen to uninstalled games when "Remove Uninstalled Games" is off? -> A: Remove the "Remove Uninstalled Games" switch. Uninstalled games always disappear on the next import, which is what happens today.
 - Q: What should "Import Games Automatically" do? -> A: It controls the startup scan. When off, launcher games are not scanned at startup and appear only after Import Now. Rename it to "Import Games on Startup".
+
+### Session 2026-10-09
+
+- Q: Should a removed launcher game stay removed across restarts? -> A: No. Removing a launcher game takes it out of the library until the next import; the next startup import or Import Now brings it back. Hide is the way to keep an imported game out of sight, and hidden state is remembered across restarts.
+- Q: Should Import Now bring back a removed game? -> A: Yes, for launcher games. Removed manually added games stay removed, because they are not imported from anywhere.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -92,10 +100,36 @@ A user disables a source they do not use, points a source at a non-default insta
 
 ---
 
+### User Story 4 - Hidden games stay hidden; removed games return on import (Priority: P1)
+
+A user does not want to see some imported games. They hide them. After closing and reopening Cartridges, or after pressing Import Now, the hidden games are still hidden. If the user instead removes a launcher game, it leaves the library right away, but the next import (at startup or Import Now) brings it back, because it is still installed in its launcher. Manually added games that the user removes stay removed.
+
+**Why this priority**: Today hiding lasts only until the application closes (G-4), so the user must hide the same games again after every restart, and a removed manually added game reappears. Both make the library feel unreliable. Hide becomes the lasting way to keep an installed game out of sight, and Remove keeps its meaning of taking a game out for now.
+
+**Independent Test**: Hide one launcher game and remove another. Press Import Now: the hidden game stays hidden and the removed game returns. Hide a game again, restart Cartridges, and confirm it is still hidden.
+
+**Acceptance Scenarios**:
+
+1. **Given** the user hid a game, **When** Cartridges is restarted, **Then** the game is still hidden and appears when "Show Hidden Games" is on.
+2. **Given** the user hid a game, **When** they press Import Now, **Then** the game is still hidden.
+3. **Given** the user unhid a game, **When** Cartridges is restarted, **Then** the game is not hidden.
+4. **Given** the user removed a launcher game that is still installed, **When** they press Import Now, **Then** the game returns to the library.
+5. **Given** the user removed a launcher game that is still installed, **When** Cartridges is restarted with "Import Games on Startup" on, **Then** the game is in the library again.
+6. **Given** the user removed a launcher game, **When** they press Import Now, **Then** the game is counted in the notification as newly found.
+7. **Given** the user hid a game and then removed it, **When** an import brings it back, **Then** it returns still hidden.
+8. **Given** the user removed a manually added game, **When** Cartridges is restarted or Import Now runs, **Then** the game is still removed.
+9. **Given** the user used Undo after hiding or removing a game, or after "Remove All", **When** Cartridges is restarted, **Then** the persistent state matches the state after Undo.
+
+---
+
 ### Edge Cases
 
 - **Import while a game is running or being edited**: Re-scanning must not interrupt a running game, close an open game details view, or discard unsaved edits.
-- **User state across re-import**: A game the user hid, removed, or edited keeps that state after Import Now, to the same extent it is kept today across a restart.
+- **User state across re-import and restart**: A hidden game stays hidden after Import Now and after a restart. A removed launcher game returns on the next import. A removed manually added game stays removed. Edits to a game's title, developer or launch command are outside this feature (see Assumptions).
+- **Hidden game that is uninstalled**: The game leaves the library on import. If it is installed again later, it returns still hidden.
+- **Unreadable saved state**: If the saved hidden state cannot be read or is damaged, the library still loads, no game is hidden by it, and the application does not crash.
+- **Saving state fails**: If the state cannot be saved (for example, the disk is full or read-only), the game is still hidden or removed for the current session and the application keeps working.
+- **"Import Games on Startup" off**: Hidden state is applied to launcher games when they appear after Import Now.
 - **Manually added games**: Import Now never removes or duplicates manually added games.
 - **Duplicate games**: A game already in the library is updated in place on re-import, not added a second time.
 - **One source fails**: If one source cannot be read during Import Now, the others still import and the notification still reports the result.
@@ -136,10 +170,18 @@ A user disables a source they do not use, points a source at a non-default insta
 - **FR-017**: "Import Games Automatically" MUST be renamed "Import Games on Startup". When off, the system MUST NOT scan any launcher at startup; launcher games appear only after Import Now.
 - **FR-018**: "Import Games on Startup" MUST default to on, so that users who never change it keep today's behavior of seeing their launcher games at startup.
 
+**Hidden and removed games (closes G-4)**
+
+- **FR-019**: When the user hides or unhides a game, the system MUST remember that across application restarts, whatever the game's source. Hidden state MUST be kept for a game while it is uninstalled, so a game that is installed again is still hidden.
+- **FR-020**: An import, at startup or from Import Now, MUST NOT change whether a game is hidden.
+- **FR-021**: Removing a launcher game MUST take it out of the library immediately, and the next import MUST bring it back if it is still installed. A game brought back this way MUST be counted as newly found in the Import Now notification.
+- **FR-022**: Removing a manually added game MUST be remembered across restarts, and no import MUST bring it back. Restoring it with Undo MUST also be remembered.
+- **FR-023**: Unreadable or damaged saved state MUST NOT prevent the application from starting or the library from loading, and a failure to save state MUST NOT prevent the hide or removal from taking effect for the current session.
+
 ### Key Entities
 
 - **Source**: A launcher or origin of games (Steam, Lutris, Heroic, itch, Legendary, Flatpak, Desktop Entries, Added). Has a name, an icon, an enabled state, optional install location(s), and optional sub-options.
-- **Game**: An entry in the library. Belongs to exactly one source. Has a title, launch command, cover, date added, last-played time, and user state (hidden, removed).
+- **Game**: An entry in the library. Belongs to exactly one source. Has a title, launch command, cover, date added, last-played time, and user state (hidden, removed). Hidden state is remembered across restarts for every game, including launcher games that Cartridges otherwise does not store. Removed state is remembered only for manually added games.
 - **Import run**: One scan of all sources, either at startup or from Import Now. Produces the current set of games per source and a count of newly found games.
 
 ## Success Criteria *(mandatory)*
@@ -152,6 +194,8 @@ A user disables a source they do not use, points a source at a non-default insta
 - **SC-004**: For every switch, location, and sub-option on the Import page, changing it and pressing Import Now produces the corresponding visible change in the library (100% of Import settings have an observable effect).
 - **SC-005**: Zero regressions in startup import: with "Import Games on Startup" at its default, all games that appeared before this feature still appear afterward with the same last-played and date-added values.
 - **SC-006**: With "Import Games on Startup" off, starting the application reads no launcher data.
+- **SC-007**: After hiding any number of games and restarting the application, 100% of the hidden games are still hidden and 100% of the other games are not hidden.
+- **SC-008**: After hiding games and pressing Import Now 10 times in a row, the set of hidden games is unchanged. Every removed launcher game that is still installed is back in the library after the first import.
 
 ## Assumptions
 
@@ -159,6 +203,10 @@ A user disables a source they do not use, points a source at a non-default insta
 - Import Now re-scans all sources together; per-source import buttons are out of scope.
 - The control follows the existing Preferences pattern for long-running actions (the SteamGridDB "Update Covers" row): an action row with a button that switches to a spinner while working, with results reported as a toast.
 - Closing the gaps G-1 to G-3 is in scope because Import Now makes it immediately visible when a setting has no effect. If the user prefers, User Story 3 can be split into a separate feature.
-- Persistence of hidden/removed/edited state for launcher games is unchanged by this feature; Import Now keeps such state exactly as well as a restart does today.
+- Hidden state is remembered across restarts for all games (FR-019 to FR-023). This replaces the earlier assumption that persistence was unchanged by this feature. For launcher games, Remove is a temporary action that lasts until the next import; users who want an installed game to stay out of the library use Hide.
+- Removing a manually added game is permanent, because there is no launcher to bring it back from.
+- Only removed and hidden state is in scope. Persisting edits to a launcher game's title, developer or launch command is not part of this feature and can be specified separately.
+- Existing manually added games saved before this change keep working; a manually added game whose saved file already records it as removed or hidden stays that way.
+- "Remove All" and Undo are existing actions. They only gain persistence; their wording and behavior in the session are unchanged.
 - "Import Games on Startup" defaults to on (the old "Import Games Automatically" setting defaulted to off). A default of off would hide every launcher game on first launch, which would be a regression. Any value saved under the old setting is not carried over, because the old switch never had any effect.
 - Upstream Cartridges' "Import" entry under the main window "+" menu is not restored; the "+" button stays a direct "Add Game" action.
