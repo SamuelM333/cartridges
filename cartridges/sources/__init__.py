@@ -17,7 +17,7 @@ from typing import Final, Protocol, cast
 
 from gi.repository import Gio, GLib, GObject
 
-from cartridges import SETTINGS, hidden_games, play_history, saved_library
+from cartridges import SETTINGS, cover, hidden_games, play_history, saved_library
 from cartridges.games import Game
 
 if Path("/.flatpak-info").exists():
@@ -81,6 +81,16 @@ class _SourceModule(Protocol):
     def get_games() -> Generator[Game]:
         """Installed games."""
         ...
+
+
+def _refreshes_covers(module: _SourceModule) -> bool:
+    """Whether covers from `module` are made again on every import.
+
+    A module sets `REFRESH_COVERS = True` when its covers are cheap to make and
+    never edited, so fixes to them reach games that are already in the library.
+    Covers from other modules are kept once a game has one.
+    """
+    return bool(getattr(module, "REFRESH_COVERS", False))
 
 
 class Source(GObject.Object, Gio.ListModel[Game]):
@@ -153,7 +163,9 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         """
         from cartridges.importer import reconcile
 
-        kept, added, removed = reconcile(self._games, games)
+        kept, added, removed = reconcile(
+            self._games, games, refresh_covers=_refreshes_covers(self._module)
+        )
         if not (added or removed):
             return []
 
@@ -165,6 +177,7 @@ class Source(GObject.Object, Gio.ListModel[Game]):
     def scan(self, added: int) -> Generator[Game]:
         """Read the source's installed games from its launcher.
 
+        A cover the user chose is used instead of the one from the launcher.
         Yield nothing if the user turned the source off.
         """
         if self.id != "imported" and not SETTINGS.get_boolean(self.id):
@@ -177,6 +190,11 @@ class Source(GObject.Object, Gio.ListModel[Game]):
             )
             if (hidden := hidden_games.load().get(game.game_id)) is not None:
                 game.hidden = hidden
+
+            if (custom := cover.custom(game.game_id)) is not None:
+                game.cover = custom
+            if _refreshes_covers(self._module):
+                saved_library.forget_cover(game.game_id)
 
             self._track(game)
             yield game

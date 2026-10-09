@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-09
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "new spec: desktop entries. create spec with current implementation in code. bug fix: desktop entries load broken icons. expected behaviour is to load the default desktop icon"
 

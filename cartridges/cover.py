@@ -91,6 +91,13 @@ def at_url(url: str) -> Gdk.Paintable | None:
         return None
 
 
+def custom(game_id: str) -> Gdk.Paintable | None:
+    """Load the cover the user chose for the game with `game_id`, if any."""
+    return at_path(COVERS_DIR / f"{game_id}.gif") or at_path(
+        COVERS_DIR / f"{game_id}.tiff"
+    )
+
+
 def from_icon(icon: Gdk.Paintable) -> Gdk.Paintable | None:
     """Pad `icon` to be appropriate for a cover."""
     snapshot = Gtk.Snapshot()

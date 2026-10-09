@@ -16,6 +16,7 @@ import gi
 
 gi.require_versions({"Gdk": "4.0", "Gtk": "4.0"})
 from gi.repository import Gdk, GLib
+from PIL import Image
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -57,6 +58,7 @@ _package.DATA_DIR = Path(tempfile.mkdtemp())  # pyright: ignore[reportAttributeA
 _package.SETTINGS = _SETTINGS  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
 
+cover = importlib.import_module("cartridges.cover")
 games = importlib.import_module("cartridges.games")
 hidden_games = importlib.import_module("cartridges.hidden_games")
 importer = importlib.import_module("cartridges.importer")
@@ -155,6 +157,31 @@ def check_reconcile_fills_missing_cover_only() -> None:
         raise AssertionError(msg)
 
 
+def check_reconcile_refresh_covers_replaces_cover() -> None:
+    """Validate that with `refresh_covers` the scanned cover replaces the old one."""
+    old_cover = Gdk.Paintable.new_empty(1, 1)
+    new_cover = Gdk.Paintable.new_empty(2, 2)
+    result = importer.reconcile(
+        [_game("a", cover=old_cover)],
+        [_game("a", cover=new_cover)],
+        refresh_covers=True,
+    )
+    if result.kept[0].cover is not new_cover:
+        msg = "Expected the scanned cover to replace the old one"
+        raise AssertionError(msg)
+
+
+def check_reconcile_refresh_covers_keeps_when_scan_has_none() -> None:
+    """Validate that with `refresh_covers` a scan without a cover keeps the old one."""
+    old_cover = Gdk.Paintable.new_empty(1, 1)
+    result = importer.reconcile(
+        [_game("a", cover=old_cover)], [_game("a")], refresh_covers=True
+    )
+    if result.kept[0].cover is not old_cover:
+        msg = "Expected the old cover to be kept when the scan has none"
+        raise AssertionError(msg)
+
+
 def check_reconcile_dedupes_scan() -> None:
     """Validate that a scan listing the same game twice adds it once."""
     first, second = _game("a", name="First"), _game("a", name="Second")
@@ -241,6 +268,15 @@ def _forbidden(ident: str) -> types.SimpleNamespace:
         yield  # pyright: ignore[reportUnreachable]
 
     return types.SimpleNamespace(ID=ident, NAME=ident, get_games=get_games)
+
+
+def _refreshing(ident: str, *scanned: "Game") -> types.SimpleNamespace:
+    return types.SimpleNamespace(
+        ID=ident,
+        NAME=ident,
+        REFRESH_COVERS=True,
+        get_games=lambda: (game for game in scanned),
+    )
 
 
 def _save_library(**by_source: list["Game"]) -> None:
@@ -373,6 +409,65 @@ def check_import_requests_a_save() -> None:
     _expect(len(calls), 1, "saves after an import")
 
 
+def check_scan_prefers_custom_cover() -> None:
+    """Validate that a cover the user chose wins over the scanned cover."""
+    custom = cover.COVERS_DIR / "fake_custom.tiff"
+    custom.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGBA", (1, 1)).save(custom)
+    try:
+        scanned_cover = Gdk.Paintable.new_empty(1, 1)
+        source = _source("fake", _game("fake_custom", cover=scanned_cover))
+        chosen = source.do_get_item(0).cover  # pyright: ignore[reportOptionalMemberAccess]
+        if chosen is None or chosen is scanned_cover:
+            msg = "Expected the cover the user chose to replace the scanned cover"
+            raise AssertionError(msg)
+    finally:
+        custom.unlink()
+
+
+def _saved_cover(game_id: str) -> Path:
+    path = vars(saved_library)["_cover_path"](game_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"")
+    return path
+
+
+def check_scan_forgets_saved_cover_for_refresh_sources() -> None:
+    """Validate that a scan of a refreshing source makes covers be saved again."""
+    _save_library()
+    path = _saved_cover("refresh_1")
+    _build(_refreshing("refresh", _game("refresh_1")))
+    _expect(path.exists(), False, "saved cover of a refreshing source")
+
+
+def check_scan_keeps_saved_cover_for_other_sources() -> None:
+    """Validate that a scan of other sources keeps their saved covers."""
+    _save_library()
+    path = _saved_cover("fake_kept")
+    _source("fake", _game("fake_kept"))
+    _expect(path.exists(), True, "saved cover of another source")
+    path.unlink()
+
+
+def check_import_refreshes_covers_for_refresh_sources() -> None:
+    """Validate that Import Now replaces covers only for refreshing sources."""
+    _save_library()
+    old_cover = Gdk.Paintable.new_empty(1, 1)
+    new_cover = Gdk.Paintable.new_empty(2, 2)
+    refresh = _build(_refreshing("refresh", _game("refresh_2", cover=old_cover)))
+    other = _source("fake", _game("fake_2", cover=old_cover))
+
+    refresh.replace_games([_game("refresh_2", cover=new_cover)])
+    other.replace_games([_game("fake_2", cover=new_cover)])
+
+    if refresh.do_get_item(0).cover is not new_cover:  # pyright: ignore[reportOptionalMemberAccess]
+        msg = "Expected the refreshing source to take the scanned cover"
+        raise AssertionError(msg)
+    if other.do_get_item(0).cover is not old_cover:  # pyright: ignore[reportOptionalMemberAccess]
+        msg = "Expected other sources to keep their cover"
+        raise AssertionError(msg)
+
+
 def check_location_user_set_is_strict() -> None:
     """Validate that a location the user picked is used even if it is missing."""
     existing = Path(tempfile.mkdtemp())
@@ -408,6 +503,8 @@ if __name__ == "__main__":
     check_reconcile_preserves_user_fields()
     check_reconcile_merges_last_played()
     check_reconcile_fills_missing_cover_only()
+    check_reconcile_refresh_covers_replaces_cover()
+    check_reconcile_refresh_covers_keeps_when_scan_has_none()
     check_reconcile_dedupes_scan()
     check_reconcile_idempotent()
     check_reconcile_removed_returns_as_added()
@@ -424,6 +521,10 @@ if __name__ == "__main__":
     check_scan_applies_stored_hidden()
     check_hidden_changes_are_recorded()
     check_removed_is_saved_for_added_games_only()
+    check_scan_prefers_custom_cover()
+    check_scan_forgets_saved_cover_for_refresh_sources()
+    check_scan_keeps_saved_cover_for_other_sources()
+    check_import_refreshes_covers_for_refresh_sources()
     check_location_user_set_is_strict()
     check_location_default_autodetects()
     check_location_none_found()

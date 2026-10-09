@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Work inside the `gtk-dev` Distrobox container (Constitution: Development Environment).
+- Work inside the `gtk-dev` Distrobox container (Constitution: Development Environment). Besides the packages the constitution lists, the tests and build need: `sudo dnf install python3-gobject python3-pillow python3-cairo libadwaita libmanette blueprint-compiler desktop-file-utils appstream gettext glib2-devel git-core nodejs-npm`. After `ninja -C _build`, run `glib-compile-schemas _build/data` before `python tests/test_settings.py`.
 - Build and run the development profile:
 
 ```sh

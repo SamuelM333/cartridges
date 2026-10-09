@@ -254,8 +254,7 @@ class CoverPicker(Adw.Dialog):
             steamgriddb.save_cover_from_url, self.game.game_id, url
         )
         if success:
-            base = cover.COVERS_DIR / self.game.game_id
-            new_cover = cover.at_path(f"{base}.gif") or cover.at_path(f"{base}.tiff")
+            new_cover = cover.custom(self.game.game_id)
             if new_cover:
                 GLib.idle_add(setattr, self.game, "cover", new_cover)
         GLib.idle_add(self.close)

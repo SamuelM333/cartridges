@@ -11,7 +11,6 @@ from json import JSONDecodeError
 from pathlib import Path
 
 from cartridges import cover
-from cartridges.cover import COVERS_DIR
 from cartridges.games import GAMES_DIR, Game
 
 ID, NAME = "imported", _("Added")
@@ -31,8 +30,7 @@ def get_games() -> Generator[Game]:
         except TypeError:
             continue
 
-        base = COVERS_DIR / game.game_id
-        game.cover = cover.at_path(f"{base}.gif") or cover.at_path(f"{base}.tiff")
+        game.cover = cover.custom(game.game_id)
         yield game
 
 
