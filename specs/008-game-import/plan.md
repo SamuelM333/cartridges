@@ -160,7 +160,7 @@ New user-visible strings, all through gettext:
 | "Import Games on Startup" | `preferences.blp` | Replaces "Import Games Automatically" |
 | "{} new game imported" / "{} new games imported" | `application.py` | `ngettext`, with a `Translators:` comment explaining `{}` |
 | "No new games found" | `application.py` | |
-| Subtitle of the startup switch, for example "Scan for new games when Cartridges starts. When off, the games from your last import are shown." | `preferences.blp` | Describes FR-025 |
+| Subtitle of the startup switch, for example "Scan for new games when Cartridges starts" | `preferences.blp` | Describes FR-025 |
 
 All three files are already in `po/POTFILES.in`. "Remove Uninstalled Games" and "Import Games Automatically" leave the catalog. Verify with `ninja -C _build cartridges-pot`.
 
