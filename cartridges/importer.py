@@ -11,6 +11,7 @@ from typing import NamedTuple
 
 from gi.repository import GObject
 
+from cartridges import saved_library
 from cartridges.games import Game
 
 # Number of games read from a source before letting the main loop run.
@@ -93,6 +94,8 @@ async def import_games() -> list[Game]:
 
             new_games.extend(source.replace_games(scanned))
             await asyncio.sleep(0)
+
+        saved_library.request_save()
     finally:
         state.running = False
 

@@ -10,6 +10,7 @@ python.install_sources(
         'hidden_games.py',
         'importer.py',
         'play_history.py',
+        'saved_library.py',
     ),
     subdir: 'cartridges',
 )
