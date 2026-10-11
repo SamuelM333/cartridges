@@ -9,6 +9,7 @@ python.install_sources(
         'games.py',
         'hidden_games.py',
         'importer.py',
+        'logs.py',
         'play_history.py',
         'saved_library.py',
     ),

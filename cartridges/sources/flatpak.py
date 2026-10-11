@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright 2025 Zoey Ahmed
 # SPDX-FileCopyrightText: Copyright 2022-2026 kramo
 
+import logging
 from collections.abc import Generator
 from gettext import gettext as _
 from pathlib import Path
@@ -14,6 +15,8 @@ from cartridges.games import Game
 ID, NAME = "flatpak", _("Flatpak")
 
 _ICON_FALLBACK = "application-x-executable"
+
+_logger = logging.getLogger(__name__)
 
 
 def get_games() -> Generator[Game]:
@@ -54,7 +57,10 @@ def get_games() -> Generator[Game]:
 
     for app_dir in app_dirs:
         if not app_dir.is_dir():
+            _logger.debug("Skipped %s: not a directory", app_dir)
             continue
+
+        _logger.debug("Scanning %s", app_dir)
 
         for entry in app_dir.glob("*.desktop"):
             if not entry.is_file():

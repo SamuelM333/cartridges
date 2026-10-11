@@ -64,12 +64,16 @@ def location(key: str, candidates: Iterable[Path]) -> Path:
     Otherwise, the first existing directory in `candidates` is used.
     """
     if SETTINGS.get_user_value(key) is not None:
-        return Path(SETTINGS.get_string(key)).expanduser()
+        path = Path(SETTINGS.get_string(key)).expanduser()
+        _logger.debug("Using %s chosen for %s", path, key)
+        return path
 
     for path in candidates:
         if path.is_dir():
+            _logger.debug("Using %s for %s", path, key)
             return path
 
+    _logger.debug("No directory found for %s", key)
     raise FileNotFoundError
 
 
@@ -120,7 +124,11 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         if self.id == "imported" or SETTINGS.get_boolean("import-on-startup"):
             try:
                 self._games = list(self.scan(added))
+            except FileNotFoundError:
+                _logger.debug("Skipped %s: not found", self.id)
+                self._load_saved()
             except (OSError, sqlite3.Error):
+                _logger.warning("Could not scan %s", self.id, exc_info=True)
                 self._load_saved()
         else:
             self._load_saved()
@@ -181,8 +189,10 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         Yield nothing if the user turned the source off.
         """
         if self.id != "imported" and not SETTINGS.get_boolean(self.id):
+            _logger.debug("Skipped %s: turned off", self.id)
             return
 
+        count = 0
         for game in self._module.get_games():
             game.added = game.added or added
             game.last_played = max(
@@ -197,7 +207,10 @@ class Source(GObject.Object, Gio.ListModel[Game]):
                 saved_library.forget_cover(game.game_id)
 
             self._track(game)
+            count += 1
             yield game
+
+        _logger.debug("Read %d games from %s", count, self.id)
 
     def _track(self, game: Game) -> None:
         """Remember the changes the user makes to `game`.

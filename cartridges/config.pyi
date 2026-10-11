@@ -4,4 +4,5 @@
 APP_ID: str
 PREFIX: str
 PROFILE: str
+VERSION: str
 LOCALEDIR: str

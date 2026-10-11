@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set Build Tag
+        run: .github/scripts/set_build_tag.sh "${GITHUB_REF#refs/tags/}"
+
       - name: Build Flatpak Bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:

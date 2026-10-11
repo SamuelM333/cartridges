@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk
 
-from cartridges import SETTINGS, STATE_SETTINGS, importer
+from cartridges import SETTINGS, STATE_SETTINGS, importer, logs
 from cartridges.config import PREFIX, PROFILE
 
 _logger = logging.getLogger(__name__)
@@ -75,6 +75,12 @@ _LOCATION_VALIDATION: dict[str, tuple[list[tuple[str, bool]], str]] = {
         _("Select the Flatpak data directory."),
     ),
 }
+
+
+def _shorten_home(path: Path) -> str:
+    """Show the user's home folder as `~` in `path`."""
+    home = Path.home()
+    return f"~/{path.relative_to(home)}" if path.is_relative_to(home) else str(path)
 
 
 @Gtk.Template(resource_path=f"{PREFIX}/preferences.ui")
@@ -151,6 +157,10 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     sgdb_progress_bar: Gtk.ProgressBar = Gtk.Template.Child()
     sgdb_status_row: Adw.ActionRow = Gtk.Template.Child()
 
+    # Troubleshooting
+    debug_logs_switch: Adw.SwitchRow = Gtk.Template.Child()
+    logs_folder_row: Adw.ActionRow = Gtk.Template.Child()
+
     # Danger Zone
     remove_all_games_button_row: Adw.ButtonRow = Gtk.Template.Child()
     reset_button_row: Adw.ButtonRow = Gtk.Template.Child()
@@ -165,6 +175,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         self._bind_import_state()
         self._setup_sgdb_key()
         self._init_source_rows()
+        self.logs_folder_row.set_subtitle(_shorten_home(logs.LOG_DIR))
 
         if PROFILE == "development":
             self.reset_button_row.set_visible(True)
@@ -207,6 +218,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
             "sgdb",
             "sgdb-prefer",
             "sgdb-animated",
+            "debug-logs",
         }
         for key in switches:
             switch = getattr(self, f"{key.replace('-', '_')}_switch", None)
@@ -621,6 +633,33 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         if app is not None and app.props.active_window is not None:
             win = cast("Window", app.props.active_window)
             win.send_toast(message, undo=undo)
+
+    @Gtk.Template.Callback()
+    def _on_logs_folder_activated(self, *_args: Any) -> None:
+        """Open the debug logs folder in the file manager, creating it if needed."""
+        try:
+            logs.LOG_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            _logger.warning("Could not create %s", logs.LOG_DIR, exc_info=True)
+            self._send_toast(_("Could not open logs folder"))
+            return
+
+        root = self.get_root()
+        launcher = Gtk.FileLauncher(file=Gio.File.new_for_path(str(logs.LOG_DIR)))
+        launcher.launch(
+            root if isinstance(root, Gtk.Window) else None,
+            None,
+            self._on_logs_folder_launched,
+        )
+
+    def _on_logs_folder_launched(
+        self, launcher: Gtk.FileLauncher, result: Gio.AsyncResult
+    ) -> None:
+        try:
+            launcher.launch_finish(result)
+        except GLib.Error:
+            _logger.warning("Could not open %s", logs.LOG_DIR, exc_info=True)
+            self._send_toast(_("Could not open logs folder"))
 
     @Gtk.Template.Callback()
     def _on_remove_all_clicked(self, *_args: Any) -> None:

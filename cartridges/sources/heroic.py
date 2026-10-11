@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright 2022-2026 kramo
 
 import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterable
 from contextlib import suppress
@@ -18,6 +19,8 @@ from cartridges.games import Game
 from . import APPDATA, APPLICATION_SUPPORT, CONFIG, FLATPAK, OPEN, location
 
 ID, NAME = "heroic", _("Heroic")
+
+_logger = logging.getLogger(__name__)
 
 _CONFIG_PATHS = (
     CONFIG / "heroic",
@@ -138,10 +141,12 @@ def _hidden_app_names() -> Generator[str]:
 
 
 def _games_from(source: type[_Source]) -> Generator[Game]:
+    path = _config_dir() / source.library_path()
     try:
-        with (_config_dir() / source.library_path()).open() as fp:
+        with path.open() as fp:
             library = json.load(fp)
-    except (OSError, JSONDecodeError):
+    except (OSError, JSONDecodeError) as e:
+        _logger.debug("Could not read %s: %s", path, e)
         return
 
     if not isinstance(library := library.get(source.LIBRARY_KEY), Iterable):

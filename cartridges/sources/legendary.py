@@ -4,6 +4,7 @@
 
 import asyncio
 import json
+import logging
 from collections.abc import Generator
 from gettext import gettext as _
 from json import JSONDecodeError
@@ -19,6 +20,8 @@ from . import CONFIG, location
 
 ID, NAME = "legendary", _("Legendary")
 
+_logger = logging.getLogger(__name__)
+
 _CONFIG_PATH = CONFIG / "legendary"
 
 
@@ -26,10 +29,12 @@ def get_games() -> Generator[Game]:
     """Installed Legendary games."""
     config = _config_dir()
 
+    path = config / "installed.json"
     try:
-        with (config / "installed.json").open() as fp:
+        with path.open() as fp:
             installed = json.load(fp)
-    except (OSError, JSONDecodeError):
+    except (OSError, JSONDecodeError) as e:
+        _logger.debug("Could not read %s: %s", path, e)
         return
 
     if not isinstance(installed, dict):

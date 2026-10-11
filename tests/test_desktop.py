@@ -200,7 +200,7 @@ def check_game_has_cover() -> None:
     """Validate that a game whose icon is missing still gets a cover."""
     _write_entry("cover", Icon="cartridges-test-does-not-exist")
     game = _games()["desktop_cover"]
-    if not isinstance(game.cover, Gdk.Paintable):
+    if not isinstance(game.cover, Gdk.Paintable):  # pyright: ignore[reportArgumentType] - Protocol without runtime_checkable
         msg = f"Expected a cover, got {game.cover!r}"
         raise AssertionError(msg)  # noqa: TRY004
 

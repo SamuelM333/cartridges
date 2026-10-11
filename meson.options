@@ -4,3 +4,10 @@ option(
     choices: ['release', 'development'],
     value: 'release',
 )
+
+option(
+    'tag',
+    type: 'string',
+    value: '',
+    description: 'Release tag shown in debug logs, for example v1.2.3 or nightly-abc1234',
+)

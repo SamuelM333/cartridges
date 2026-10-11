@@ -53,6 +53,15 @@ flatpak install page.samuelm333.Cartridges.flatpak
 
 See [Building](CONTRIBUTING.md#building).
 
+# Debug Logs
+
+When reporting a bug, turn on **Preferences > General > Troubleshooting > Debug Logs**, repeat the problem, then use **Open Logs Folder** and attach the `.log` files to your report. Logs are off by default, rotate at 1 MiB, and keep at most five files. They are stored in:
+
+- Flatpak: `~/.var/app/page.samuelm333.Cartridges/.local/state/cartridges/logs/`
+- Other installs: `$XDG_STATE_HOME/cartridges/logs/` (by default `~/.local/state/cartridges/logs/`)
+
+Your SteamGridDB API key is never written to the logs.
+
 # Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

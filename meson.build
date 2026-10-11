@@ -35,12 +35,22 @@ elif profile == 'release'
     prefix = '/page/samuelm333/Cartridges'
 endif
 
+tag = get_option('tag')
+if tag != ''
+    version = tag
+elif profile == 'development'
+    version = 'development'
+else
+    version = meson.project_version()
+endif
+
 conf = configuration_data(
     {
         'PYTHON': python.full_path(),
         'APP_ID': app_id,
         'PREFIX': prefix,
         'PROFILE': profile,
+        'VERSION': version,
         'LOCALEDIR': localedir,
         'BINDIR': bindir,
     },

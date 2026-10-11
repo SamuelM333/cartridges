@@ -45,6 +45,10 @@ jobs:
         id: commit
         uses: prompt/actions-commit-hash@v4
 
+      - name: Set Build Tag
+        if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
+        run: .github/scripts/set_build_tag.sh "nightly-${{ steps.commit.outputs.short }}"
+
       - name: Build Nightly Flatpak Bundle
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
