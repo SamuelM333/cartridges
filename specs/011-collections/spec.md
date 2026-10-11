@@ -13,7 +13,7 @@
 Collections let a player group games from any source under a name and an icon, and browse each group from the sidebar. This specification does two things:
 
 1. It records how Collections work today, so later changes can be checked against it (user stories 1 to 3, marked **Implemented**).
-2. It adds one new preference, **Hidden games show in Collections**, so a player can hide a game from the main library and still find it in a collection (user story 4, marked **New**). The preference's tooltip is "Useful for hiding launchers and tools", because launchers and tools are the games players most often want out of the way yet within reach.
+2. It adds one new preference, **Hidden games show in Collections**, so a player can hide a game from the main library and still find it in a collection (user story 4, marked **New**). The preference's subtitle (the line of text under its label) is "Useful for hiding launchers and tools", because launchers and tools are the games players most often want out of the way yet within reach.
 
 ### Current Behavior (baseline)
 
@@ -96,7 +96,7 @@ A player hides launchers and tools such as Steam, Lutris, or a Windows compatibi
 
 **Acceptance Scenarios**:
 
-1. **Given** Preferences, **When** the user opens the General page, **Then** there is a switch "Hidden games show in Collections", off by default, with the tooltip "Useful for hiding launchers and tools".
+1. **Given** Preferences, **When** the user opens the General page, **Then** there is a switch "Hidden games show in Collections", off by default, with the subtitle "Useful for hiding launchers and tools" shown under its label.
 2. **Given** a hidden game in a collection and the preference off, **When** the user opens the collection, **Then** the game is not listed (same as today).
 3. **Given** a hidden game in a collection, **When** the user turns the preference on, **Then** the open collection immediately lists the game, without a restart.
 4. **Given** the preference on, **When** the user opens "All Games" or a source with "Show Hidden Games" off, **Then** hidden games are still not listed there.
@@ -133,7 +133,7 @@ A player hides launchers and tools such as Steam, Lutris, or a Windows compatibi
 - **FR-009**: A collection MUST refer to games by identity; a game that is temporarily absent MUST keep its places, and a manually added game that no longer exists MUST be dropped when the app starts.
 - **FR-010**: Collections (name, icon, games, removed state) MUST be saved after each change and MUST survive restarts; a removed collection MUST stay removed after a restart unless the removal was undone first.
 - **FR-011**: A stored collection that cannot be read MUST be skipped with a warning in the debug log, and the remaining collections MUST load.
-- **FR-012**: Preferences MUST offer a switch "Hidden games show in Collections" on the General page with the tooltip "Useful for hiding launchers and tools".
+- **FR-012**: Preferences MUST offer a switch "Hidden games show in Collections" on the General page with the subtitle "Useful for hiding launchers and tools" shown under its label, without hovering.
 - **FR-013**: The switch MUST be off by default, MUST be remembered across restarts, MUST take effect immediately without a restart, and MUST be reset by "Reset App".
 - **FR-014**: With the switch on and "Show Hidden Games" off, a collection view MUST list the hidden games it holds together with its other games. With "Show Hidden Games" on, a collection view MUST list only its hidden games, whatever the switch says. With the switch off, a collection view MUST behave as before.
 - **FR-015**: The switch MUST NOT change what "All Games" and the source views list, nor which games are hidden.
@@ -159,7 +159,7 @@ A player hides launchers and tools such as Steam, Lutris, or a Windows compatibi
 ## Assumptions
 
 - The preference is off by default, so that nothing changes for existing users until they choose it.
-- The preference lives on the General page of Preferences, in the Behavior group, next to the other behavior switches. Its label and tooltip are exactly the texts given above. Other switches use a subtitle, but this one uses the tooltip as requested.
+- The preference lives on the General page of Preferences, in the Behavior group, next to the other behavior switches. Its label and subtitle are exactly the texts given above, in the same style as the neighboring switches that have a subtitle. The original request called the subtitle a tooltip; it was corrected to a subtitle on 2026-10-11, so the text is always visible and also reaches touch and keyboard users.
 - A hidden game listed in a collection looks like any other game; no extra marker is added. A marker could be a later improvement.
 - "Show Hidden Games" keeps its present meaning in every view: it lists only the hidden games. The new preference only adds hidden games to a collection view that is not in that mode.
 - The 21 icons, the dialog layout, and the alphabetical order stay as they are; changing them is out of scope.

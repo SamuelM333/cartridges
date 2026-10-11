@@ -38,7 +38,7 @@ Add three games (Ctrl+N): "Steam Tool", "Lutris Tool", and "Normal Game".
 | 3 | On "Steam Tool" open the three-dots menu, turn "Launchers" on, close the menu; do the same for "Lutris Tool" | Both appear in "Launchers"; "Normal Game" does not | US2 |
 | 4 | Hide "Steam Tool" and "Lutris Tool" (menu, Hide) | They leave All Games; a toast offers Undo | baseline |
 | 5 | Open "Launchers" with the preference off (default) | "No Games in Launchers" | US4/2 |
-| 6 | Preferences > General > Behavior: hover "Hidden games show in Collections" | Tooltip "Useful for hiding launchers and tools"; the switch is off | US4/1 |
+| 6 | Preferences > General > Behavior: look at "Hidden games show in Collections" | The subtitle "Useful for hiding launchers and tools" is shown under the label without hovering; the switch is off | US4/1 |
 | 7 | Turn the switch on while "Launchers" is open | Both tools appear at once, without a restart | US4/3 |
 | 8 | Open All Games | Neither tool is listed | US4/4 |
 | 9 | In "Launchers" search for "Steam" | "Steam Tool" is listed | US4/6 |

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Collections already work (spec user stories 1 to 3), so most of this plan protects that behavior with tests. The one change is the new preference **Hidden games show in Collections** (user story 4): a GSettings boolean (off by default) shown as a switch in Preferences > General > Behavior with the tooltip "Useful for hiding launchers and tools". The main window's grid filter changes so that, while Show Hidden Games is off and a collection is open, hidden games are listed as well when the preference is on (Show Hidden Games itself keeps listing only hidden games). That is done by wrapping the existing hidden-games filter in a `Gtk.AnyFilter` next to one small new filter, `HiddenInCollectionFilter`, which has three inputs (the open collection, the preference, and whether the view lists only hidden games), so the grid still updates live when a game is hidden or a setting changes. A prototype of this filter tree confirmed the live updates before the plan was written (see [research.md](research.md) R1).
+Collections already work (spec user stories 1 to 3), so most of this plan protects that behavior with tests. The one change is the new preference **Hidden games show in Collections** (user story 4): a GSettings boolean (off by default) shown as a switch in Preferences > General > Behavior with the subtitle "Useful for hiding launchers and tools". The main window's grid filter changes so that, while Show Hidden Games is off and a collection is open, hidden games are listed as well when the preference is on (Show Hidden Games itself keeps listing only hidden games). That is done by wrapping the existing hidden-games filter in a `Gtk.AnyFilter` next to one small new filter, `HiddenInCollectionFilter`, which has three inputs (the open collection, the preference, and whether the view lists only hidden games), so the grid still updates live when a game is hidden or a setting changes. A prototype of this filter tree confirmed the live updates before the plan was written (see [research.md](research.md) R1).
 
 ## Technical Context
 
@@ -39,7 +39,7 @@ Checked against constitution v3.0.0.
 | I. Strict typing and QA | Pass | The new filter class and window property are fully annotated, with no `Any`; Pyright strict, Ruff, and the pre-commit gates run before completion. |
 | II. Modular game sources | Pass (N/A) | No source changes. |
 | III. Blueprint-driven UI | Pass | The filter tree and the switch row are declared in `window.blp` and `preferences.blp`; Python only defines the filter class and the property. |
-| IV. Libadwaita and HIG | Pass | A standard `Adw.SwitchRow` in the existing Behavior group. The tooltip is the requested text; the title carries the meaning, because tooltips do not show on touch or with the keyboard alone. |
+| IV. Libadwaita and HIG | Pass | A standard `Adw.SwitchRow` in the existing Behavior group. The requested text is the row subtitle, so it is always visible and reaches touch and keyboard users; this is the pattern the neighboring rows use. |
 | V. Resource and asset sandboxing | Pass (N/A) | No files, no network. |
 | VI. Restrained emoji use | Pass | No emoji added. The 21 collection icons are functional content and stay as they are. |
 | VII. No silent failures | Pass | No exception handlers are added or changed; the existing handler for a damaged stored collection already logs a warning. |

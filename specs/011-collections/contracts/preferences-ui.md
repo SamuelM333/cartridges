@@ -17,13 +17,14 @@ Behavior
 +-----------------------------------------------------------+
 | Exit After Launching Games                          [o  ] |
 | Cover Image Launches Game                           [o  ] |
-| Hidden games show in Collections                    [o  ] |   <- new, tooltip below
+| Swaps the behavior of the cover image and ...             |
+| Hidden games show in Collections                    [o  ] |   <- new
+| Useful for hiding launchers and tools                     |
 +-----------------------------------------------------------+
-Tooltip on the new row: "Useful for hiding launchers and tools"
 ```
 
 | Widget | Blueprint ID | Behavior |
 |--------|--------------|----------|
-| `Adw.SwitchRow` | `hidden_games_in_collections_switch` | Title "Hidden games show in Collections"; `tooltip-text` "Useful for hiding launchers and tools"; no subtitle. Bound two ways to `hidden-games-in-collections` by `_bind_switches` (the attribute name is the key with `-` turned into `_`, plus `_switch`). |
+| `Adw.SwitchRow` | `hidden_games_in_collections_switch` | Title "Hidden games show in Collections"; `subtitle` "Useful for hiding launchers and tools"; no tooltip. Bound two ways to `hidden-games-in-collections` by `_bind_switches` (the attribute name is the key with `-` turned into `_`, plus `_switch`). |
 
-The title and tooltip are translatable. The row is visible in every build and on every platform.
+The title and subtitle are translatable. The row is visible in every build and on every platform.

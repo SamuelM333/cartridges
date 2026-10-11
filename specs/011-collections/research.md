@@ -20,13 +20,12 @@
 - **Rationale**: `_bind_switches` finds each switch by turning the key into an attribute name (`hidden-games-in-collections` becomes `hidden_games_in_collections_switch`), so naming the key this way needs no new binding code. A one-way binding in the window guarantees only Preferences writes the setting. `Reset App` resets every key, so FR-013 needs no extra code. The setting is per build because each build has its own schema.
 - **Alternatives considered**: Reading `SETTINGS.get_boolean` inside the filter on each match (no change notification, so toggling would not refresh the grid); storing the preference in the state settings used for window size (those are not reset by `Reset App` and are for window state).
 
-## R3. Label, tooltip, and placement
+## R3. Label, subtitle, and placement
 
-- **Decision**: An `Adw.SwitchRow` in the General page's Behavior group, titled exactly "Hidden games show in Collections" with `tooltip-text` "Useful for hiding launchers and tools", next to "Exit After Launching Games" and "Cover Image Launches Game".
-- **Rationale**: The texts are the ones requested. The Behavior group already holds the switches that change how browsing and launching behave. The row has no subtitle, as requested.
-- **Notes for review**:
-  - The neighboring rows use Title Case ("Exit After Launching Games"); the requested title uses sentence case. This plan keeps the requested text; changing it to "Hidden Games Show in Collections" is a one-word edit if consistency is preferred.
-  - A tooltip shows only on pointer hover, so touch and keyboard-only users never see "Useful for hiding launchers and tools". The title is written to be understandable alone, and a subtitle with the same text would be the usual way to make the hint reachable. The spec says tooltip, so the plan does not add one.
+- **Decision**: An `Adw.SwitchRow` in the General page's Behavior group, titled exactly "Hidden games show in Collections" with `subtitle` "Useful for hiding launchers and tools", next to "Exit After Launching Games" and "Cover Image Launches Game".
+- **Rationale**: The texts are the ones requested. The Behavior group already holds the switches that change how browsing and launching behave, and "Cover Image Launches Game" already uses a subtitle the same way.
+- **History**: The original request called the text a tooltip and the first version of this feature set `tooltip-text`. The user then said they meant a subtitle, because a tooltip is invisible without hovering and never reaches touch or keyboard users. The feature now uses `subtitle` and no tooltip.
+- **Note for review**: The neighboring rows use Title Case ("Exit After Launching Games"); the requested title uses sentence case. This plan keeps the requested text; changing it to "Hidden Games Show in Collections" is a one-word edit if consistency is preferred.
 
 ## R4. How to test it
 
