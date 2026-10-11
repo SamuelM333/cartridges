@@ -115,9 +115,20 @@ def _logged(call: Callable[[], object]) -> list[logging.LogRecord]:
     return handler.records
 
 
+# The sidebar model is built on this store when the module is imported. Emptying
+# a store that a `FilterListModel` watches aborts GTK 4.22.4 (the version in the
+# GNOME 50 runtime) after some sequences, so no test empties it. Each test gets
+# a new store instead, and only the sidebar order check uses this one.
+_SIDEBAR_STORE = collections.model
+
+# Freeing an `EveryFilter` that holds a `CollectionFilter` crashes GTK. The
+# window never frees its filters, so keep these alive to match.
+_KEPT: list[object] = []
+
+
 def _reset() -> None:
-    """Start without collections in memory or in the stored setting."""
-    collections.model.remove_all()
+    """Start with no collections in memory and none in the stored setting."""
+    vars(collections)["model"] = Gio.ListStore(item_type=collections.Collection)
     _SETTINGS.value = GLib.Variant("aa{sv}", [])
 
 
@@ -266,6 +277,8 @@ def check_remove_and_undo() -> None:
 def check_sidebar_order() -> None:
     """Validate the alphabetical order, and that removed collections leave."""
     _reset()
+    vars(collections)["model"] = _SIDEBAR_STORE
+    _expect(_SIDEBAR_STORE.get_n_items(), 0, "collections in the sidebar store")
     for name in ("b", "A", "c"):
         collections.model.append(collections.Collection(name=name))
     _expect(_names(ui_collections.model), ["A", "b", "c"], "sidebar order")
@@ -449,11 +462,6 @@ def check_hidden_filter_unit() -> None:
     extra.collection = collections.Collection(name="c")
     extra.enabled = False
     _expect(extra.match(item), False, "match after disabling")
-
-
-# Freeing an `EveryFilter` that holds a `CollectionFilter` crashes GTK. The
-# window never frees its filters, so keep these alive to match.
-_KEPT: list[object] = []
 
 
 class _Grid:
