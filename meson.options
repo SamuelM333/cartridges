@@ -4,3 +4,10 @@ option(
     choices: ['release', 'development'],
     value: 'release',
 )
+
+option(
+    'nightly',
+    type: 'boolean',
+    value: false,
+    description: 'Mark the build as a nightly build',
+)

@@ -45,6 +45,27 @@ jobs:
         id: commit
         uses: prompt/actions-commit-hash@v4
 
+      - name: Mark Build as Nightly
+        if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
+        run: |
+          manifest=flatpak/page.samuelm333.Cartridges.json
+          if command -v jq > /dev/null; then
+            jq '(.modules[] | select(type == "object" and .name == "cartridges") | ."config-opts") += ["-Dnightly=true"]' \
+              "$manifest" > manifest.tmp
+          else
+            python3 - "$manifest" > manifest.tmp <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as f:
+              manifest = json.load(f)
+          for module in manifest["modules"]:
+              if isinstance(module, dict) and module.get("name") == "cartridges":
+                  module["config-opts"].append("-Dnightly=true")
+          json.dump(manifest, sys.stdout, indent=2)
+          PY
+          fi
+          mv manifest.tmp "$manifest"
+          grep -q -- '-Dnightly=true' "$manifest"
+
       - name: Build Nightly Flatpak Bundle
         if: ${{ steps.check-cache.outputs.cache-hit != 'true' || inputs.force }}
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6

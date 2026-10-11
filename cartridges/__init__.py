@@ -27,6 +27,7 @@ from .config import APP_ID, LOCALEDIR
 
 DATA_DIR = Path(GLib.get_user_data_dir(), "cartridges")
 CACHE_DIR = Path(GLib.get_user_cache_dir(), "cartridges")
+STATE_DIR = Path(GLib.get_user_state_dir(), "cartridges")
 SETTINGS = Gio.Settings(schema_id=APP_ID)
 STATE_SETTINGS = Gio.Settings(schema_id=f"{APP_ID}.State")
 

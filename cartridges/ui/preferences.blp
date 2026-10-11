@@ -40,6 +40,26 @@ template $CartridgesPreferences: Adw.PreferencesDialog {
       }
     }
 
+    Adw.PreferencesGroup troubleshooting_group {
+      title: _("Troubleshooting");
+
+      Adw.SwitchRow debug_logs_switch {
+        title: _("Debug Logs");
+        subtitle: _("Save detailed diagnostic messages to disk");
+      }
+
+      Adw.ActionRow logs_folder_row {
+        title: _("Open Logs Folder");
+        activatable: true;
+        activated => $_on_logs_folder_activated();
+
+        [suffix]
+        Gtk.Image {
+          icon-name: "folder-open-symbolic";
+        }
+      }
+    }
+
     Adw.PreferencesGroup danger_zone_group {
       title: _("Danger Zone");
       separate-rows: true;

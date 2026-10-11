@@ -9,7 +9,7 @@ from typing import override
 
 from gi.repository import Adw, Gio, GObject
 
-from . import collections, importer, sources
+from . import collections, importer, logs, sources
 from .config import APP_ID, PREFIX
 from .games import Game
 from .ui import PRIMARY_KEY
@@ -21,9 +21,12 @@ class Application(Adw.Application):
 
     __gtype_name__ = __qualname__
 
+    _logs_failed: bool = False
+
     @override
     def do_startup(self):
         Adw.Application.do_startup(self)
+        logs.set_failure_callback(self._on_logs_failed)
         self.props.style_manager.props.color_scheme = Adw.ColorScheme.DEFAULT
 
         self.add_action_entries((
@@ -62,6 +65,16 @@ class Application(Adw.Application):
     def do_activate(self):
         window = self.props.active_window or Window(application=self)
         window.present()
+
+        if self._logs_failed and isinstance(window, Window):
+            self._logs_failed = False
+            window.send_toast(_("Could not save debug logs"))
+
+    def _on_logs_failed(self) -> None:
+        if isinstance(window := self.props.active_window, Window):
+            window.send_toast(_("Could not save debug logs"))
+        else:
+            self._logs_failed = True
 
     def _prune_preview_cache(self) -> None:
         import asyncio

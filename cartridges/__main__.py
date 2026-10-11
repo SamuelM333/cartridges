@@ -6,6 +6,7 @@ import sys
 
 from gi.events import GLibEventLoopPolicy
 
+from . import logs
 from .application import Application
 from .config import APP_ID
 
@@ -14,6 +15,7 @@ logging.basicConfig(
     format="[%(asctime)s] [%(name)s/%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
+logs.setup()
 
 app = Application(application_id=APP_ID)
 with GLibEventLoopPolicy():

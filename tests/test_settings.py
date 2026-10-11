@@ -34,6 +34,7 @@ def check_schema_integrity() -> None:
         "cover-launches-game": "b",
         "high-quality-images": "b",
         "import-on-startup": "b",
+        "debug-logs": "b",
     }
     for key_name, expected_type in expected_keys.items():
         if not schema.has_key(key_name):
