@@ -27,6 +27,7 @@ template $GameDetails: Adw.NavigationPage {
   tag: "details";
   title: bind try { template.game as <$Game>.name, _("Add Game") };
   hidden => $_cancel();
+  hiding => $_dismiss_toasts();
 
   ShortcutController {
     Shortcut {
@@ -79,406 +80,411 @@ template $GameDetails: Adw.NavigationPage {
           show-title: false;
         }
 
-        content: ScrolledWindow {
-          hscrollbar-policy: never;
+        content: Adw.ToastOverlay toast_overlay {
+          child: ScrolledWindow {
+            hscrollbar-policy: never;
 
-          child: Box box {
-            halign: center;
-            valign: center;
-            margin-top: 12;
-            margin-bottom: 48;
-            margin-start: 24;
-            margin-end: 24;
-            spacing: 36;
+            child: Box box {
+              halign: center;
+              valign: center;
+              margin-top: 12;
+              margin-bottom: 48;
+              margin-start: 24;
+              margin-end: 24;
+              spacing: 36;
 
-            Overlay {
-              $Cover cover_widget {
-                paintable: bind template.cover-paintable;
-              }
+              Overlay {
+                $Cover cover_widget {
+                  paintable: bind template.cover-paintable;
+                }
 
-              [overlay]
-              Button cover_button_edit {
-                icon-name: "folder-symbolic";
-                tooltip-text: _("Browse files");
-                halign: end;
-                valign: end;
-                margin-bottom: 6;
-                margin-end: 6;
-                visible: bind template.editing;
-                clicked => $_choose_local_cover();
-
-                styles [
-                  "circular",
-                  "osd",
-                ]
-              }
-
-              [overlay]
-              Button cover_button_sgdb {
-                icon-name: "globe-symbolic";
-                tooltip-text: _("Browse SteamGridDB");
-                halign: end;
-                valign: end;
-                margin-bottom: 6;
-                margin-end: 46;
-                visible: bind template.editing;
-                clicked => $_choose_cover();
-
-                styles [
-                  "circular",
-                  "osd",
-                ]
-              }
-
-              [overlay]
-              Revealer cover_button_delete_revealer {
-                transition-type: crossfade;
-                halign: end;
-                valign: end;
-                margin-bottom: 6;
-                margin-end: 86;
-                visible: bind template.editing;
-                reveal-child: bind template.cover-delete-revealed;
-
-                Button cover_button_delete {
-                  icon-name: "user-trash-symbolic";
-                  tooltip-text: _("Delete Cover");
-                  clicked => $_delete_cover();
+                [overlay]
+                Button cover_button_edit {
+                  icon-name: "folder-symbolic";
+                  tooltip-text: _("Browse files");
+                  halign: end;
+                  valign: end;
+                  margin-bottom: 6;
+                  margin-end: 6;
+                  visible: bind template.editing;
+                  clicked => $_choose_local_cover();
 
                   styles [
                     "circular",
                     "osd",
                   ]
                 }
-              }
 
-              [overlay]
-              Adw.Spinner cover_spinner {
-                halign: center;
-                valign: center;
-                visible: bind template.cover-loading;
-              }
-            }
+                [overlay]
+                Button cover_button_sgdb {
+                  icon-name: "globe-symbolic";
+                  tooltip-text: _("Browse SteamGridDB");
+                  halign: end;
+                  valign: end;
+                  margin-bottom: 6;
+                  margin-end: 46;
+                  visible: bind template.editing;
+                  clicked => $_choose_cover();
 
-            Adw.ViewStack stack {
-              vhomogeneous: false;
-              enable-transitions: true;
-              visible-child-name: bind $if(template.editing, "edit", "details");
+                  styles [
+                    "circular",
+                    "osd",
+                  ]
+                }
 
-              Adw.ViewStackPage {
-                name: "details";
+                [overlay]
+                Revealer cover_button_delete_revealer {
+                  transition-type: crossfade;
+                  halign: end;
+                  valign: end;
+                  margin-bottom: 6;
+                  margin-end: 86;
+                  visible: bind template.editing;
+                  reveal-child: bind template.cover-delete-revealed;
 
-                child: Box {
-                  orientation: vertical;
+                  Button cover_button_delete {
+                    icon-name: "user-trash-symbolic";
+                    tooltip-text: _("Delete Cover");
+                    clicked => $_delete_cover();
+
+                    styles [
+                      "circular",
+                      "osd",
+                    ]
+                  }
+                }
+
+                [overlay]
+                Adw.Spinner cover_spinner {
+                  halign: center;
                   valign: center;
-                  spacing: 6;
+                  visible: bind template.cover-loading;
+                }
+              }
 
-                  Label name_label {
-                    label: bind template.game as <$Game>.name;
-                    halign: start;
-                    max-width-chars: 24;
-                    wrap: true;
-                    wrap-mode: word_char;
+              Adw.ViewStack stack {
+                vhomogeneous: false;
+                enable-transitions: true;
+                visible-child-name: bind $if(template.editing, "edit", "details");
 
-                    styles [
-                      "title-1",
-                    ]
-                  }
+                Adw.ViewStackPage {
+                  name: "details";
 
-                  Label developer_label {
-                    label: bind template.game as <$Game>.developer;
-                    visible: bind $bool(template.game as <$Game>.developer);
-                    halign: start;
-                    max-width-chars: 36;
-                    wrap: true;
-                    wrap-mode: word_char;
+                  child: Box {
+                    orientation: vertical;
+                    valign: center;
+                    spacing: 6;
 
-                    styles [
-                      "heading",
-                    ]
-                  }
-
-                  Box date_labels {
-                    halign: start;
-                    valign: start;
-                    margin-top: 9;
-                    spacing: 9;
-
-                    Label last_played_label {
-                      label: bind $format(
-                        _("Last played: {}"),
-                        $_relative_date(template.game as <$Game>.last-played) as <string>
-                      );
+                    Label name_label {
+                      label: bind template.game as <$Game>.name;
                       halign: start;
+                      max-width-chars: 24;
                       wrap: true;
                       wrap-mode: word_char;
-                    }
-
-                    Label added_label {
-                      label: bind $format(_("Added: {}"), $_relative_date(template.game as <$Game>.added) as <string>);
-                      halign: start;
-                      wrap: true;
-                      wrap-mode: word_char;
-                    }
-                  }
-
-                  Box actions {
-                    spacing: 12;
-                    margin-top: 15;
-
-                    Button {
-                      action-name: "game.play";
-                      label: _("Play");
-                      valign: center;
-                      halign: center;
 
                       styles [
-                        "pill",
-                        "suggested-action",
+                        "title-1",
                       ]
                     }
 
-                    Box {
-                      spacing: 6;
-                      halign: center;
+                    Label developer_label {
+                      label: bind template.game as <$Game>.developer;
+                      visible: bind $bool(template.game as <$Game>.developer);
+                      halign: start;
+                      max-width-chars: 36;
+                      wrap: true;
+                      wrap-mode: word_char;
+
+                      styles [
+                        "heading",
+                      ]
+                    }
+
+                    Box date_labels {
+                      halign: start;
+                      valign: start;
+                      margin-top: 9;
+                      spacing: 9;
+
+                      Label last_played_label {
+                        label: bind $format(
+                          _("Last played: {}"),
+                          $_relative_date(template.game as <$Game>.last-played) as <string>
+                        );
+                        halign: start;
+                        wrap: true;
+                        wrap-mode: word_char;
+                      }
+
+                      Label added_label {
+                        label: bind $format(
+                          _("Added: {}"),
+                          $_relative_date(template.game as <$Game>.added) as <string>
+                        );
+                        halign: start;
+                        wrap: true;
+                        wrap-mode: word_char;
+                      }
+                    }
+
+                    Box actions {
+                      spacing: 12;
+                      margin-top: 15;
 
                       Button {
-                        action-name: "details.edit";
-                        icon-name: "document-edit-symbolic";
-                        tooltip-text: _("Edit");
+                        action-name: "game.play";
+                        label: _("Play");
                         valign: center;
+                        halign: center;
 
                         styles [
-                          "circular",
+                          "pill",
+                          "suggested-action",
                         ]
                       }
 
-                      MenuButton {
-                        icon-name: "collection-symbolic";
-                        tooltip-text: _("Collections");
-                        valign: center;
-                        notify::active => $_setup_collections();
+                      Box {
+                        spacing: 6;
+                        halign: center;
 
-                        popover: PopoverMenu {
-                          menu-model: menu {
-                            item (_("New Collection"), "collection.add")
+                        Button {
+                          action-name: "details.edit";
+                          icon-name: "document-edit-symbolic";
+                          tooltip-text: _("Edit");
+                          valign: center;
 
-                            item {
-                              custom: "collections";
+                          styles [
+                            "circular",
+                          ]
+                        }
+
+                        MenuButton {
+                          icon-name: "collection-symbolic";
+                          tooltip-text: _("Collections");
+                          valign: center;
+                          notify::active => $_setup_collections();
+
+                          popover: PopoverMenu {
+                            menu-model: menu {
+                              item (_("New Collection"), "collection.add")
+
+                              item {
+                                custom: "collections";
+                              }
+                            };
+
+                            [collections]
+                            Box {
+                              orientation: vertical;
+                              visible: bind collections_box.visible;
+
+                              Separator {}
+
+                              Label {
+                                label: _("Collections");
+                                halign: start;
+                                margin-top: 6;
+                                margin-bottom: 9;
+                                margin-start: 12;
+                                margin-end: 12;
+
+                                styles [
+                                  "heading",
+                                ]
+                              }
+
+                              $CollectionsBox collections_box {
+                                game: bind template.game;
+                              }
                             }
                           };
 
-                          [collections]
-                          Box {
-                            orientation: vertical;
-                            visible: bind collections_box.visible;
+                          styles [
+                            "circular",
+                          ]
+                        }
 
-                            Separator {}
+                        Button hide_button {
+                          visible: bind hide_button.sensitive;
+                          action-name: "game.hide";
+                          icon-name: "view-conceal-symbolic";
+                          tooltip-text: _("Hide");
+                          valign: center;
 
-                            Label {
-                              label: _("Collections");
-                              halign: start;
-                              margin-top: 6;
-                              margin-bottom: 9;
+                          styles [
+                            "circular",
+                          ]
+                        }
+
+                        Button unhide_button {
+                          visible: bind unhide_button.sensitive;
+                          action-name: "game.unhide";
+                          icon-name: "view-reveal-symbolic";
+                          tooltip-text: _("Unhide");
+                          valign: center;
+
+                          styles [
+                            "circular",
+                          ]
+                        }
+
+                        Button {
+                          action-name: "game.remove";
+                          icon-name: "user-trash-symbolic";
+                          tooltip-text: _("Remove");
+                          valign: center;
+
+                          styles [
+                            "circular",
+                          ]
+                        }
+
+                        MenuButton {
+                          icon-name: "edit-find-symbolic";
+                          tooltip-text: _("Search On");
+                          valign: center;
+
+                          menu-model: menu {
+                            section {
+                              label: _("Search On");
+
+                              item {
+                                label: _("HowLongToBeat");
+                                action: "details.search-on";
+                                target: "https://howlongtobeat.com/?q={}";
+                              }
+
+                              item {
+                                label: _("IGDB");
+                                action: "details.search-on";
+                                target: "https://www.igdb.com/search?type=1&q={}";
+                              }
+
+                              item {
+                                label: _("Lutris");
+                                action: "details.search-on";
+                                target: "https://lutris.net/games?q={}";
+                              }
+
+                              item {
+                                label: _("PCGamingWiki");
+                                action: "details.search-on";
+                                target: "https://www.pcgamingwiki.com/w/index.php?search={}";
+                              }
+
+                              item {
+                                label: _("ProtonDB");
+                                action: "details.search-on";
+                                target: "https://www.protondb.com/search?q={}";
+                              }
+
+                              item {
+                                label: _("SteamGridDB");
+                                action: "details.search-on";
+                                target: "https://www.steamgriddb.com/search/grids?term={}";
+                              }
+                            }
+                          };
+
+                          styles [
+                            "circular",
+                          ]
+                        }
+                      }
+                    }
+                  };
+                }
+
+                Adw.ViewStackPage {
+                  name: "edit";
+
+                  child: Box {
+                    orientation: vertical;
+                    valign: center;
+                    width-request: 300;
+                    spacing: 24;
+
+                    Adw.PreferencesGroup {
+                      Adw.EntryRow name_entry {
+                        title: _("Title");
+                        text: bind try { template.game as <$Game>.name, "" };
+                        entry-activated => $_activate_apply();
+                      }
+
+                      Adw.EntryRow developer_entry {
+                        title: _("Developer (optional)");
+                        text: bind try { template.game as <$Game>.developer, "" };
+                        entry-activated => $_activate_apply();
+                      }
+                    }
+
+                    Adw.PreferencesGroup {
+                      Adw.EntryRow executable_entry {
+                        title: _("Executable");
+                        text: bind try { template.game as <$Game>.executable, "" };
+                        entry-activated => $_activate_apply();
+
+                        [suffix]
+                        MenuButton {
+                          valign: center;
+                          tooltip-text: _("More Info");
+                          icon-name: "info-outline-symbolic";
+
+                          popover: Popover {
+                            child: Label {
+                              label: bind $_format_more_info(
+                                _(
+                                  "To launch the executable \"{}\", use the command:\n\n<tt>\"{}\"</tt>\n\nTo open the file \"{}\" with the default application, use:\n\n<tt>{} \"{}\"</tt>\n\nIf the path contains spaces, make sure to wrap it in double quotes!"
+                                )
+                              );
+                              use-markup: true;
+                              wrap: true;
+                              wrap-mode: word_char;
+                              margin-top: 12;
+                              margin-bottom: 12;
                               margin-start: 12;
                               margin-end: 12;
-
-                              styles [
-                                "heading",
-                              ]
-                            }
-
-                            $CollectionsBox collections_box {
-                              game: bind template.game;
-                            }
-                          }
-                        };
-
-                        styles [
-                          "circular",
-                        ]
-                      }
-
-                      Button hide_button {
-                        visible: bind hide_button.sensitive;
-                        action-name: "game.hide";
-                        icon-name: "view-conceal-symbolic";
-                        tooltip-text: _("Hide");
-                        valign: center;
-
-                        styles [
-                          "circular",
-                        ]
-                      }
-
-                      Button unhide_button {
-                        visible: bind unhide_button.sensitive;
-                        action-name: "game.unhide";
-                        icon-name: "view-reveal-symbolic";
-                        tooltip-text: _("Unhide");
-                        valign: center;
-
-                        styles [
-                          "circular",
-                        ]
-                      }
-
-                      Button {
-                        action-name: "game.remove";
-                        icon-name: "user-trash-symbolic";
-                        tooltip-text: _("Remove");
-                        valign: center;
-
-                        styles [
-                          "circular",
-                        ]
-                      }
-
-                      MenuButton {
-                        icon-name: "edit-find-symbolic";
-                        tooltip-text: _("Search On");
-                        valign: center;
-
-                        menu-model: menu {
-                          section {
-                            label: _("Search On");
-
-                            item {
-                              label: _("HowLongToBeat");
-                              action: "details.search-on";
-                              target: "https://howlongtobeat.com/?q={}";
-                            }
-
-                            item {
-                              label: _("IGDB");
-                              action: "details.search-on";
-                              target: "https://www.igdb.com/search?type=1&q={}";
-                            }
-
-                            item {
-                              label: _("Lutris");
-                              action: "details.search-on";
-                              target: "https://lutris.net/games?q={}";
-                            }
-
-                            item {
-                              label: _("PCGamingWiki");
-                              action: "details.search-on";
-                              target: "https://www.pcgamingwiki.com/w/index.php?search={}";
-                            }
-
-                            item {
-                              label: _("ProtonDB");
-                              action: "details.search-on";
-                              target: "https://www.protondb.com/search?q={}";
-                            }
-
-                            item {
-                              label: _("SteamGridDB");
-                              action: "details.search-on";
-                              target: "https://www.steamgriddb.com/search/grids?term={}";
-                            }
-                          }
-                        };
-
-                        styles [
-                          "circular",
-                        ]
-                      }
-                    }
-                  }
-                };
-              }
-
-              Adw.ViewStackPage {
-                name: "edit";
-
-                child: Box {
-                  orientation: vertical;
-                  valign: center;
-                  width-request: 300;
-                  spacing: 24;
-
-                  Adw.PreferencesGroup {
-                    Adw.EntryRow name_entry {
-                      title: _("Title");
-                      text: bind try { template.game as <$Game>.name, "" };
-                      entry-activated => $_activate_apply();
-                    }
-
-                    Adw.EntryRow developer_entry {
-                      title: _("Developer (optional)");
-                      text: bind try { template.game as <$Game>.developer, "" };
-                      entry-activated => $_activate_apply();
-                    }
-                  }
-
-                  Adw.PreferencesGroup {
-                    Adw.EntryRow executable_entry {
-                      title: _("Executable");
-                      text: bind try { template.game as <$Game>.executable, "" };
-                      entry-activated => $_activate_apply();
-
-                      [suffix]
-                      MenuButton {
-                        valign: center;
-                        tooltip-text: _("More Info");
-                        icon-name: "info-outline-symbolic";
-
-                        popover: Popover {
-                          child: Label {
-                            label: bind $_format_more_info(
-                              _(
-                                "To launch the executable \"{}\", use the command:\n\n<tt>\"{}\"</tt>\n\nTo open the file \"{}\" with the default application, use:\n\n<tt>{} \"{}\"</tt>\n\nIf the path contains spaces, make sure to wrap it in double quotes!"
-                              )
-                            );
-                            use-markup: true;
-                            wrap: true;
-                            wrap-mode: word_char;
-                            margin-top: 12;
-                            margin-bottom: 12;
-                            margin-start: 12;
-                            margin-end: 12;
+                            };
                           };
-                        };
+
+                          styles [
+                            "flat",
+                          ]
+                        }
+                      }
+                    }
+
+                    Adw.WrapBox {
+                      halign: center;
+                      wrap-reverse: true;
+                      justify: fill;
+                      justify-last-line: true;
+                      child-spacing: 12;
+                      line-spacing: 12;
+
+                      Button cancel_button {
+                        action-name: "details.cancel";
+                        label: _("Cancel");
 
                         styles [
-                          "flat",
+                          "pill",
+                        ]
+                      }
+
+                      Button apply_button {
+                        action-name: "details.apply";
+                        label: bind $if(template.game, _("Apply"), _("Add"));
+
+                        styles [
+                          "pill",
+                          "suggested-action",
                         ]
                       }
                     }
-                  }
-
-                  Adw.WrapBox {
-                    halign: center;
-                    wrap-reverse: true;
-                    justify: fill;
-                    justify-last-line: true;
-                    child-spacing: 12;
-                    line-spacing: 12;
-
-                    Button cancel_button {
-                      action-name: "details.cancel";
-                      label: _("Cancel");
-
-                      styles [
-                        "pill",
-                      ]
-                    }
-
-                    Button apply_button {
-                      action-name: "details.apply";
-                      label: bind $if(template.game, _("Apply"), _("Add"));
-
-                      styles [
-                        "pill",
-                        "suggested-action",
-                      ]
-                    }
-                  }
-                };
+                  };
+                }
               }
-            }
+            };
           };
         };
       }

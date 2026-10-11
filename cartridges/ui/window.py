@@ -125,7 +125,7 @@ class Window(Adw.ApplicationWindow):
         self._history: dict[Adw.Toast, _UndoFunc] = {}
 
     def send_toast(self, title: str, *, undo: _UndoFunc | None = None):
-        """Notify the user with a toast.
+        """Notify the user with a toast in the page that is visible.
 
         Optionally display a button allowing the user to `undo` an operation.
         """
@@ -136,7 +136,12 @@ class Window(Adw.ApplicationWindow):
             toast.connect("button-clicked", self._undo)
             self._history[toast] = undo
 
-        self.toast_overlay.add_toast(toast)
+        overlay = (
+            self.details.toast_overlay
+            if self.navigation_view.props.visible_page is self.details
+            else self.toast_overlay
+        )
+        overlay.add_toast(toast)
 
     def _collection_removed(self):
         self.collection = None
