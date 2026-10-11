@@ -26,5 +26,6 @@ Guarantees:
 2. The stored SteamGridDB API key never appears; where it would, `[redacted]` appears instead (FR-013).
 3. Terminal (stderr) output is unchanged in content and level by this feature (FR-017).
 4. Total size per app ID stays at or below about 5 MiB (FR-010).
+5. Unhandled exceptions from callbacks, worker threads, and unraisable errors are written at `CRITICAL` with their traceback while logging is on; the terminal still shows Python's usual report.
 
 Not guaranteed: the wording of individual messages, which may change between versions.

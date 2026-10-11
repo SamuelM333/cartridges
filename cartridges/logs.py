@@ -7,8 +7,10 @@ import logging
 import logging.handlers
 import platform
 import sys
+import threading
 from collections.abc import Callable
 from pathlib import Path
+from types import TracebackType
 from typing import override
 
 from gi.repository import GLib
@@ -160,6 +162,52 @@ def disable() -> None:
     _handler = None
 
 
+def install_exception_hooks() -> None:
+    """Write unhandled exceptions to the debug log, then run the previous hook.
+
+    Python reports them on stderr only. The record goes to the file handler alone
+    so the terminal output stays as it was.
+    """
+    previous_except = sys.excepthook
+    previous_thread = threading.excepthook
+    previous_unraisable = sys.unraisablehook
+
+    def log_exception(message: str, exc_value: BaseException | None) -> None:
+        if _handler is not None and exc_value is not None:
+            _handler.handle(
+                _logger.makeRecord(
+                    _logger.name,
+                    logging.CRITICAL,
+                    __file__,
+                    0,
+                    message,
+                    (),
+                    (type(exc_value), exc_value, exc_value.__traceback__),
+                )
+            )
+
+    def except_hook(
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        exc_traceback: TracebackType | None,
+    ) -> None:
+        log_exception("Unhandled exception", exc_value)
+        previous_except(exc_type, exc_value, exc_traceback)
+
+    def thread_hook(args: threading.ExceptHookArgs) -> None:
+        if args.exc_type is not SystemExit:
+            log_exception("Unhandled exception in thread", args.exc_value)
+        previous_thread(args)
+
+    def unraisable_hook(args: sys.UnraisableHookArgs) -> None:
+        log_exception("Unraisable exception", args.exc_value)
+        previous_unraisable(args)
+
+    sys.excepthook = except_hook
+    threading.excepthook = thread_hook
+    sys.unraisablehook = unraisable_hook
+
+
 def setup() -> None:
     """Apply the debug logs setting and follow its changes."""
     from gi.repository import Gio
@@ -175,6 +223,7 @@ def setup() -> None:
     def on_secret_changed(settings: Gio.Settings, key: str) -> None:
         set_secret(settings.get_string(key).strip())
 
+    install_exception_hooks()
     on_secret_changed(SETTINGS, "sgdb-key")
     on_debug_logs_changed(SETTINGS, "debug-logs")
     SETTINGS.connect("changed::sgdb-key", on_secret_changed)

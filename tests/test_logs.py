@@ -11,6 +11,7 @@ import re
 import shutil
 import sys
 import tempfile
+import threading
 import types
 from pathlib import Path
 
@@ -271,6 +272,55 @@ def check_pillow_quiet() -> None:
     _expect(pil.level, logging.NOTSET, "Pillow level after disabling")
 
 
+def check_unhandled_exception_logged() -> None:
+    """Validate that unhandled exceptions reach the file and the old hooks run."""
+    _reset()
+    ran: list[str] = []
+    saved = (sys.excepthook, threading.excepthook, sys.unraisablehook)
+    sys.excepthook = lambda *_: ran.append("main")
+    threading.excepthook = lambda _: ran.append("thread")
+    sys.unraisablehook = lambda _: ran.append("unraisable")
+    try:
+        logs.install_exception_hooks()
+        logs.set_secret(_SECRET)
+        logs.enable(_DIR)
+
+        try:
+            raise ValueError(_SECRET + " main")
+        except ValueError:
+            sys.excepthook(*sys.exc_info())  # pyright: ignore[reportArgumentType]
+
+        def fail() -> None:
+            msg = "thread failure"
+            raise RuntimeError(msg)
+
+        worker = threading.Thread(target=fail)
+        worker.start()
+        worker.join()
+
+        class Unraisable:
+            def __del__(self) -> None:
+                msg = "unraisable failure"
+                raise KeyError(msg)
+
+        Unraisable()
+        logs.disable()
+    finally:
+        sys.excepthook, threading.excepthook, sys.unraisablehook = saved
+
+    text = _read()
+    for part in (
+        "Unhandled exception",
+        "Traceback",
+        "ValueError",
+        "thread failure",
+        "unraisable failure",
+    ):
+        _expect(part in text, True, f"{part!r} in file")
+    _expect(_SECRET in text, False, "secret in file")
+    _expect(ran, ["main", "thread", "unraisable"], "previous hooks run")
+
+
 if __name__ == "__main__":
     check_enable_writes_header_and_debug()
     check_disable_stops_and_keeps_files()
@@ -284,4 +334,5 @@ if __name__ == "__main__":
     check_rotation_caps_size()
     check_constants()
     check_pillow_quiet()
+    check_unhandled_exception_logged()
     _reset()
