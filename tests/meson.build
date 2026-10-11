@@ -1,5 +1,6 @@
 test_scripts = [
     'test_check_emojis',
+    'test_collections',
     'test_desktop',
     'test_hidden_games',
     'test_importer',

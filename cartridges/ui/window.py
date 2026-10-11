@@ -65,6 +65,7 @@ class Window(Adw.ApplicationWindow):
 
     search_text = GObject.Property(type=str)
     show_hidden = GObject.Property(type=bool, default=False)
+    hidden_in_collections = GObject.Property(type=bool, default=False)
 
     settings = GObject.Property(type=Gtk.Settings)
 
@@ -83,6 +84,12 @@ class Window(Adw.ApplicationWindow):
         STATE_SETTINGS.bind("height", self, "default-height", flags)
         STATE_SETTINGS.bind("is-maximized", self, "maximized", flags)
         STATE_SETTINGS.bind("show-sidebar", self.split_view, "show-sidebar", flags)
+        SETTINGS.bind(
+            "hidden-games-in-collections",
+            self,
+            "hidden-in-collections",
+            Gio.SettingsBindFlags.GET,
+        )
 
         self.sources.bind_model(sources.model, SourceSidebarItem)
         self.collections.bind_model(collections.model, CollectionSidebarItem)

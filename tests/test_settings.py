@@ -36,6 +36,7 @@ def check_schema_integrity() -> None:
         "high-quality-images": "b",
         "import-on-startup": "b",
         "debug-logs": "b",
+        "hidden-games-in-collections": "b",
     }
     for key_name, expected_type in expected_keys.items():
         if not schema.has_key(key_name):
@@ -53,6 +54,12 @@ def check_schema_integrity() -> None:
     default = schema.get_key("import-on-startup").get_default_value()
     if not default.get_boolean():
         msg = "Key 'import-on-startup' must default to true"
+        raise ValueError(msg)
+
+    # The collections preference is opt-in, so nothing changes until it is chosen
+    default = schema.get_key("hidden-games-in-collections").get_default_value()
+    if default.get_boolean():
+        msg = "Key 'hidden-games-in-collections' must default to false"
         raise ValueError(msg)
 
     # Verify that keys replaced by other settings are gone

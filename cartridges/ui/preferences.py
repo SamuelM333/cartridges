@@ -92,6 +92,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
     # Behavior & Images
     exit_after_launch_switch: Adw.SwitchRow = Gtk.Template.Child()
     cover_launches_game_switch: Adw.SwitchRow = Gtk.Template.Child()
+    hidden_games_in_collections_switch: Adw.SwitchRow = Gtk.Template.Child()
     show_game_titles_switch: Adw.SwitchRow = Gtk.Template.Child()
     high_quality_images_switch: Adw.SwitchRow = Gtk.Template.Child()
 
@@ -198,6 +199,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
         switches = {
             "exit-after-launch",
             "cover-launches-game",
+            "hidden-games-in-collections",
             "show-game-titles",
             "high-quality-images",
             "import-on-startup",
