@@ -139,9 +139,7 @@ def enable(
 
     # Write the header only to the file, not to the terminal.
     _handler.handle(
-        _logger.makeRecord(
-            _logger.name, logging.INFO, __file__, 0, _header(), (), None
-        )
+        _logger.makeRecord(_logger.name, logging.INFO, __file__, 0, _header(), (), None)
     )
     return True
 

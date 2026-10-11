@@ -42,7 +42,7 @@ logs = importlib.import_module("cartridges.logs")
 _DIR = _STATE_DIR / "logs"
 _FILE = _DIR / "page.samuelm333.Cartridges.Test.log"
 _LINE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} \[[A-Z]+\] [\w.]+: ")
-_SECRET = "abcd1234efgh5678"
+_SECRET = "abcd1234efgh5678"  # noqa: S105 - fake key, only checks redaction
 
 _logger = logging.getLogger("cartridges.test")
 _failures: list[None] = []
