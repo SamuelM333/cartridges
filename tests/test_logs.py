@@ -26,7 +26,8 @@ from gi.repository import GLib
 # what `logs` uses.
 _STATE_DIR = Path(tempfile.mkdtemp())
 _package = types.ModuleType("cartridges")
-_package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
+_PACKAGE_DIR = Path(__file__).resolve().parents[1] / "cartridges"
+_package.__path__ = [str(_PACKAGE_DIR)]
 _package.STATE_DIR = _STATE_DIR  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
 
@@ -329,7 +330,7 @@ def check_annotations_resolve() -> None:
     so a name that exists only in type stubs breaks startup on 3.13 alone.
     Names imported inside a function are out of reach and are skipped.
     """
-    tree = ast.parse(Path(logs.__file__).read_text(encoding="utf-8"))
+    tree = ast.parse((_PACKAGE_DIR / "logs.py").read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
