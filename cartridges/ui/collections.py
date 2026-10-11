@@ -121,6 +121,36 @@ class CollectionFilter(Gtk.Filter):
         self.bind_property("collection", self._collection_signals, "target")
 
 
+class HiddenInCollectionFilter(Gtk.Filter):
+    """Let hidden games through in an open collection when the preference is on.
+
+    It never matches while the view lists only hidden games, so the games that
+    are not hidden stay out of that view.
+    """
+
+    __gtype_name__ = __qualname__
+
+    collection = GObject.Property(type=Collection)
+    enabled = GObject.Property(type=bool, default=False)
+    hidden_only = GObject.Property(type=bool, default=False)
+
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+        for name in ("collection", "enabled", "hidden-only"):
+            self.connect(
+                f"notify::{name}", lambda *_: self.changed(Gtk.FilterChange.DIFFERENT)
+            )
+
+    @override
+    def do_match(self, item: GObject.Object | None = None) -> bool:
+        return bool(self.collection and self.enabled and not self.hidden_only)
+
+    @override
+    def do_get_strictness(self) -> Gtk.FilterMatch:
+        return Gtk.FilterMatch.ALL if self.do_match() else Gtk.FilterMatch.NONE
+
+
 class CollectionSidebarItem(Adw.SidebarItem):
     """A sidebar item representing a collection."""
 

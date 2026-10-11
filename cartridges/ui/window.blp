@@ -282,9 +282,17 @@ template $Window: Adw.ApplicationWindow {
                               }
                             }
 
-                            BoolFilter {
-                              expression: expr item as <$Game>.hidden;
-                              invert: bind template.show-hidden inverted;
+                            AnyFilter {
+                              BoolFilter {
+                                expression: expr item as <$Game>.hidden;
+                                invert: bind template.show-hidden inverted;
+                              }
+
+                              $HiddenInCollectionFilter {
+                                collection: bind template.collection;
+                                enabled: bind template.hidden-in-collections;
+                                hidden-only: bind template.show-hidden;
+                              }
                             }
                           };
 
