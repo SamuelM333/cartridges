@@ -3,6 +3,7 @@
 
 """Test writing, rotating, and redacting the optional debug log files."""
 
+import ast
 import importlib
 import io
 import logging
@@ -321,6 +322,32 @@ def check_unhandled_exception_logged() -> None:
     _expect(ran, ["main", "thread", "unraisable"], "previous hooks run")
 
 
+def check_annotations_resolve() -> None:
+    """Validate that every annotation in logs.py resolves when evaluated eagerly.
+
+    Python 3.13 evaluates annotations when a function is defined, 3.14 does not,
+    so a name that exists only in type stubs breaks startup on 3.13 alone.
+    Names imported inside a function are out of reach and are skipped.
+    """
+    tree = ast.parse(Path(logs.__file__).read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        args = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+        annotations = [arg.annotation for arg in args] + [node.returns]
+        for annotation in annotations:
+            if annotation is None or isinstance(annotation, ast.Constant):
+                continue
+            code = ast.unparse(annotation)
+            try:
+                eval(code, vars(logs))  # noqa: S307
+            except NameError:
+                continue
+            except AttributeError as error:
+                msg = f"{node.name}: annotation {code!r} does not resolve: {error}"
+                raise AssertionError(msg) from error
+
+
 if __name__ == "__main__":
     check_enable_writes_header_and_debug()
     check_disable_stops_and_keeps_files()
@@ -335,4 +362,5 @@ if __name__ == "__main__":
     check_constants()
     check_pillow_quiet()
     check_unhandled_exception_logged()
+    check_annotations_resolve()
     _reset()

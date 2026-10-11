@@ -172,6 +172,8 @@ def install_exception_hooks() -> None:
     previous_thread = threading.excepthook
     previous_unraisable = sys.unraisablehook
 
+    # `sys.UnraisableHookArgs` exists only in the type stubs, so it is quoted.
+
     def log_exception(message: str, exc_value: BaseException | None) -> None:
         if _handler is not None and exc_value is not None:
             _handler.handle(
@@ -199,7 +201,7 @@ def install_exception_hooks() -> None:
             log_exception("Unhandled exception in thread", args.exc_value)
         previous_thread(args)
 
-    def unraisable_hook(args: sys.UnraisableHookArgs) -> None:
+    def unraisable_hook(args: "sys.UnraisableHookArgs") -> None:
         log_exception("Unraisable exception", args.exc_value)
         previous_unraisable(args)
 
