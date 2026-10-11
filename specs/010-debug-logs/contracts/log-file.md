@@ -15,8 +15,8 @@ Files: `<APP_ID>.log` (current) and `<APP_ID>.log.1` to `<APP_ID>.log.4` (archiv
 ## Line format
 
 ```text
-2026-10-11 14:03:27,512 [INFO] cartridges.logs: Cartridges 49.0 (nightly) page.samuelm333.Cartridges, flatpak=yes, Python 3.13.5, GTK 4.20.1, Adwaita 1.8.0, linux
-2026-10-11 14:03:27,640 [DEBUG] cartridges.importer: Scanning source steam
+2026-10-11 14:03:27,512 [INFO] cartridges.logs: Cartridges nightly-abc1234 page.samuelm333.Cartridges, flatpak=yes, Python 3.13.5, GTK 4.20.1, Adwaita 1.8.0, linux
+2026-10-11 14:03:27,640 [DEBUG] cartridges.sources: Read 12 games from steam
 2026-10-11 14:03:28,101 [WARNING] cartridges.ui.preferences: Error fetching cover for Portal 2: HTTP Error 502
 ```
 

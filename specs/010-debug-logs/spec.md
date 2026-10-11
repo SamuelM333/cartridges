@@ -86,7 +86,7 @@ A user turns on Debug Logs and forgets about it. Months later, the logs still ta
 - **FR-005**: Turning the switch on or off MUST take effect immediately, without restarting the app.
 - **FR-006**: When the app starts with the switch already on, logging MUST begin early enough to capture startup messages, including the startup import.
 - **FR-007**: Every log line MUST include the date and time (to at least the second), the severity level, and the part of the app that produced it.
-- **FR-008**: The first lines written in each app run MUST identify the app version, the build type (release, nightly, or development), and whether the app runs inside Flatpak, so a log can be matched to the build that produced it.
+- **FR-008**: The first lines written in each app run MUST identify the app version as the release tag (`vx.y.z` for a release, `nightly-<short commit>` for a nightly build, and `development` for a development build) and whether the app runs inside Flatpak, so a log can be matched to the build that produced it.
 - **FR-009**: Log files MUST be stored in the user's local per-application state folder, following the XDG Base Directory conventions (and the Flatpak equivalent when sandboxed), in a dedicated `logs` subfolder.
 - **FR-010**: The current log file MUST be rotated once it reaches 1 MiB; up to 4 archived files MUST be kept, and older ones deleted, so the logs folder never exceeds 5 MiB in total.
 - **FR-011**: Preferences MUST offer a way to open the logs folder in the system file manager, available whenever the Debug Logs switch is visible.

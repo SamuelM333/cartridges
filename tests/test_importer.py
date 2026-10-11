@@ -5,6 +5,7 @@
 
 import asyncio
 import importlib
+import logging
 import sqlite3
 import sys
 import tempfile
@@ -57,6 +58,9 @@ _package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
 _package.DATA_DIR = Path(tempfile.mkdtemp())  # pyright: ignore[reportAttributeAccessIssue]
 _package.SETTINGS = _SETTINGS  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
+
+# Keep expected warnings out of the test output.
+logging.getLogger("cartridges").addHandler(logging.NullHandler())
 
 cover = importlib.import_module("cartridges.cover")
 games = importlib.import_module("cartridges.games")
@@ -409,6 +413,89 @@ def check_import_requests_a_save() -> None:
     _expect(len(calls), 1, "saves after an import")
 
 
+class _Records(logging.Handler):
+    """Collect the log records emitted while it is attached to the root logger."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _import_logs(*imported: "Source") -> list[logging.LogRecord]:
+    """Run an import of `imported` and return the records it logged."""
+    _save_library()
+    root = logging.getLogger()
+    handler, level = _Records(), root.level
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+    sources.model.remove_all()
+    for source in imported:
+        sources.model.append(source)
+    try:
+        asyncio.run(importer.import_games())
+    finally:
+        sources.model.remove_all()
+        root.removeHandler(handler)
+        root.setLevel(level)
+    return handler.records
+
+
+def _messages(records: list[logging.LogRecord], name: str) -> list[str]:
+    return [r.getMessage() for r in records if r.name == name]
+
+
+def check_import_is_logged() -> None:
+    """Validate that an import logs when it starts, what it read, and the result."""
+    records = _import_logs(
+        _source("fake", _game("fake_1"), _game("fake_2"), startup=False)
+    )
+
+    importer_messages = _messages(records, "cartridges.importer")
+    _expect(
+        importer_messages[:2], ["Import started", "Scanned fake: 2 new games"], "start"
+    )
+    _expect(
+        importer_messages[-1].startswith("Import finished: 2 new games in "),
+        True,
+        "finish message",
+    )
+    _expect(
+        "Read 2 games from fake" in _messages(records, "cartridges.sources"),
+        True,
+        "source message",
+    )
+    _expect(
+        {r.levelno for r in records if r.name.startswith("cartridges.")},
+        {logging.DEBUG},
+        "levels of a clean import",
+    )
+
+
+def check_import_logs_failures() -> None:
+    """Validate that a source that cannot be read is a warning, unless missing."""
+    unreadable = _build(_failing("fake", OSError("denied")), startup=False)
+    records = _import_logs(unreadable)
+    warnings = [r for r in records if r.levelno == logging.WARNING]
+    _expect([r.getMessage() for r in warnings], ["Could not scan fake"], "warnings")
+    _expect(warnings[0].exc_info is not None, True, "traceback is kept")
+
+    missing = _build(_failing("fake", FileNotFoundError()), startup=False)
+    records = _import_logs(missing)
+    _expect(
+        [r.levelno for r in records if r.levelno > logging.DEBUG],
+        [],
+        "records above debug for a missing launcher",
+    )
+    _expect(
+        "Skipped fake: not found" in _messages(records, "cartridges.importer"),
+        True,
+        "missing launcher message",
+    )
+
+
 def check_scan_prefers_custom_cover() -> None:
     """Validate that a cover the user chose wins over the scanned cover."""
     custom = cover.COVERS_DIR / "fake_custom.tiff"
@@ -518,6 +605,8 @@ if __name__ == "__main__":
     check_added_games_ignore_saved_library()
     check_launcher_changes_request_a_save()
     check_import_requests_a_save()
+    check_import_is_logged()
+    check_import_logs_failures()
     check_scan_applies_stored_hidden()
     check_hidden_changes_are_recorded()
     check_removed_is_saved_for_added_games_only()

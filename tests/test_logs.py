@@ -30,8 +30,7 @@ sys.modules["cartridges"] = _package
 
 _config = types.ModuleType("cartridges.config")
 _config.APP_ID = "page.samuelm333.Cartridges.Test"  # pyright: ignore[reportAttributeAccessIssue]
-_config.VERSION = "0.0"  # pyright: ignore[reportAttributeAccessIssue]
-_config.BUILD_TYPE = "development"  # pyright: ignore[reportAttributeAccessIssue]
+_config.VERSION = "v1.2.3"  # pyright: ignore[reportAttributeAccessIssue]
 _config.PROFILE = "development"  # pyright: ignore[reportAttributeAccessIssue]
 _config.PREFIX = ""  # pyright: ignore[reportAttributeAccessIssue]
 _config.LOCALEDIR = ""  # pyright: ignore[reportAttributeAccessIssue]
@@ -94,8 +93,9 @@ def check_enable_writes_header_and_debug() -> None:
     _expect(len(lines), 2, "number of lines")
     header = lines[0]
     _expect("cartridges.logs" in header, True, "header logger name")
-    for part in ("0.0", "development", "page.samuelm333.Cartridges.Test"):
+    for part in ("v1.2.3", "page.samuelm333.Cartridges.Test"):
         _expect(part in header, True, f"{part!r} in header")
+    _expect("development" in header, False, "build type in header")
     _expect(lines[1].endswith("[DEBUG] cartridges.test: hello"), True, "debug line")
     for line in lines:
         _expect(bool(_LINE.match(line)), True, f"format of {line!r}")

@@ -3,6 +3,7 @@
 
 import itertools
 import json
+import logging
 import re
 import time
 from collections.abc import Generator, Iterable
@@ -15,6 +16,8 @@ from cartridges.games import GAMES_DIR, Game
 
 ID, NAME = "imported", _("Added")
 
+_logger = logging.getLogger(__name__)
+
 
 def get_games() -> Generator[Game]:
     """Manually added games."""
@@ -22,12 +25,14 @@ def get_games() -> Generator[Game]:
         try:
             with path.open(encoding="utf-8") as f:
                 data = json.load(f)
-        except (JSONDecodeError, UnicodeDecodeError):
+        except (JSONDecodeError, UnicodeDecodeError) as e:
+            _logger.warning("Could not read added game %s: %s", path, e)
             continue
 
         try:
             game = Game.from_data(data)
-        except TypeError:
+        except TypeError as e:
+            _logger.warning("Invalid added game %s: %s", path, e)
             continue
 
         game.cover = cover.custom(game.game_id)

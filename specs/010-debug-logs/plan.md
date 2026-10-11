@@ -6,7 +6,7 @@
 
 ## Summary
 
-Add a "Debug Logs" switch to Preferences > General that, when on, attaches a size-rotating file handler (1 MiB x 5 files) to Python's root logger and writes `DEBUG`-level, timestamped records to `$XDG_STATE_HOME/cartridges/logs/<APP_ID>.log`. Logging starts before the `Application` is created so startup is captured, toggles live through a GSettings change signal, redacts the stored SteamGridDB key, never changes terminal output, and reports write failures with a single toast. A second row opens the logs folder in the file manager. The build type (release, nightly, development) is baked into `config.py` and written in a header line on each run.
+Add a "Debug Logs" switch to Preferences > General that, when on, attaches a size-rotating file handler (1 MiB x 5 files) to Python's root logger and writes `DEBUG`-level, timestamped records to `$XDG_STATE_HOME/cartridges/logs/<APP_ID>.log`. Logging starts before the `Application` is created so startup is captured, toggles live through a GSettings change signal, redacts the stored SteamGridDB key, never changes terminal output, and reports write failures with a single toast. A second row opens the logs folder in the file manager. The release tag (`vx.y.z` for releases, `nightly-<short commit>` for nightly builds, `development` for development builds) is baked into `config.py` and written in a header line on each run.
 
 ## Technical Context
 
@@ -34,7 +34,7 @@ Add a "Debug Logs" switch to Preferences > General that, when on, attaches a siz
 
 | Principle | Status | How the design complies |
 |-----------|--------|-------------------------|
-| I. Strict typing and QA | Pass | `cartridges/logs.py` fully annotated, no `Any`; `config.pyi` gains typed `VERSION` and `BUILD_TYPE`; pre-commit, Ruff and Pyright strict run before completion. |
+| I. Strict typing and QA | Pass | `cartridges/logs.py` fully annotated, no `Any`; `config.pyi` keeps a typed `VERSION`, which now holds the tag; pre-commit, Ruff and Pyright strict run before completion. |
 | II. Modular game sources | Pass (N/A) | No source changes. Sources keep logging through their own `logging.getLogger(__name__)`. |
 | III. Blueprint-driven UI | Pass | New rows declared in `cartridges/ui/preferences.blp`; controller only binds and handles activation. |
 | IV. Libadwaita, HIG, sandbox | Pass | Standard `Adw.PreferencesGroup`, `Adw.SwitchRow`, `Adw.ActionRow`; toasts for non-critical failures; folder opened via `Gtk.FileLauncher` (OpenURI portal under Flatpak); writes only to the app's own state folder, no new `finish-args`. |
@@ -43,7 +43,7 @@ Add a "Debug Logs" switch to Preferences > General that, when on, attaches a siz
 | Dev environment | Pass | All checks run in `gtk-dev`; see [quickstart.md](quickstart.md). |
 | Branching | Pass | `feat/010-debug-logs` from `main`. |
 
-**Post-design re-check (after Phase 1)**: Pass. The one CI change (nightly workflow appending `-Dnightly=true`) touches no principle; the release manifest itself is unchanged.
+**Post-design re-check (after Phase 1)**: Pass. The CI changes (the nightly and release workflows calling one script, `set_build_tag.sh`, which passes the tag to the build) touch no principle; the release manifest in git is unchanged.
 
 ## Project Structure
 
@@ -66,11 +66,11 @@ specs/010-debug-logs/
 ### Source Code (repository root)
 
 ```text
-meson.options                                   # + 'nightly' boolean option
-meson.build                                     # + VERSION, BUILD_TYPE in conf
+meson.options                                   # + 'tag' string option
+meson.build                                     # + VERSION from the tag (or 'development', or the project version)
 cartridges/
-├── config.py.in                                # + VERSION, BUILD_TYPE
-├── config.pyi                                  # + VERSION: str, BUILD_TYPE: str
+├── config.py.in                                # + VERSION
+├── config.pyi                                  # + VERSION: str
 ├── __init__.py                                 # + STATE_DIR (cartridges subfolder of user state dir)
 ├── __main__.py                                 # call logs.setup() after basicConfig
 ├── logs.py                                     # NEW: handler, redaction, toggle, header, failure callback
@@ -81,7 +81,10 @@ cartridges/
     └── preferences.py                          # + bind debug-logs, open folder row
 data/page.samuelm333.Cartridges.gschema.xml.in  # + debug-logs key
 po/POTFILES.in                                  # (no change if strings stay in listed files)
-.github/workflows/nightly.yml                   # append -Dnightly=true to config-opts with jq
+.github/
+├── scripts/set_build_tag.sh                    # NEW: add -Dtag=<tag> to the manifest with jq
+├── workflows/nightly.yml                       # call it with nightly-<short commit>
+└── workflows/publish-release.yml               # call it with the pushed tag
 tests/
 ├── test_logs.py                                # NEW
 └── test_settings.py                            # + debug-logs in expected keys
@@ -112,4 +115,4 @@ No constitution violations to justify.
 
 | Decision | Why Needed | Simpler Alternative Rejected Because |
 |----------|------------|--------------------------------------|
-| New `nightly` meson option and a `jq` step in the nightly workflow | FR-008 requires logs to name the build type; nightly uses the release manifest and app ID, so nothing at runtime tells them apart | `vcs_tag()` commit hash: `.git` may be absent in the Flatpak `dir` source, so it would read "unknown" in nightly builds |
+| New `tag` meson option and `set_build_tag.sh`, called by the nightly and release workflows | FR-008 requires logs to name the release tag; nightly and release share one manifest and app ID, so nothing at runtime tells them apart | `vcs_tag()` commit hash: `.git` may be absent in the Flatpak `dir` source, so it would read "unknown"; editing the manifest in git would make every release report the nightly tag |

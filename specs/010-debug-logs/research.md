@@ -39,8 +39,10 @@
 
 ## R6. Run header (FR-008)
 
-- **Decision**: On every attach, log one `INFO` line from the `cartridges.logs` logger: app name, version, build type, app ID, whether running in Flatpak, Python, GTK and Libadwaita versions, and `sys.platform`.
-- **Build type source**: Add `VERSION` (from `meson.project_version()`) and `BUILD_TYPE` to `cartridges/config.py.in` / `config.pyi`. `BUILD_TYPE` is `"development"` for `-Dprofile=development`, `"nightly"` when a new boolean meson option `nightly` is true, otherwise `"release"`. The nightly workflow passes `-Dnightly=true` by appending it to the cartridges module `config-opts` with `jq` before the build step, so the shared release manifest stays unchanged for real releases.
+- **Decision**: On every attach, log one `INFO` line from the `cartridges.logs` logger: app name, version (the release tag), app ID, whether running in Flatpak, Python, GTK and Libadwaita versions, and `sys.platform`.
+- **Version source**: `VERSION` in `cartridges/config.py.in` / `config.pyi` comes from a new string meson option `tag`. When it is set, `VERSION` is the tag: `vx.y.z` for a release and `nightly-<short commit>` for a nightly build. When it is empty, `VERSION` is `development` for `-Dprofile=development`, and `meson.project_version()` otherwise (a build from source).
+- **Passing the tag**: `.github/scripts/set_build_tag.sh <tag>` appends `-Dtag=<tag>` to the `cartridges` module `config-opts` of the manifest with `jq`. The nightly workflow calls it with `nightly-<short commit>` (the same value as the release tag it publishes) and the release workflow with the pushed tag (`${GITHUB_REF#refs/tags/}`), both before the build step, so the manifest in git stays unchanged. The script rejects tags with characters other than letters, digits, `.`, `_` and `-`.
+- **jq in CI**: The `ghcr.io/flathub-infra/flatpak-github-actions:gnome-50` image (Freedesktop SDK 25.08) already ships `jq` 1.8.2 at `/app/bin/jq` and has no package manager, so nothing can be installed. The script fails with a clear error if `jq` is missing. There is no Python fallback, so a missing tool stops the build instead of producing a build with the wrong version in its logs.
 - **Flatpak detection**: `Path("/.flatpak-info").exists()`, the standard check.
 - **Alternatives considered**: embedding the git commit with meson `vcs_tag()`: the Flatpak `dir` source may not carry `.git`, so it would read "unknown" in exactly the builds that matter. Can be added later; not required by the spec.
 

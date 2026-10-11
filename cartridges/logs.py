@@ -14,7 +14,7 @@ from typing import override
 from gi.repository import GLib
 
 from . import STATE_DIR
-from .config import APP_ID, BUILD_TYPE, VERSION
+from .config import APP_ID, VERSION
 
 LOG_DIR: Path = STATE_DIR / "logs"
 MAX_BYTES: int = 1_048_576
@@ -206,7 +206,7 @@ def _header() -> str:
         )
     )
     return (
-        f"Cartridges {VERSION} ({BUILD_TYPE}) {APP_ID}, flatpak={flatpak}, "
+        f"Cartridges {VERSION} {APP_ID}, flatpak={flatpak}, "
         f"Python {platform.python_version()}, GTK {gtk}, Adwaita {adw}, "
         f"{sys.platform}"
     )

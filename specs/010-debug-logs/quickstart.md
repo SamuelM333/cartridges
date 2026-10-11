@@ -50,6 +50,7 @@ Rotation at full size (1 MiB) is covered by the automated test with a small limi
 ## Build types
 
 - Development: `-Dprofile=development`, header says `development`.
-- Nightly: `meson setup _build_nightly -Dnightly=true`, header says `nightly`.
-- Release: defaults, header says `release`.
+- Nightly: `meson setup _build_nightly -Dtag=nightly-abc1234`, header says `nightly-abc1234`.
+- Release: `meson setup _build_release -Dtag=v1.2.3`, header says `v1.2.3`.
+
 The switch and folder behave the same in all three (FR-015).

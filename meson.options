@@ -6,8 +6,8 @@ option(
 )
 
 option(
-    'nightly',
-    type: 'boolean',
-    value: false,
-    description: 'Mark the build as a nightly build',
+    'tag',
+    type: 'string',
+    value: '',
+    description: 'Release tag shown in debug logs, for example v1.2.3 or nightly-abc1234',
 )

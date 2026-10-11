@@ -52,5 +52,4 @@ YYYY-MM-DD HH:MM:SS,mmm [LEVEL] logger.name: message
 
 | Name | Source | Values |
 |------|--------|--------|
-| `VERSION` | `meson.project_version()` | e.g. `49.0` |
-| `BUILD_TYPE` | `profile` and new `nightly` meson options | `release`, `nightly`, `development` |
+| `VERSION` | The `tag` meson option; else `development` for a development build; else `meson.project_version()` | `v1.2.3` (release), `nightly-abc1234` (nightly), `development`, or e.g. `49.0` (build from source without a tag) |

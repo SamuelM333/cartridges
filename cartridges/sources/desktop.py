@@ -4,6 +4,7 @@
 
 import functools
 import itertools
+import logging
 import shlex
 import subprocess
 from collections.abc import Generator
@@ -21,6 +22,8 @@ from cartridges.games import Game
 from . import DATA, SYSTEM_DATA
 
 ID, NAME = "desktop", _("Desktop")
+
+_logger = logging.getLogger(__name__)
 
 # Covers are made from entry icons, so they are made again on each import
 # to pick up icons that were installed, removed or fixed since.
@@ -67,11 +70,13 @@ _ICON_EXTENSIONS = ".png", ".svg", ".xpm"
 def get_games() -> Generator[Game]:
     """Installed desktop entries."""
     seen = set()
+    examined = 0
     paths = itertools.chain.from_iterable(p.glob("*.desktop") for p in _DESKTOP_PATHS)
     for path in paths:
         if path.name in seen or any(path.match(pattern) for pattern in _FILE_BLACKLIST):
             continue
 
+        examined += 1
         try:
             game = _game_from(path)
         except (GLib.Error, ValueError):
@@ -79,6 +84,8 @@ def get_games() -> Generator[Game]:
 
         yield game
         seen.add(path.name)
+
+    _logger.debug("Examined %d desktop entries, %d are games", examined, len(seen))
 
 
 def _game_from(path: Path) -> Game:

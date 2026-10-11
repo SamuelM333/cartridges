@@ -4,6 +4,7 @@
 """Re-scan game sources on demand and merge the results into the library."""
 
 import asyncio
+import logging
 import sqlite3
 import time
 from collections.abc import Iterable, Sequence
@@ -13,6 +14,8 @@ from gi.repository import GObject
 
 from cartridges import saved_library
 from cartridges.games import Game
+
+_logger = logging.getLogger(__name__)
 
 # Number of games read from a source before letting the main loop run.
 _BATCH_SIZE = 25
@@ -82,7 +85,9 @@ async def import_games() -> list[Game]:
 
     state.running = True
     added = int(time.time())
+    started = time.monotonic()
     new_games: list[Game] = []
+    _logger.debug("Import started")
 
     try:
         for source in tuple(sources.model):
@@ -95,14 +100,25 @@ async def import_games() -> list[Game]:
                     scanned.append(game)
                     if not len(scanned) % _BATCH_SIZE:
                         await asyncio.sleep(0)
+            except FileNotFoundError:
+                _logger.debug("Skipped %s: not found", source.id)
+                continue
             except (OSError, sqlite3.Error):
+                _logger.warning("Could not scan %s", source.id, exc_info=True)
                 continue
 
-            new_games.extend(source.replace_games(scanned))
+            new = source.replace_games(scanned)
+            _logger.debug("Scanned %s: %d new games", source.id, len(new))
+            new_games.extend(new)
             await asyncio.sleep(0)
 
         saved_library.request_save()
     finally:
         state.running = False
+        _logger.debug(
+            "Import finished: %d new games in %.2f s",
+            len(new_games),
+            time.monotonic() - started,
+        )
 
     return new_games

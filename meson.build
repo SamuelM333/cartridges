@@ -35,12 +35,13 @@ elif profile == 'release'
     prefix = '/page/samuelm333/Cartridges'
 endif
 
-if profile == 'development'
-    build_type = 'development'
-elif get_option('nightly')
-    build_type = 'nightly'
+tag = get_option('tag')
+if tag != ''
+    version = tag
+elif profile == 'development'
+    version = 'development'
 else
-    build_type = 'release'
+    version = meson.project_version()
 endif
 
 conf = configuration_data(
@@ -49,8 +50,7 @@ conf = configuration_data(
         'APP_ID': app_id,
         'PREFIX': prefix,
         'PROFILE': profile,
-        'BUILD_TYPE': build_type,
-        'VERSION': meson.project_version(),
+        'VERSION': version,
         'LOCALEDIR': localedir,
         'BINDIR': bindir,
     },
