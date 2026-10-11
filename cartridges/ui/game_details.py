@@ -38,6 +38,7 @@ class GameDetails(Adw.NavigationPage):
 
     collections_box: CollectionsBox = Gtk.Template.Child()
     name_entry: Adw.EntryRow = Gtk.Template.Child()
+    toast_overlay: Adw.ToastOverlay = Gtk.Template.Child()
 
     game_actions: GameActions = Gtk.Template.Child()
     collection_actions: CollectionActions = Gtk.Template.Child()
@@ -171,6 +172,10 @@ class GameDetails(Adw.NavigationPage):
     @Gtk.Template.Callback()
     def _activate_apply(self, _entry):
         self.activate_action("details.apply")
+
+    @Gtk.Template.Callback()
+    def _dismiss_toasts(self, *_args: Any) -> None:
+        self.toast_overlay.dismiss_all()
 
     @Gtk.Template.Callback()
     def _cancel(self, *_args):
