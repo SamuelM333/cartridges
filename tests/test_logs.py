@@ -3,6 +3,7 @@
 
 """Test writing, rotating, and redacting the optional debug log files."""
 
+import ast
 import importlib
 import io
 import logging
@@ -11,6 +12,7 @@ import re
 import shutil
 import sys
 import tempfile
+import threading
 import types
 from pathlib import Path
 
@@ -24,7 +26,8 @@ from gi.repository import GLib
 # what `logs` uses.
 _STATE_DIR = Path(tempfile.mkdtemp())
 _package = types.ModuleType("cartridges")
-_package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
+_PACKAGE_DIR = Path(__file__).resolve().parents[1] / "cartridges"
+_package.__path__ = [str(_PACKAGE_DIR)]
 _package.STATE_DIR = _STATE_DIR  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
 
@@ -271,6 +274,81 @@ def check_pillow_quiet() -> None:
     _expect(pil.level, logging.NOTSET, "Pillow level after disabling")
 
 
+def check_unhandled_exception_logged() -> None:
+    """Validate that unhandled exceptions reach the file and the old hooks run."""
+    _reset()
+    ran: list[str] = []
+    saved = (sys.excepthook, threading.excepthook, sys.unraisablehook)
+    sys.excepthook = lambda *_: ran.append("main")
+    threading.excepthook = lambda _: ran.append("thread")
+    sys.unraisablehook = lambda _: ran.append("unraisable")
+    try:
+        logs.install_exception_hooks()
+        logs.set_secret(_SECRET)
+        logs.enable(_DIR)
+
+        try:
+            raise ValueError(_SECRET + " main")
+        except ValueError:
+            sys.excepthook(*sys.exc_info())  # pyright: ignore[reportArgumentType]
+
+        def fail() -> None:
+            msg = "thread failure"
+            raise RuntimeError(msg)
+
+        worker = threading.Thread(target=fail)
+        worker.start()
+        worker.join()
+
+        class Unraisable:
+            def __del__(self) -> None:
+                msg = "unraisable failure"
+                raise KeyError(msg)
+
+        Unraisable()
+        logs.disable()
+    finally:
+        sys.excepthook, threading.excepthook, sys.unraisablehook = saved
+
+    text = _read()
+    for part in (
+        "Unhandled exception",
+        "Traceback",
+        "ValueError",
+        "thread failure",
+        "unraisable failure",
+    ):
+        _expect(part in text, True, f"{part!r} in file")
+    _expect(_SECRET in text, False, "secret in file")
+    _expect(ran, ["main", "thread", "unraisable"], "previous hooks run")
+
+
+def check_annotations_resolve() -> None:
+    """Validate that every annotation in logs.py resolves when evaluated eagerly.
+
+    Python 3.13 evaluates annotations when a function is defined, 3.14 does not,
+    so a name that exists only in type stubs breaks startup on 3.13 alone.
+    Names imported inside a function are out of reach and are skipped.
+    """
+    tree = ast.parse((_PACKAGE_DIR / "logs.py").read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        args = [*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs]
+        annotations = [arg.annotation for arg in args] + [node.returns]
+        for annotation in annotations:
+            if annotation is None or isinstance(annotation, ast.Constant):
+                continue
+            code = ast.unparse(annotation)
+            try:
+                eval(code, vars(logs))  # noqa: S307
+            except NameError:
+                continue
+            except AttributeError as error:
+                msg = f"{node.name}: annotation {code!r} does not resolve: {error}"
+                raise AssertionError(msg) from error
+
+
 if __name__ == "__main__":
     check_enable_writes_header_and_debug()
     check_disable_stops_and_keeps_files()
@@ -284,4 +362,6 @@ if __name__ == "__main__":
     check_rotation_caps_size()
     check_constants()
     check_pillow_quiet()
+    check_unhandled_exception_logged()
+    check_annotations_resolve()
     _reset()

@@ -44,6 +44,7 @@ Run the app with `meson devenv -C _build cartridges` (or the Devel Flatpak).
 | 7 | Set an SGDB key, turn logging on, run "Update Covers" | `grep -r "<key>" "$LOGS"` finds nothing | FR-013, SC-005 |
 | 8 | `chmod a-w "$LOGS"` and remove the log file, then turn logging on | One toast "Could not save debug logs"; app keeps working; switch stays on | FR-014, SC-004 |
 | 9 | `gsettings set page.samuelm333.Cartridges.Devel debug-logs true` while running | Logging starts without restart | FR-005 |
+| 10 | With logging on, raise an error in a callback (for example, add `raise RuntimeError("test")` to a button handler temporarily) and trigger it | A `CRITICAL` line `Unhandled exception` with the traceback appears in the log; the terminal shows the usual traceback | FR-004 |
 
 Rotation at full size (1 MiB) is covered by the automated test with a small limit; to check manually, run with logging on and `du -sh "$LOGS"` after heavy use: never above about 5 MiB.
 
