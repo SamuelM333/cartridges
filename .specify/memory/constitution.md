@@ -1,30 +1,15 @@
 <!--
 SYNC IMPACT REPORT:
-- Version change: 2.2.0 -> 3.0.0 (includes the earlier uncommitted 2.3.0 edits)
-- Bump rationale: MAJOR, because Principle VI is redefined: a blanket prohibition on emoji becomes
-  "allowed as functional content, discouraged elsewhere". Existing code stays compliant, so the
-  change loosens a rule rather than breaking anyone. If loosening is considered a MINOR change,
-  use 2.4.0.
-- List of modified principles:
-  * VI. Emoji-Free Code and Documentation -> VI. Restrained Emoji Use (functional emoji allowed,
-    developer-facing text discouraged, canonical check script and how to run it)
-- Added principles:
-  * VII. No Silent Failures and Safe Logging
+- Version change: 3.0.0 -> 3.1.0
+- Bump rationale: MINOR, because a new workflow rule is added (coding agents use the caveman
+  response style by default). No principle is removed or redefined.
+- List of modified principles: None
+- Added principles: None
 - Added sections: None
 - Modified sections:
-  * Quality Gates & Verification: gate integrity paragraph; new item 5 (automated tests and CI);
-    item 4 now covers emoji as functional content and real example output
-  * Development & Branching Workflow: new bullets Commit Command, Pull Request on Implementation,
-    Hook Setup, Failures Already on main, CI Logic in Scripts, AI Attribution
+  * Development & Branching Workflow: new bullet Agent Response Style
 - Removed sections: None
-- Compliance work done in the same pull request: every test script is registered as a meson
-  test and CI runs the pre-commit gates and the tests (item 5); all 53 silent exception handlers
-  now log or carry a `# silent-ok:` marker, enforced by `tests/test_silent_failures.py`
-  (Principle VII); `check-emojis.py` covers untracked files; `CONTRIBUTING.md` documents the
-  workflow rules.
-- Follow-up TODOs:
-  * `.claude/skills/speckit-implement/SKILL.md` does not spell out the commit, attribution, and
-    pull request steps; it reads this constitution at runtime and is not modified here.
+- Follow-up TODOs: None
 -->
 
 # Cartridges Constitution
@@ -115,6 +100,7 @@ To ensure stability, simplicity, and quality control during development, the fol
 * **Failures Already on main**: A gate that fails before a change is made MUST NOT be bypassed. Fix it minimally in the same pull request and say so in the pull request description, or fix it in a separate pull request first.
 * **CI Logic in Scripts**: Logic in a CI workflow beyond a single command MUST live in a script under `.github/scripts/` that can run locally. The script MUST fail with a clear error when a required tool is missing and MUST NOT silently fall back to another tool. Before merge it MUST be run in the same container image CI uses, and the pull request description MUST state what only GitHub can verify (for example the first real scheduled run).
 * **AI Attribution**: Commits and pull requests produced with a coding agent MUST carry attribution. A commit message MUST end with a `Co-Authored-By:` trailer naming the agent and, when known, the model (for example `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`), and a pull request description MUST end with a line stating that it was generated with the agent and linking to the tool.
+* **Agent Response Style**: Coding agents working in this repository MUST use the `caveman` skill (`.claude/skills/caveman/`, pinned in `skills-lock.json`) by default, from the start of every session, without the user invoking `/caveman`. The style applies only to chat replies. Code, comments, commit messages, pull requests, specifications, plans, and other persisted text MUST stay in plain prose, as the skill itself requires. The skill's own exceptions (security warnings, irreversible actions, questions to the user) still apply, and the user can turn it off for a session with "stop caveman" or "normal mode".
 * **Short-Lived Branches Only**: All branches other than `main` must be short-lived feature or fix branches. Long-lived parallel branches are strictly prohibited.
 * **Target Branch for Merges**: All merged code, pull requests, and completed feature implementations MUST be merged exclusively into the `main` branch.
 * **Historical Operations**: Historical operations, legacy codebase comparisons, or inspection of pre-fork branches MUST be performed in the external repository `/var/home/samuel/Projects/cartridges-main`, keeping this repository clean.
@@ -131,4 +117,4 @@ This project is an active downstream fork of the archived repository at [https:/
 * **Code Quality Standard**: Legacy code from the original upstream repository's pre-rewrite codebase is considered of poor quality and MUST NOT be used as a design reference. Any functional components adapted from historical sources must be fully refactored to comply with Core Principle I (Strict Typing & QA).
 * **New Maintenance**: This fork is actively maintained by **samuelm333** ([samuelmurillo.xyz](https://samuelmurillo.xyz)), hosted on GitHub under the username [samuelm333](https://github.com/samuelm333).
 
-**Version**: 3.0.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-11
+**Version**: 3.1.0 | **Ratified**: 2026-09-21 | **Last Amended**: 2026-10-11
