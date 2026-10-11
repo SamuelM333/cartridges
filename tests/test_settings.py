@@ -56,6 +56,12 @@ def check_schema_integrity() -> None:
         msg = "Key 'import-on-startup' must default to true"
         raise ValueError(msg)
 
+    # The collections preference is opt-in, so nothing changes until it is chosen
+    default = schema.get_key("hidden-games-in-collections").get_default_value()
+    if default.get_boolean():
+        msg = "Key 'hidden-games-in-collections' must default to false"
+        raise ValueError(msg)
+
     # Verify that keys replaced by other settings are gone
     for key_name in ("auto-import", "remove-missing"):
         if schema.has_key(key_name):
