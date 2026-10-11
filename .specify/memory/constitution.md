@@ -17,12 +17,12 @@ SYNC IMPACT REPORT:
   * Development & Branching Workflow: new bullets Commit Command, Pull Request on Implementation,
     Hook Setup, Failures Already on main, CI Logic in Scripts, AI Attribution
 - Removed sections: None
+- Compliance work done in the same pull request: every test script is registered as a meson
+  test and CI runs the pre-commit gates and the tests (item 5); all 53 silent exception handlers
+  now log or carry a `# silent-ok:` marker, enforced by `tests/test_silent_failures.py`
+  (Principle VII); `check-emojis.py` covers untracked files; `CONTRIBUTING.md` documents the
+  workflow rules.
 - Follow-up TODOs:
-  * Compliance gaps against the new rules: the scripts in `tests/` are not registered as meson
-    tests, and the CI workflow runs neither Pyright nor the pre-commit gates.
-  * `.specify/scripts/bash/check-emojis.py` runs plain `git diff <args>`; it ignores staged
-    changes unless `--cached` is passed and never sees untracked files. Principle VI documents
-    the workaround; improving the script is a code change deferred out of this amendment.
   * `.claude/skills/speckit-implement/SKILL.md` does not spell out the commit, attribution, and
     pull request steps; it reads this constitution at runtime and is not modified here.
 -->
@@ -53,7 +53,7 @@ Game covers, icons, and configuration data must be managed through clean, isolat
 
 ### VI. Restrained Emoji Use
 Emoji characters are allowed as functional content: user-facing data and strings that a functional requirement in a feature's specification calls for, such as icon pickers, notifications, and similar interface content. Emoji SHOULD NOT be used anywhere else, namely in source code comments, docstrings, commit messages, specifications, architectural plans, checklists, and general markdown documentation. Functional emoji that predate this rule (for example the collection icon list) remain allowed, and third-party or tooling files (such as Spec Kit skills and templates) need not be changed.
-The repository script `.specify/scripts/bash/check-emojis.py` is the canonical check. Contributors and coding agents MUST run it before every commit and before marking a feature complete. A finding in non-functional text MUST be removed or justified in the pull request description, and a finding in functional content MUST be traceable to a functional requirement in the feature's specification. The script passes its arguments to `git diff`, so `python3 .specify/scripts/bash/check-emojis.py` checks unstaged changes and `python3 .specify/scripts/bash/check-emojis.py --cached` checks staged changes. A new file is only seen after it is registered with `git add -N <path>`.
+The repository script `.specify/scripts/bash/check-emojis.py` is the canonical check. Contributors and coding agents MUST run it before every commit and before marking a feature complete. A finding in non-functional text MUST be removed or justified in the pull request description, and a finding in functional content MUST be traceable to a functional requirement in the feature's specification. With no arguments it checks unstaged changes and untracked files, and any arguments are passed to `git diff`, so `python3 .specify/scripts/bash/check-emojis.py --cached` checks staged changes. Only added lines are checked.
 *Rationale*: Emoji are a legitimate part of what the application shows its users, so they are allowed there. In comments, documentation, and other developer-facing text they cause encoding discrepancies across terminal environments and visual noise in code reviews, so they are discouraged and every exception is made on purpose.
 
 ### VII. No Silent Failures and Safe Logging
