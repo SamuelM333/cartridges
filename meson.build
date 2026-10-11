@@ -59,6 +59,7 @@ conf = configuration_data(
 subdir('data')
 subdir('cartridges')
 subdir('po')
+subdir('tests')
 
 gnome.post_install(
     glib_compile_schemas: true,

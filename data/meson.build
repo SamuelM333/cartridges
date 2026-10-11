@@ -15,11 +15,24 @@ desktop_file = i18n.merge_file(
 
 test('Validate desktop file', desktop_utils, args: desktop_file)
 
-configure_file(
+schema_file = configure_file(
     input: 'page.samuelm333.Cartridges.gschema.xml.in',
     output: f'@app_id@.gschema.xml',
     configuration: conf,
     install_dir: get_option('datadir') / 'glib-2.0' / 'schemas',
+)
+
+# Tests read the compiled schemas from the build directory.
+custom_target(
+    'gschemas.compiled',
+    input: schema_file,
+    output: 'gschemas.compiled',
+    command: [
+        compile_schemas,
+        '--targetdir=@OUTDIR@',
+        meson.current_build_dir(),
+    ],
+    build_by_default: true,
 )
 
 test(
