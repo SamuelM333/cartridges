@@ -65,7 +65,7 @@ class _PILPaintable(GObject.Object, Gdk.Paintable):
     def update_frame(self):
         try:
             self.im.seek(self.im.tell() + 1)
-        except EOFError:
+        except EOFError:  # silent-ok: end of the animation, so start over
             self.im.seek(0)
 
         self.needs_update = True
@@ -76,7 +76,10 @@ def at_path(path: PathLike[str] | str) -> Gdk.Paintable | None:
     """Load the cover at `path`."""
     try:
         return _PILPaintable(Image.open(path))
-    except (FileNotFoundError, PIL.UnidentifiedImageError):
+    except FileNotFoundError:  # silent-ok: the game has no saved cover
+        return None
+    except PIL.UnidentifiedImageError:
+        _logger.warning("Could not read cover at %s", path, exc_info=True)
         return None
 
 
@@ -88,6 +91,7 @@ def at_url(url: str) -> Gdk.Paintable | None:
     try:
         return _PILPaintable(Image.open(BytesIO(contents)))
     except PIL.UnidentifiedImageError:
+        _logger.warning("Could not read cover from %s", url, exc_info=True)
         return None
 
 

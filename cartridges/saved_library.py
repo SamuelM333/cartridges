@@ -4,7 +4,6 @@
 """Keep the games from the last import on disk, so they can be shown without a scan."""
 
 import asyncio
-import contextlib
 import json
 import logging
 from collections.abc import Iterable
@@ -89,9 +88,11 @@ async def write(games: Iterable[Game]) -> None:
         tmp.replace(_PATH)
     except OSError as e:
         _logger.warning("Could not save library to %s: %s", _PATH, e)
-        # Nothing more to do if this fails too, the failure is already logged
-        with contextlib.suppress(OSError):
+        # The failure above is the one that matters, so this stays at debug
+        try:
             tmp.unlink(missing_ok=True)
+        except OSError:
+            _logger.debug("Could not remove %s", tmp, exc_info=True)
         return
 
     _library = {}
@@ -158,7 +159,11 @@ def _read_file() -> dict[str, list[Game]]:
     try:
         with _PATH.open(encoding="utf-8") as f:
             data: object = json.load(f)
+    except FileNotFoundError:
+        _logger.debug("No library saved yet at %s", _PATH)
+        return {}
     except (OSError, JSONDecodeError, UnicodeDecodeError):
+        _logger.warning("Could not read library from %s", _PATH, exc_info=True)
         return {}
 
     if not isinstance(data, dict) or data.get("version") != _VERSION:  # pyright: ignore[reportUnknownMemberType]
@@ -182,7 +187,8 @@ def _read_game(entry: object) -> Game | None:
 
     try:
         game = Game.from_data(entry)  # pyright: ignore[reportUnknownArgumentType]
-    except TypeError:
+    except TypeError as e:
+        _logger.warning("Ignored invalid game in saved library: %s", e)
         return None
 
     if (name := entry.get("cover")) and isinstance(name, str):  # pyright: ignore[reportUnknownMemberType]

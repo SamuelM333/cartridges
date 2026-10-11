@@ -3,6 +3,7 @@
 
 """Test GSettings schema definitions and application color scheme synchronization."""
 
+import os
 from pathlib import Path
 
 import gi
@@ -13,7 +14,7 @@ from gi.repository import Adw, Gio
 
 def check_schema_integrity() -> None:
     """Validate that the Cartridges schema is well-formed with core keys."""
-    schema_dir = Path("_build/data").resolve()
+    schema_dir = Path(os.environ.get("CARTRIDGES_SCHEMA_DIR", "_build/data")).resolve()
     if not schema_dir.exists():
         msg = f"Schema directory not found at {schema_dir}"
         raise FileNotFoundError(msg)

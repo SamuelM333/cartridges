@@ -48,13 +48,15 @@ def get_games() -> Generator[Game]:
         try:
             app_name = entry["app_name"]
             title = entry["title"]
-        except KeyError:
+        except KeyError as e:
+            _logger.debug("Skipped Legendary entry without %s", e)
             continue
 
         try:
             with (config / "metadata" / f"{app_name}.json").open() as fp:
                 metadata = json.load(fp)["metadata"]
-        except (KeyError, OSError, JSONDecodeError):
+        except (KeyError, OSError, JSONDecodeError) as e:
+            _logger.debug("Could not read Legendary metadata for %s: %s", app_name, e)
             metadata = {}
 
         game = Game(

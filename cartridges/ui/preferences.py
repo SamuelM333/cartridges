@@ -412,7 +412,7 @@ class CartridgesPreferences(Adw.PreferencesDialog):
             if not gpath:
                 return
             path = Path(gpath)
-        except GLib.Error:
+        except GLib.Error:  # silent-ok: the folder dialog was dismissed
             return
 
         if self._check_location(schema_key, path):

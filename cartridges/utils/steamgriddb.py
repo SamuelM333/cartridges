@@ -263,7 +263,8 @@ def prune_expired_previews(max_age_seconds: int = DEFAULT_CACHE_TTL) -> int:
                     if (now - entry.stat().st_mtime) > max_age_seconds:
                         entry.unlink(missing_ok=True)
                         count += 1
-                except OSError:
+                except OSError as e:
+                    _logger.debug("Failed to remove %s: %s", entry, e)
                     continue
     except OSError as e:
         _logger.debug("Failed to prune preview cache: %s", e)
@@ -282,7 +283,8 @@ def clear_preview_cache() -> int:
                 try:
                     entry.unlink(missing_ok=True)
                     count += 1
-                except OSError:
+                except OSError as e:
+                    _logger.debug("Failed to remove %s: %s", entry, e)
                     continue
     except OSError as e:
         _logger.debug("Failed to clear preview cache: %s", e)

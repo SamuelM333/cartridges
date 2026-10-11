@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright 2025 Zoey Ahmed
 # SPDX-FileCopyrightText: Copyright 2025-2026 kramo
 
+import logging
 from collections.abc import Iterable
 from gettext import gettext as _
 from gettext import ngettext
@@ -14,6 +15,8 @@ from .config import APP_ID, PREFIX
 from .games import Game
 from .ui import PRIMARY_KEY
 from .ui.window import Window
+
+_logger = logging.getLogger(__name__)
 
 
 class Application(Adw.Application):
@@ -156,6 +159,10 @@ class Application(Adw.Application):
                     if new_cover:
                         GLib.idle_add(setattr, game, "cover", new_cover)
             except steamgriddb.SgdbAuthError:
+                _logger.warning(
+                    "SteamGridDB rejected the API key, so no covers were fetched"
+                )
                 return
-            except (steamgriddb.SgdbError, OSError, TimeoutError):
+            except (steamgriddb.SgdbError, OSError, TimeoutError) as e:
+                _logger.debug("No SteamGridDB cover for %s: %s", game.name, e)
                 continue

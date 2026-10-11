@@ -80,7 +80,8 @@ def get_games() -> Generator[Game]:
                     continue
 
                 name = keyfile.get_string("Desktop Entry", "Name")
-            except GLib.Error:
+            except GLib.Error as e:
+                _logger.debug("Skipped %s: %s", entry.name, e)
                 continue
 
             if flatpak_id in imported_ids:
@@ -89,7 +90,7 @@ def get_games() -> Generator[Game]:
 
             try:
                 icon_name = keyfile.get_string("Desktop Entry", "Icon")
-            except GLib.Error:
+            except GLib.Error:  # silent-ok: the icon is optional
                 icon_name = _ICON_FALLBACK
 
             icon = icon_theme.lookup_icon(

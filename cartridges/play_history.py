@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2026 samuelm333
 
-import contextlib
 import json
 import logging
 from json import JSONDecodeError
@@ -23,7 +22,11 @@ def load() -> dict[str, int]:
         try:
             with _PATH.open(encoding="utf-8") as f:
                 data: object = json.load(f)
+        except FileNotFoundError:
+            _logger.debug("No play history saved yet at %s", _PATH)
+            data = {}
         except (OSError, JSONDecodeError, UnicodeDecodeError):
+            _logger.warning("Could not read play history from %s", _PATH, exc_info=True)
             data = {}
 
         _history = (
@@ -60,6 +63,8 @@ def record(game_id: str, timestamp: int):
         tmp.replace(_PATH)
     except OSError as e:
         _logger.warning("Could not save play history to %s: %s", _PATH, e)
-        # Nothing more to do if this fails too, the failure is already logged
-        with contextlib.suppress(OSError):
+        # The failure above is the one that matters, so this stays at debug
+        try:
             tmp.unlink(missing_ok=True)
+        except OSError:
+            _logger.debug("Could not remove %s", tmp, exc_info=True)

@@ -82,7 +82,8 @@ class _AppInfo(NamedTuple):
     def from_vdf(cls, fp: BinaryIO, key_table: Sequence[str]) -> Self:
         try:
             common = dict(_load_binary_vdf(fp, key_table))["appinfo"]["common"]
-        except (SyntaxError, TypeError, KeyError):
+        except (SyntaxError, TypeError, KeyError) as e:
+            _logger.debug("Could not read Steam app info: %s", e)
             return cls()
 
         try:
@@ -91,13 +92,14 @@ class _AppInfo(NamedTuple):
                 for association in common["associations"].values()
                 if association.get("type") == "developer"
             )
+        # silent-ok: the developer is optional
         except (TypeError, AttributeError, KeyError):
             developer = None
 
         capsule = None
         for keys in _CAPSULE_KEYS:
             value = common
-            with suppress(AttributeError, KeyError):
+            with suppress(AttributeError, KeyError):  # silent-ok: art is optional
                 for key in keys:
                     value = value.get(key)
 
@@ -117,7 +119,8 @@ def get_games() -> Generator[Game]:
     for manifest in _manifests():
         try:
             name, appid, stateflags, lastplayed = _App.from_manifest(manifest)
-        except ValueError:
+        except ValueError as e:
+            _logger.debug("Skipped Steam manifest %s: %s", manifest, e)
             continue
 
         duplicate = appid in appids

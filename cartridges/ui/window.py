@@ -222,7 +222,7 @@ class Window(Adw.ApplicationWindow):
 
         try:
             toast, undo = self._history.popitem()
-        except KeyError:
+        except KeyError:  # silent-ok: there is no toast to undo
             return
 
         toast.dismiss()

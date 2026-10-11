@@ -53,6 +53,14 @@ uv sync --group dev
 
 The development dependency group includes Ruff, Pyright, Blueprint Compiler, and the other Python tools used by the project.
 
+Install the git hook once in every clone or container, so the same checks run when you commit:
+
+```bash
+uv run pre-commit install
+```
+
+The devcontainer does this for you.
+
 ## Build with Meson
 
 Install the system build dependencies required by the project, then configure and build it:
@@ -68,11 +76,38 @@ To run the test suite:
 ninja -C _build test
 ```
 
+Every script in `tests/` is a meson test. To run one on its own, for example while debugging:
+
+```bash
+python3 tests/test_logs.py
+```
+
+A new test script must be added to `tests/meson.build`, or CI will not run it.
+
 ## Speckit workflow
 
 Feature specifications and implementation plans are managed with [Speckit](https://github.com/github/spec-kit). Feature artifacts are stored under `specs/`, while project-wide development principles live in `.specify/memory/constitution.md`.
 
-For planned work, use the [Speckit workflow](https://github.github.io/spec-kit/quickstart.html#recommended-process) to clarify or create the specification, generate a plan and task list, and implement the tasks in order. Keep the artifacts aligned with the code as requirements or implementation details change. The repository's `.agents/skills/` directory contains the available Speckit workflows.
+For planned work, use the [Speckit workflow](https://github.github.io/spec-kit/quickstart.html#recommended-process) to clarify or create the specification, generate a plan and task list, and implement the tasks in order. Keep the artifacts aligned with the code as requirements or implementation details change. The repository's `.claude/skills/` directory contains the available Speckit workflows.
+
+## Committing and pull requests
+
+Commit with `uv run git commit`, inside the `gtk-dev` container if you use it, so the pre-commit hook runs with the project's tools. Do not skip the hook with `--no-verify`: fix what it reports. If a check already fails on `main`, fix it minimally in your pull request and say so in the description, or fix it in a separate pull request first.
+
+Before committing, check for emoji:
+
+```bash
+python3 .specify/scripts/bash/check-emojis.py            # unstaged changes and new files
+python3 .specify/scripts/bash/check-emojis.py --cached   # staged changes
+```
+
+Emoji are fine as functional content that a specification asks for, such as an icon picker or a notification. Avoid them in comments, documentation, specifications, and commit messages.
+
+Work produced with a coding agent must say so. End the commit message with a `Co-Authored-By:` trailer naming the agent and, when known, the model, and end the pull request description with a line saying it was generated with the agent and linking to the tool.
+
+When you implement a feature with `/speckit-implement`, the work is not finished until its pull request is open. Once the tasks are done and the checks pass, push the feature branch and run `gh pr create` into `main`. Use a conventional commit style title, summarize the change in the body, link `specs/00X-name/`, and list any verification you did not perform.
+
+CI runs the same pre-commit checks and the meson tests on every pull request.
 
 # Code style
 

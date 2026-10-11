@@ -6,7 +6,6 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Iterable
-from contextlib import suppress
 from gettext import gettext as _
 from hashlib import sha256
 from json import JSONDecodeError
@@ -16,7 +15,15 @@ from typing import Any, override
 from cartridges import SETTINGS, cover
 from cartridges.games import Game
 
-from . import APPDATA, APPLICATION_SUPPORT, CONFIG, FLATPAK, OPEN, location
+from . import (
+    APPDATA,
+    APPLICATION_SUPPORT,
+    CONFIG,
+    FLATPAK,
+    OPEN,
+    location,
+    skipping,
+)
 
 ID, NAME = "heroic", _("Heroic")
 
@@ -66,14 +73,15 @@ class _StoreSource(_Source):
         try:
             with (_config_dir() / cls._INSTALLED_PATH).open() as fp:
                 data = json.load(fp)
-        except (OSError, JSONDecodeError):
+        except (OSError, JSONDecodeError) as e:
+            _logger.debug("Could not read installed Heroic games: %s", e)
             return set()
 
         return set(cls._installed(data))
 
     @staticmethod
     def _installed(data: Any) -> Generator[str]:  # noqa: ANN401
-        with suppress(AttributeError):
+        with skipping("installed games", AttributeError):
             yield from data.keys()
 
 
@@ -91,9 +99,9 @@ class _GOGSource(_StoreSource):
     @override
     @staticmethod
     def _installed(data: Any) -> Generator[str]:
-        with suppress(TypeError, KeyError):
+        with skipping("installed games", TypeError, KeyError):
             for entry in data["installed"]:
-                with suppress(TypeError, KeyError):
+                with skipping("installed game", TypeError, KeyError):
                     yield entry["appName"]
 
 
@@ -105,9 +113,9 @@ class _NileSource(_StoreSource):
     @override
     @staticmethod
     def _installed(data: Any) -> Generator[str]:
-        with suppress(TypeError):
+        with skipping("installed games", TypeError):
             for entry in data:
-                with suppress(TypeError, KeyError):
+                with skipping("installed game", TypeError, KeyError):
                     yield entry["id"]
 
 
@@ -131,12 +139,13 @@ def _hidden_app_names() -> Generator[str]:
     try:
         with (_config_dir() / "store" / "config.json").open() as fp:
             config = json.load(fp)
-    except (OSError, JSONDecodeError):
+    except (OSError, JSONDecodeError) as e:
+        _logger.debug("Could not read hidden Heroic games: %s", e)
         return
 
-    with suppress(TypeError, KeyError):
+    with skipping("hidden games", TypeError, KeyError):
         for game in config["games"]["hidden"]:
-            with suppress(TypeError, KeyError):
+            with skipping("hidden game", TypeError, KeyError):
                 yield game["appName"]
 
 
@@ -159,7 +168,7 @@ def _games_from(source: type[_Source]) -> Generator[Game]:
     hidden = set(_hidden_app_names())
 
     for entry in library:
-        with suppress(TypeError, KeyError):
+        with skipping("library entry", TypeError, KeyError):
             app_name = entry["app_name"]
 
             if (installed is not None) and (app_name not in installed):
