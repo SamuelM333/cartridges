@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright 2026 kramo
 
 import asyncio
+import logging
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -14,6 +15,8 @@ from cartridges import cover
 from cartridges.config import PREFIX
 from cartridges.games import Game
 from cartridges.utils import steamgriddb
+
+_logger = logging.getLogger(__name__)
 
 
 @Gtk.Template(resource_path=f"{PREFIX}/cover_picker.ui")
@@ -111,8 +114,10 @@ class CoverPicker(Adw.Dialog):
                     if generation != self._search_generation:
                         return
                     candidates.append((anim_url, anim_url, True))
-                except steamgriddb.SgdbError:
-                    pass
+                except steamgriddb.SgdbError as e:
+                    _logger.debug(
+                        "No animated cover for SteamGridDB ID %s: %s", sgdb_id, e
+                    )
                 try:
                     static_url = await asyncio.to_thread(
                         steamgriddb.get_image_url, sgdb_id, False
@@ -120,8 +125,10 @@ class CoverPicker(Adw.Dialog):
                     if generation != self._search_generation:
                         return
                     candidates.append((static_url, static_url, False))
-                except steamgriddb.SgdbError:
-                    pass
+                except steamgriddb.SgdbError as e:
+                    _logger.debug(
+                        "No static cover for SteamGridDB ID %s: %s", sgdb_id, e
+                    )
 
             if generation != self._search_generation:
                 return
@@ -172,9 +179,15 @@ class CoverPicker(Adw.Dialog):
                             self._add_preview, generation, full_url, preview_data
                         )
                 GLib.idle_add(self._hide_bottom_spinner, generation)
-        except asyncio.CancelledError:
+        except asyncio.CancelledError:  # silent-ok: a newer search replaced this one
             return
-        except (steamgriddb.SgdbError, urllib.error.URLError, TimeoutError, OSError):
+        except (
+            steamgriddb.SgdbError,
+            urllib.error.URLError,
+            TimeoutError,
+            OSError,
+        ) as e:
+            _logger.debug("Cover search ended with an error: %s", e)
             if generation == self._search_generation:
                 GLib.idle_add(self._show_empty, generation)
 
@@ -193,7 +206,8 @@ class CoverPicker(Adw.Dialog):
             req = urllib.request.Request(url, headers={"User-Agent": "Cartridges/2.0"})
             with urllib.request.urlopen(req, timeout=5) as res:
                 return bytes(res.read())
-        except (urllib.error.URLError, TimeoutError, OSError):
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            _logger.debug("Could not download preview %s: %s", url, e)
             return None
 
     def _show_empty(self, generation: int) -> None:
@@ -234,8 +248,8 @@ class CoverPicker(Adw.Dialog):
             btn.set_child(picture)
             btn.connect("clicked", self._on_preview_clicked, url)
             self.flowbox.append(btn)
-        except (GLib.Error, TypeError):
-            pass
+        except (GLib.Error, TypeError) as e:
+            _logger.debug("Could not add preview %s: %s", url, e)
 
     def _on_preview_clicked(self, _btn: Gtk.Button, url: str) -> None:
         if self.on_cover_selected is not None:

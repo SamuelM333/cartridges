@@ -79,7 +79,10 @@ def get_games() -> Generator[Game]:
         examined += 1
         try:
             game = _game_from(path)
-        except (GLib.Error, ValueError):
+        except ValueError:  # silent-ok: not a game, or hidden
+            continue
+        except GLib.Error as e:
+            _logger.debug("Skipped %s: %s", path.name, e)
             continue
 
         yield game
@@ -96,7 +99,7 @@ def _game_from(path: Path) -> Game:
         raise ValueError
 
     for key in _HIDDEN_KEYS:
-        with suppress(GLib.Error):
+        with suppress(GLib.Error):  # silent-ok: the key is optional
             if file.get_boolean("Desktop Entry", key):
                 raise ValueError
 
@@ -107,20 +110,20 @@ def _game_from(path: Path) -> Game:
     try:
         file.get_string("Desktop Entry", "X-Flatpak")
         raise ValueError
-    except GLib.Error:
+    except GLib.Error:  # silent-ok: no X-Flatpak key means a normal entry
         pass
 
-    with suppress(GLib.Error):
+    with suppress(GLib.Error):  # silent-ok: TryExec is optional
         if not _try_exec(file.get_string("Desktop Entry", "TryExec")):
             raise ValueError
 
     icon_value = None
-    with suppress(GLib.Error):
+    with suppress(GLib.Error):  # silent-ok: Icon is optional
         icon_value = file.get_string("Desktop Entry", "Icon")
 
     try:
         real_path = Path("/", path.relative_to("/run/host"))
-    except ValueError:
+    except ValueError:  # silent-ok: the path is not under /run/host
         real_path = path
 
     return Game(
@@ -183,6 +186,7 @@ def _file_icon(value: str) -> Gtk.IconPaintable | None:
 
         try:
             Gdk.Texture.new_from_filename(str(candidate))
+        # silent-ok: an unreadable icon file falls through to the next candidate
         except GLib.Error:
             continue
 
@@ -205,6 +209,7 @@ def _default_icon() -> Gtk.IconPaintable | None:
     try:
         Gio.resources_get_info(path, Gio.ResourceLookupFlags.NONE)
     except GLib.Error:
+        _logger.warning("Fallback icon %s is missing from the resources", path)
         return None
 
     file = Gio.File.new_for_uri(f"resource://{path}")
@@ -219,6 +224,7 @@ def _try_exec(executable: str) -> bool:
             capture_output=True,
         )
     except subprocess.CalledProcessError:
+        _logger.debug("%s is not installed", executable)
         return False
     else:
         return True

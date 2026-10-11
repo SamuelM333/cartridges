@@ -10,6 +10,7 @@ import shutil
 import sys
 import tempfile
 import types
+from collections.abc import Callable
 from pathlib import Path
 
 # Importing the real `cartridges` package needs the meson-generated `config.py`
@@ -20,6 +21,9 @@ _package = types.ModuleType("cartridges")
 _package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
 _package.DATA_DIR = _DATA_DIR  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
+
+# Keep expected warnings out of the test output.
+logging.getLogger("cartridges").addHandler(logging.NullHandler())
 
 play_history = importlib.import_module("cartridges.play_history")
 _PATH = _DATA_DIR / "last-played.json"
@@ -43,6 +47,12 @@ def _reset(contents: str | None = None) -> None:
     _remove(_TMP)
     if contents is not None:
         _PATH.write_text(contents, encoding="utf-8")
+
+
+def _expect(actual: object, expected: object, what: str) -> None:
+    if actual != expected:
+        msg = f"Expected {what} to be {expected!r}, got {actual!r}"
+        raise AssertionError(msg)
 
 
 def check_missing_file() -> None:
@@ -171,11 +181,18 @@ def check_failed_save_logs_one_warning() -> None:
     _record_failing_replace(collector)
     _remove(_PATH)
 
-    if len(collector.records) != 1:
-        msg = f"Expected one log record, got {len(collector.records)}"
+    # Reading the blocked history file and removing the leftover temporary file
+    # are logged too, so only count the warnings about saving.
+    warnings = [
+        r
+        for r in collector.records
+        if r.levelno >= logging.WARNING and "save" in r.getMessage()
+    ]
+    if len(warnings) != 1:
+        msg = f"Expected one warning about saving, got {len(warnings)}"
         raise AssertionError(msg)
 
-    entry = collector.records[0]
+    entry = warnings[0]
     if entry.levelno != logging.WARNING or "last-played.json" not in entry.getMessage():
         msg = f"Unexpected log record: {entry.levelname} {entry.getMessage()}"
         raise AssertionError(msg)
@@ -207,6 +224,43 @@ def check_later_save_includes_failed_time() -> None:
         raise AssertionError(msg)
 
 
+class _Records(logging.Handler):
+    """Collect the log records emitted while it is attached to the root logger."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _logged(call: Callable[[], object]) -> list[logging.LogRecord]:
+    """Run `call` and return the records it logged."""
+    root = logging.getLogger()
+    handler, level = _Records(), root.level
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+    try:
+        call()
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(level)
+    return handler.records
+
+
+def check_load_logging() -> None:
+    """Validate that an invalid file is a warning and a missing one is not."""
+    _reset("not json")
+    warnings = [r for r in _logged(play_history.load) if r.levelno == logging.WARNING]
+    _expect(len(warnings), 1, "warnings for an invalid file")
+    _expect(str(_PATH) in warnings[0].getMessage(), True, "path in the warning")
+
+    _reset()
+    loud = [r for r in _logged(play_history.load) if r.levelno > logging.DEBUG]
+    _expect(loud, [], "records above debug for a missing file")
+
+
 if __name__ == "__main__":
     check_missing_file()
     check_record_round_trip()
@@ -217,3 +271,4 @@ if __name__ == "__main__":
     check_previous_history_kept_on_failure()
     check_failed_save_logs_one_warning()
     check_later_save_includes_failed_time()
+    check_load_logging()

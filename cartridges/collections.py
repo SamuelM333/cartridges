@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: Copyright 2025 Jamie Gravendeel
 
+import logging
 from collections.abc import Generator, Iterable, Iterator
 from typing import Any, NamedTuple
 
@@ -8,6 +9,8 @@ from gi.repository import Gio, GLib, GObject
 
 from . import SETTINGS
 from .sources import imported
+
+_logger = logging.getLogger(__name__)
 
 
 class _Icon(NamedTuple):
@@ -128,7 +131,8 @@ def _get_collections() -> Generator[Collection]:
                     if not ident.startswith(imported.ID) or ident in imported_ids
                 ),
             )
-        except (KeyError, TypeError):
+        except (KeyError, TypeError) as e:
+            _logger.warning("Ignored invalid collection: %s", e)
             continue
 
 

@@ -4,9 +4,11 @@
 """Test loading and recording of the games the user hid or unhid."""
 
 import importlib
+import logging
 import sys
 import tempfile
 import types
+from collections.abc import Callable
 from pathlib import Path
 
 # Importing the real `cartridges` package needs the meson-generated `config.py`
@@ -17,6 +19,9 @@ _package = types.ModuleType("cartridges")
 _package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
 _package.DATA_DIR = _DATA_DIR  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
+
+# Keep expected warnings out of the test output.
+logging.getLogger("cartridges").addHandler(logging.NullHandler())
 
 hidden_games = importlib.import_module("cartridges.hidden_games")
 _PATH = _DATA_DIR / "hidden.json"
@@ -89,9 +94,47 @@ def check_record_survives_save_failure() -> None:
     _reset()
 
 
+class _Records(logging.Handler):
+    """Collect the log records emitted while it is attached to the root logger."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _logged(call: Callable[[], object]) -> list[logging.LogRecord]:
+    """Run `call` and return the records it logged."""
+    root = logging.getLogger()
+    handler, level = _Records(), root.level
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+    try:
+        call()
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(level)
+    return handler.records
+
+
+def check_load_logging() -> None:
+    """Validate that an invalid file is a warning and a missing one is not."""
+    _reset("not json")
+    warnings = [r for r in _logged(hidden_games.load) if r.levelno == logging.WARNING]
+    _expect(len(warnings), 1, "warnings for an invalid file")
+    _expect(str(_PATH) in warnings[0].getMessage(), True, "path in the warning")
+
+    _reset()
+    loud = [r for r in _logged(hidden_games.load) if r.levelno > logging.DEBUG]
+    _expect(loud, [], "records above debug for a missing file")
+
+
 if __name__ == "__main__":
     check_missing_file()
     check_record_round_trip()
     check_invalid_files()
     check_invalid_entries()
     check_record_survives_save_failure()
+    check_load_logging()

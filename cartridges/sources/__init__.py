@@ -11,6 +11,7 @@ import sqlite3
 import sys
 import time
 from collections.abc import Generator, Iterable
+from contextlib import contextmanager
 from functools import cache
 from pathlib import Path
 from typing import Final, Protocol, cast
@@ -55,6 +56,15 @@ OPEN = (
     if sys.platform.startswith("win32")
     else "xdg-open"
 )
+
+
+@contextmanager
+def skipping(what: str, *errors: type[Exception]) -> Generator[None]:
+    """Skip the rest of a block that raises one of `errors`, and log why."""
+    try:
+        yield
+    except errors as e:
+        _logger.debug("Skipped %s: %s", what, e)
 
 
 def location(key: str, candidates: Iterable[Path]) -> Path:
@@ -146,6 +156,7 @@ class Source(GObject.Object, Gio.ListModel[Game]):
         """Get the item at `position`."""
         try:
             return self._games[position]
+        # silent-ok: a list model returns None for a position out of range
         except IndexError:
             return None
 

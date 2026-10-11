@@ -6,11 +6,13 @@
 import asyncio
 import importlib
 import json
+import logging
 import os
 import shutil
 import sys
 import tempfile
 import types
+from collections.abc import Callable
 from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -41,6 +43,9 @@ _package.__path__ = [str(Path(__file__).resolve().parents[1] / "cartridges")]
 _package.DATA_DIR = _DATA_DIR  # pyright: ignore[reportAttributeAccessIssue]
 _package.SETTINGS = _Settings()  # pyright: ignore[reportAttributeAccessIssue]
 sys.modules["cartridges"] = _package
+
+# Keep expected warnings out of the test output.
+logging.getLogger("cartridges").addHandler(logging.NullHandler())
 
 games = importlib.import_module("cartridges.games")
 cover = importlib.import_module("cartridges.cover")
@@ -273,6 +278,43 @@ def check_write_survives_failure() -> None:
     blocker.unlink()
 
 
+class _Records(logging.Handler):
+    """Collect the log records emitted while it is attached to the root logger."""
+
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _logged(call: Callable[[], object]) -> list[logging.LogRecord]:
+    """Run `call` and return the records it logged."""
+    root = logging.getLogger()
+    handler, level = _Records(), root.level
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+    try:
+        call()
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(level)
+    return handler.records
+
+
+def check_load_logging() -> None:
+    """Validate that an invalid file is a warning and a missing one is not."""
+    _reset("not json")
+    warnings = [r for r in _logged(saved_library.read) if r.levelno == logging.WARNING]
+    _expect(len(warnings), 1, "warnings for an invalid file")
+    _expect(str(_LIBRARY) in warnings[0].getMessage(), True, "path in the warning")
+
+    _reset()
+    loud = [r for r in _logged(saved_library.read) if r.levelno > logging.DEBUG]
+    _expect(loud, [], "records above debug for a missing file")
+
+
 if __name__ == "__main__":
     check_missing_file()
     check_round_trip()
@@ -285,3 +327,4 @@ if __name__ == "__main__":
     check_cover_not_rewritten()
     check_orphan_covers_are_pruned()
     check_write_survives_failure()
+    check_load_logging()

@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright 2025 Jamie Gravendeel
 
 
+import logging
 import shutil
 import sys
 import uuid
@@ -24,6 +25,8 @@ from . import closures
 from .collections import CollectionActions, CollectionsBox
 from .cover import Cover  # noqa: F401
 from .games import GameActions, GameEditable
+
+_logger = logging.getLogger(__name__)
 
 
 @Gtk.Template(resource_path=f"{PREFIX}/game-details.ui")
@@ -203,7 +206,7 @@ class GameDetails(Adw.NavigationPage):
         def on_open(source: Gtk.FileDialog, res: Gio.AsyncResult) -> None:
             try:
                 gfile = source.open_finish(res)
-            except GLib.Error:
+            except GLib.Error:  # silent-ok: the file dialog was dismissed
                 return
 
             if not gfile:
@@ -337,7 +340,8 @@ class GameDetails(Adw.NavigationPage):
                 req = Request(url, headers={"User-Agent": "Cartridges/2.0"})
                 with urlopen(req, timeout=15) as res:
                     content = res.read()
-            except (HTTPError, URLError, TimeoutError):
+            except (HTTPError, URLError, TimeoutError) as e:
+                _logger.warning("Could not download cover from %s: %s", url, e)
                 GLib.idle_add(stop_loading)
                 return
 
